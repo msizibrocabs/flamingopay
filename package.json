@@ -1,0 +1,16 @@
+{
+  "name": "flamingopay",
+  "version": "1.0.0",
+  "description": "A payment processing service",
+  "main": "src/app.js",
+  "scripts": {
+    "start": "node src/app.js",
+    "dev": "node --watch src/app.js",
+    "test": "node --test tests/**/*.test.js"
+  },
+  "keywords": [],
+  "license": "MIT",
+  "dependencies": {
+    "express": "^5.2.1"
+  }
+}
