@@ -1,26 +1,112 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+@theme {
+  --color-flamingo-pink: #FF5277;
+  --color-flamingo-pink-dark: #D93A5C;
+  --color-flamingo-pink-deep: #B42A48;
+  --color-flamingo-pink-soft: #FFD6E0;
+  --color-flamingo-pink-wash: #FFF0F3;
+  --color-flamingo-cream: #FFF7F3;
+  --color-flamingo-butter: #FFE9B8;
+  --color-flamingo-mint: #C6F3D8;
+  --color-flamingo-sky: #BFE4FF;
+  --color-flamingo-dark: #1A1A2E;
+  --color-flamingo-dark-2: #12121F;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+/* ==========================================================
+   Explicit utility classes — guarantees every Flamingo
+   color works regardless of Tailwind JIT scanning quirks.
+   ========================================================== */
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* Backgrounds */
+.bg-flamingo-pink        { background-color: #FF5277; }
+.bg-flamingo-pink-dark   { background-color: #D93A5C; }
+.bg-flamingo-pink-deep   { background-color: #B42A48; }
+.bg-flamingo-pink-soft   { background-color: #FFD6E0; }
+.bg-flamingo-pink-wash   { background-color: #FFF0F3; }
+.bg-flamingo-cream       { background-color: #FFF7F3; }
+.bg-flamingo-butter      { background-color: #FFE9B8; }
+.bg-flamingo-mint        { background-color: #C6F3D8; }
+.bg-flamingo-sky         { background-color: #BFE4FF; }
+.bg-flamingo-dark        { background-color: #1A1A2E; }
+.bg-flamingo-dark-2      { background-color: #12121F; }
+
+/* Translucent variants used in the dark section */
+.bg-flamingo-pink\/25    { background-color: rgba(255, 82, 119, 0.25); }
+.bg-flamingo-pink\/15    { background-color: rgba(255, 82, 119, 0.15); }
+.bg-flamingo-cream\/95   { background-color: rgba(255, 247, 243, 0.95); }
+
+/* Text */
+.text-flamingo-pink        { color: #FF5277; }
+.text-flamingo-pink-dark   { color: #D93A5C; }
+.text-flamingo-pink-deep   { color: #B42A48; }
+.text-flamingo-pink-soft   { color: #FFD6E0; }
+.text-flamingo-cream       { color: #FFF7F3; }
+.text-flamingo-butter      { color: #FFE9B8; }
+.text-flamingo-mint        { color: #C6F3D8; }
+.text-flamingo-sky         { color: #BFE4FF; }
+.text-flamingo-dark        { color: #1A1A2E; }
+.text-flamingo-dark\/80    { color: rgba(26, 26, 46, 0.8); }
+.text-flamingo-dark\/70    { color: rgba(26, 26, 46, 0.7); }
+
+/* Borders */
+.border-flamingo-pink      { border-color: #FF5277; }
+.border-flamingo-dark      { border-color: #1A1A2E; }
+
+.hover\:text-flamingo-pink:hover       { color: #FF5277; }
+.hover\:border-flamingo-pink:hover     { border-color: #FF5277; }
+.hover\:bg-flamingo-cream:hover        { background-color: #FFF7F3; }
+
+/* ==========================================================
+   Brand typography + decorative styles
+   ========================================================== */
+
+html {
+  scroll-behavior: smooth;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-dm-sans), system-ui, sans-serif;
+  color: #1A1A2E;
+  background: #FFF7F3;
 }
+
+.display {
+  font-family: var(--font-fraunces), ui-serif, Georgia, serif;
+  letter-spacing: -0.02em;
+}
+
+.underline-squiggle {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 10'><path d='M2 6 Q 15 -2 30 6 T 60 6 T 90 6 T 120 6' fill='none' stroke='%23FF5277' stroke-width='3' stroke-linecap='round'/></svg>");
+  background-repeat: no-repeat;
+  background-position: 0 100%;
+  background-size: 100% 0.35em;
+  padding-bottom: 0.15em;
+}
+
+.tilt-l { transform: rotate(-2deg); }
+.tilt-r { transform: rotate(2deg); }
+
+.btn-pink {
+  background: #FF5277;
+  color: #fff;
+  box-shadow: 0 6px 0 0 #B42A48;
+  transition: transform .12s ease, box-shadow .12s ease;
+}
+.btn-pink:hover  { transform: translateY(2px); box-shadow: 0 4px 0 0 #B42A48; }
+.btn-pink:active { transform: translateY(6px); box-shadow: 0 0 0 0 #B42A48; }
+
+.btn-dark {
+  background: #1A1A2E;
+  color: #fff;
+  box-shadow: 0 6px 0 0 #000;
+  transition: transform .12s ease, box-shadow .12s ease;
+}
+.btn-dark:hover { transform: translateY(2px); box-shadow: 0 4px 0 0 #000; }
+
+.chip            { border: 2px solid #1A1A2E; background: #fff; }
+.card-stamp      { border: 2px solid #1A1A2E; box-shadow: 6px 6px 0 #1A1A2E; }
+.card-stamp-pink { border: 2px solid #1A1A2E; box-shadow: 6px 6px 0 #FF5277; }
+
+.rounded-blob    { border-radius: 42% 58% 63% 37% / 51% 41% 59% 49%; }
