@@ -2,6 +2,8 @@
 
 A payment processing service with an Express.js backend API and a Next.js frontend, connected via an API proxy.
 
+**Live:** [https://flamingo-pay-website.vercel.app](https://flamingo-pay-website.vercel.app)
+
 ## Project Structure
 
 ```
@@ -129,10 +131,42 @@ This means you can call `/api/health` from the frontend and it will be forwarded
 npm test
 ```
 
+## Deployment
+
+The frontend is deployed to [Vercel](https://vercel.com).
+
+### Prerequisites
+
+- [Vercel CLI](https://vercel.com/docs/cli) (`npm install -g vercel`)
+- A Vercel account (run `vercel login` to authenticate)
+
+### Deploy to production
+
+```bash
+cd flamingo-pay-website
+vercel --prod
+```
+
+This builds and deploys the Next.js frontend. The production URL is:
+
+> https://flamingo-pay-website.vercel.app
+
+### Preview deployments
+
+```bash
+cd flamingo-pay-website
+vercel
+```
+
+Running `vercel` without `--prod` creates a preview deployment with a unique URL, useful for testing changes before promoting to production.
+
+> **Note:** The Vercel deployment only covers the Next.js frontend. The Express backend needs to be hosted separately for full API functionality in production.
+
 ## Tech Stack
 
 - **Backend:** Node.js, Express
 - **Frontend:** Next.js, React, TypeScript, Tailwind CSS
+- **Hosting:** Vercel (frontend)
 - **Tooling:** ESLint, Turbopack
 
 ## License
