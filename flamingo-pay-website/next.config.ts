@@ -1,3 +1,4 @@
+// Vercel auto-deploy verified
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
