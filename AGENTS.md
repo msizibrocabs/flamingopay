@@ -50,6 +50,25 @@ Start the backend first (`npm run dev` from root), then the frontend (`npm run d
 
 Copy `.env.example` to `.env` at the repo root. Key variables: `PORT`, `NODE_ENV`, `DATABASE_URL`.
 
+## Git workflow
+
+This project uses a **feature-branch workflow**. Never commit directly to `main`.
+
+1. **Branch** — Create a descriptive branch from `main` before starting work:
+   ```
+   git checkout -b feat/short-description
+   ```
+   Use prefixes: `feat/`, `fix/`, `chore/`, `docs/`, `refactor/`.
+2. **Commit** — Make small, focused commits on the feature branch.
+3. **Push** — Push the branch to `origin`.
+4. **Pull request** — Open a PR via `gh pr create` targeting `main`. Include a clear title and description.
+5. **Merge** — After review/approval, merge via the PR (squash or merge commit). Do not push directly to `main`.
+
+### Branch protection
+
+- `main` is the production branch. Vercel auto-deploys every push to `main`.
+- All changes reach `main` through pull requests only.
+
 ## Conventions
 
 - Backend is CommonJS (`require`/`module.exports`), not ESM.
