@@ -18,6 +18,7 @@ flamingopay/
 │   └── app.js                    # Express app entry point
 ├── flamingo-pay-website/         # Next.js frontend
 │   ├── app/                      # App Router pages & layouts
+│   │   ├── pay/[merchantId]/     # Universal payment page (dynamic)
 │   │   ├── test/page.tsx         # API proxy test page
 │   │   ├── layout.tsx            # Root layout
 │   │   └── page.tsx              # Home page
@@ -133,34 +134,99 @@ npm test
 
 ## Deployment
 
-The frontend is deployed to [Vercel](https://vercel.com).
+Both apps are deployed to [Vercel](https://vercel.com) and linked to the GitHub repo. Pushing to `main` triggers automatic production deployments for both projects.
 
-### Prerequisites
+### Vercel projects
 
-- [Vercel CLI](https://vercel.com/docs/cli) (`npm install -g vercel`)
-- A Vercel account (run `vercel login` to authenticate)
+- **flamingopay** — Express backend (production: `www.flamingopay.co.za`)
+- **flamingo-pay-website** — Next.js frontend (Root Directory: `flamingo-pay-website/`)
 
-### Deploy to production
+### Automatic deployments (recommended)
 
-```bash
-cd flamingo-pay-website
-vercel --prod
-```
-
-This builds and deploys the Next.js frontend. The production URL is:
-
-> https://flamingo-pay-website.vercel.app
-
-### Preview deployments
+Push to `main` and Vercel builds both projects automatically:
 
 ```bash
-cd flamingo-pay-website
-vercel
+git push origin main
 ```
 
-Running `vercel` without `--prod` creates a preview deployment with a unique URL, useful for testing changes before promoting to production.
+Monitor deployment status:
 
-> **Note:** The Vercel deployment only covers the Next.js frontend. The Express backend needs to be hosted separately for full API functionality in production.
+```bash
+npx vercel list --prod
+```
+
+Or check via GitHub:
+
+```bash
+gh api repos/msizibrocabs/flamingopay/deployments --jq '.[0:4] | .[] | "\(.environment) | \(.created_at)"'
+```
+
+### Manual deployments
+
+From the repo root (deploys the backend):
+
+```bash
+npx vercel --prod
+```
+
+For the frontend, use the Vercel API since the CLI has a root-directory path conflict when run from the subdirectory:
+
+```bash
+# Force a fresh frontend deployment (bypasses build cache)
+npx vercel list --prod  # to verify status afterward
+```
+
+### Deployment protection
+
+The frontend project has SSO protection enabled on all `.vercel.app` URLs (`all_except_custom_domains`). To make the site publicly accessible, add a custom domain in Vercel project settings.
+
+### Troubleshooting
+
+- **"No Next.js version detected"** — This usually means a stale build cache. Trigger a cache-free redeployment via the Vercel API with `forceNew=1`.
+- **Multiple lockfile warning** — Expected in this monorepo setup (root + frontend each have their own `package-lock.json`). Does not affect builds.
+
+## Smoke Testing
+
+After deploying, verify the production build locally:
+
+```bash
+# Build and serve the frontend
+cd flamingo-pay-website
+npm run build
+npx next start --port 3002
+```
+
+Then test key routes:
+
+```bash
+# Landing page
+curl -s -o /dev/null -w "HTTP %{http_code}\n" http://localhost:3002/
+
+# Payment page — valid merchant
+curl -s -o /dev/null -w "HTTP %{http_code}\n" http://localhost:3002/pay/demo
+curl -s -o /dev/null -w "HTTP %{http_code}\n" http://localhost:3002/pay/thandis-spaza
+
+# Payment page — invalid merchant (should render "not found" UI)
+curl -s -o /dev/null -w "HTTP %{http_code}\n" http://localhost:3002/pay/nonexistent
+
+# 404 route
+curl -s -o /dev/null -w "HTTP %{http_code}\n" http://localhost:3002/does-not-exist
+```
+
+Expected results:
+
+- `/` → 200 (landing page)
+- `/pay/demo` → 200 ("Flamingo Demo Shop" payment flow)
+- `/pay/thandis-spaza` → 200 ("Thandi's Spaza" payment flow)
+- `/pay/nonexistent` → 200 (in-page "Merchant not found" message)
+- `/does-not-exist` → 404
+
+### Available test merchants
+
+- `demo` — Flamingo Demo Shop
+- `thandis-spaza` — Thandi's Spaza (Grocery)
+- `bra-mike-braai` — Bra Mike's Braai Stand (Food)
+- `mama-joy-fruit` — Mama Joy's Fruit & Veg (Fresh Produce)
 
 ## Tech Stack
 
