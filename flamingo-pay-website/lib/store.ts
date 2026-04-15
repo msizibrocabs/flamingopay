@@ -17,6 +17,42 @@ import "server-only";
 
 export type MerchantStatus = "pending" | "approved" | "rejected" | "suspended";
 
+/** KYC / compliance fee rate applied to every completed transaction. */
+export const FLAMINGO_FEE_RATE = 0.015; // 1.5%
+
+export type DocumentKind =
+  | "id"
+  | "selfie"
+  | "affidavit"
+  | "company_reg"
+  | "proof_of_address"
+  | "bank_letter";
+
+export type DocumentStatus = "required" | "submitted" | "verified" | "rejected";
+
+export type MerchantDocument = {
+  kind: DocumentKind;
+  label: string;
+  status: DocumentStatus;
+  submittedAt?: string;
+  verifiedAt?: string;
+  rejectedAt?: string;
+  note?: string;
+  /** Mock filename — in real life this would be an S3 key */
+  fileName?: string;
+};
+
+export type StoredTxn = {
+  id: string;
+  amount: number;
+  rail: "payshap" | "eft";
+  buyerBank: string;
+  timestamp: string;
+  status: "completed" | "pending" | "refunded";
+  reference: string;
+  refundedAt?: string;
+};
+
 export type MerchantApplication = {
   id: string;
   phone: string;
@@ -35,11 +71,68 @@ export type MerchantApplication = {
   /** Lifetime counters — incremented by webhook in future. */
   txnCount: number;
   grossVolume: number;
+  documents: MerchantDocument[];
 };
 
 declare global {
   // eslint-disable-next-line no-var
   var __flamingoMerchants: Map<string, MerchantApplication> | undefined;
+  // eslint-disable-next-line no-var
+  var __flamingoTxns: Map<string, StoredTxn[]> | undefined;
+}
+
+const DOC_LABELS: Record<DocumentKind, string> = {
+  id: "SA ID document",
+  selfie: "Selfie verification",
+  affidavit: "Sworn affidavit",
+  company_reg: "CIPC company registration",
+  proof_of_address: "Proof of address (utility bill)",
+  bank_letter: "Bank confirmation letter",
+};
+
+/** Required doc set depends on business type — sole traders need an affidavit, companies need CIPC. */
+function defaultDocsFor(businessType: string, status: MerchantStatus, iso: (d: number) => string): MerchantDocument[] {
+  const isCompany = /pty|ltd|cc|company|bakery|studio|boutique|transport/i.test(businessType);
+  const base: DocumentKind[] = ["id", "selfie", "proof_of_address", "bank_letter"];
+  const kinds: DocumentKind[] = isCompany
+    ? [...base, "company_reg"]
+    : [...base, "affidavit"];
+
+  return kinds.map((k, i): MerchantDocument => {
+    // Approved merchants have verified docs; pending merchants have a mix.
+    if (status === "approved") {
+      return {
+        kind: k,
+        label: DOC_LABELS[k],
+        status: "verified",
+        submittedAt: iso(60),
+        verifiedAt: iso(58),
+        fileName: `${k}-${slugify(k)}.pdf`,
+      };
+    }
+    if (status === "rejected") {
+      return {
+        kind: k,
+        label: DOC_LABELS[k],
+        status: i === 0 ? "rejected" : "submitted",
+        submittedAt: iso(3),
+        rejectedAt: i === 0 ? iso(2) : undefined,
+        note: i === 0 ? "ID photo too blurry to read" : undefined,
+        fileName: `${k}.jpg`,
+      };
+    }
+    // pending / suspended: some submitted, some still required
+    if (i < 2) {
+      return {
+        kind: k,
+        label: DOC_LABELS[k],
+        status: "submitted",
+        submittedAt: iso(0),
+        fileName: `${k}.jpg`,
+      };
+    }
+    return { kind: k, label: DOC_LABELS[k], status: "required" };
+  });
 }
 
 function seed(store: Map<string, MerchantApplication>) {
@@ -47,7 +140,7 @@ function seed(store: Map<string, MerchantApplication>) {
   const iso = (daysAgo: number) =>
     new Date(now - daysAgo * 86400000).toISOString();
 
-  const seeds: MerchantApplication[] = [
+  const seedInputs: Array<Omit<MerchantApplication, "documents">> = [
     {
       id: "thandis-spaza",
       phone: "+27 82 555 0142",
@@ -144,7 +237,13 @@ function seed(store: Map<string, MerchantApplication>) {
       grossVolume: 12_880.0,
     },
   ];
-  seeds.forEach(m => store.set(m.id, m));
+  seedInputs.forEach(m => {
+    const full: MerchantApplication = {
+      ...m,
+      documents: defaultDocsFor(m.businessType, m.status, iso),
+    };
+    store.set(m.id, full);
+  });
 }
 
 function getStore(): Map<string, MerchantApplication> {
@@ -208,6 +307,8 @@ export function createMerchant(input: NewMerchantInput): MerchantApplication {
     id = `${baseId}-${suffix}`;
   }
   const accLast4 = input.accountNumber.slice(-4).padStart(4, "•");
+  const now = Date.now();
+  const iso = (daysAgo: number) => new Date(now - daysAgo * 86400000).toISOString();
   const merchant: MerchantApplication = {
     id,
     phone: input.phone,
@@ -222,9 +323,144 @@ export function createMerchant(input: NewMerchantInput): MerchantApplication {
     createdAt: new Date().toISOString(),
     txnCount: 0,
     grossVolume: 0,
+    documents: defaultDocsFor(input.businessType, "pending", iso),
   };
   store.set(id, merchant);
   return merchant;
+}
+
+// ---------------------- Documents ----------------------
+
+export function updateMerchantDocument(
+  merchantId: string,
+  kind: DocumentKind,
+  patch: Partial<Pick<MerchantDocument, "status" | "note" | "fileName">>,
+): MerchantApplication | null {
+  const m = getStore().get(merchantId);
+  if (!m) return null;
+  const now = new Date().toISOString();
+  const next = m.documents.map(d => {
+    if (d.kind !== kind) return d;
+    const merged: MerchantDocument = { ...d, ...patch };
+    if (patch.status === "submitted" && !merged.submittedAt) merged.submittedAt = now;
+    if (patch.status === "verified") {
+      merged.verifiedAt = now;
+      merged.rejectedAt = undefined;
+    }
+    if (patch.status === "rejected") merged.rejectedAt = now;
+    if (patch.status === "required") {
+      merged.submittedAt = undefined;
+      merged.verifiedAt = undefined;
+      merged.rejectedAt = undefined;
+      merged.fileName = undefined;
+    }
+    return merged;
+  });
+  m.documents = next;
+  getStore().set(merchantId, m);
+  return m;
+}
+
+// ---------------------- Transactions ----------------------
+
+function txnStore(): Map<string, StoredTxn[]> {
+  if (!globalThis.__flamingoTxns) {
+    globalThis.__flamingoTxns = new Map();
+  }
+  return globalThis.__flamingoTxns;
+}
+
+function seededRand(seed: number) {
+  let x = seed || 1;
+  return () => {
+    x = (x * 9301 + 49297) % 233280;
+    return x / 233280;
+  };
+}
+
+function hashSeed(s: string): number {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = ((h << 5) - h + s.charCodeAt(i)) | 0;
+  return Math.abs(h) || 4242;
+}
+
+function generateTxnsFor(merchantId: string, count: number): StoredTxn[] {
+  const rand = seededRand(hashSeed(merchantId));
+  const banks = ["Capitec", "FNB", "Standard Bank", "Nedbank", "ABSA", "TymeBank", "Discovery Bank"];
+  const now = Date.now();
+  const txns: StoredTxn[] = [];
+  for (let i = 0; i < count; i++) {
+    const amount = Math.round((5 + rand() * 500) * 100) / 100;
+    const hoursAgo = Math.floor(i * 2.4 + rand() * 3);
+    const ts = new Date(now - hoursAgo * 3600 * 1000);
+    const statusRoll = rand();
+    txns.push({
+      id: `tx_${merchantId.slice(0, 3)}_${(9000 + i).toString(36)}`,
+      amount,
+      rail: rand() > 0.35 ? "payshap" : "eft",
+      buyerBank: banks[Math.floor(rand() * banks.length)],
+      timestamp: ts.toISOString(),
+      status: statusRoll < 0.04 ? "refunded" : statusRoll < 0.97 ? "completed" : "pending",
+      reference: `FP-${Math.floor(rand() * 9e5 + 1e5)}`,
+    });
+  }
+  return txns;
+}
+
+export function listTransactions(merchantId: string): StoredTxn[] {
+  const s = txnStore();
+  if (!s.has(merchantId)) {
+    const m = getMerchant(merchantId);
+    if (!m) return [];
+    // Approved merchants get a realistic spread; pending/rejected start empty.
+    const count = m.status === "approved" ? 48 : 0;
+    s.set(merchantId, generateTxnsFor(merchantId, count));
+  }
+  return s.get(merchantId) ?? [];
+}
+
+export function refundTransaction(
+  merchantId: string,
+  txnId: string,
+): { merchant: MerchantApplication; txn: StoredTxn } | { error: string } {
+  const m = getStore().get(merchantId);
+  if (!m) return { error: "Merchant not found" };
+  const list = listTransactions(merchantId);
+  const idx = list.findIndex(t => t.id === txnId);
+  if (idx === -1) return { error: "Transaction not found" };
+  const t = list[idx];
+  if (t.status === "refunded") return { error: "Already refunded" };
+  if (t.status !== "completed") return { error: "Only completed transactions can be refunded" };
+  const refunded: StoredTxn = {
+    ...t,
+    status: "refunded",
+    refundedAt: new Date().toISOString(),
+  };
+  list[idx] = refunded;
+  txnStore().set(merchantId, list);
+  // Keep merchant lifetime counters consistent for admin displays.
+  m.grossVolume = Math.max(0, m.grossVolume - t.amount);
+  m.txnCount = Math.max(0, m.txnCount - 1);
+  getStore().set(merchantId, m);
+  return { merchant: m, txn: refunded };
+}
+
+export function transactionStats(merchantId: string) {
+  const list = listTransactions(merchantId);
+  const completed = list.filter(t => t.status === "completed");
+  const refunded = list.filter(t => t.status === "refunded");
+  const processed = completed.reduce((s, t) => s + t.amount, 0);
+  const refundedValue = refunded.reduce((s, t) => s + t.amount, 0);
+  const fees = +(processed * FLAMINGO_FEE_RATE).toFixed(2);
+  return {
+    count: list.length,
+    completedCount: completed.length,
+    refundedCount: refunded.length,
+    processed: +processed.toFixed(2),
+    refundedValue: +refundedValue.toFixed(2),
+    fees,
+    feeRate: FLAMINGO_FEE_RATE,
+  };
 }
 
 export function updateMerchantStatus(

@@ -14,11 +14,11 @@ import {
   DEMO_MERCHANT,
   formatZAR,
   formatZARCompact,
-  makeMockTransactions,
   timeAgo,
   todayTotals,
   weekTotals,
 } from "../../../lib/merchant";
+import { useMerchantTxns } from "../../../lib/useMerchantTxns";
 import { useI18n } from "../../../lib/i18n";
 
 export default function DashboardPage() {
@@ -34,7 +34,7 @@ export default function DashboardPage() {
 function Inner() {
   const { t } = useI18n();
   const search = useSearchParams();
-  const txns = useMemo(() => makeMockTransactions(48), []);
+  const { txns } = useMerchantTxns(DEMO_MERCHANT.id);
   const today = useMemo(() => todayTotals(txns), [txns]);
   const week = useMemo(() => weekTotals(txns), [txns]);
   const recent = txns.slice(0, 5);
