@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400">
+  <rect x="56" y="56" width="288" height="288" rx="32" ry="32" fill="#FFFFFF"/>
+  <text x="200" y="218"
+        text-anchor="middle"
+        font-family="'DM Sans', 'Inter', 'Segoe UI', system-ui, sans-serif"
+        font-weight="800"
+        font-size="62"
+        fill="#FF5277">Flamingo</text>
+</svg>

@@ -2,6 +2,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Allow accessing the dev server from the local network (e.g. your phone)
+  allowedDevOrigins: ["172.16.72.161", "localhost"],
   async rewrites() {
     return [
       {
