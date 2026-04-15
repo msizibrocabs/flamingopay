@@ -12,7 +12,7 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
     if (pin.length !== 4) {
@@ -20,11 +20,41 @@ export default function LoginPage() {
       return;
     }
     setLoading(true);
-    // Fake latency
-    setTimeout(() => {
+    try {
+      // Look the merchant up by phone via the API
+      const digits = phone.replace(/\D/g, "");
+      const prettyPhone =
+        "+27 " +
+        (digits.length === 9
+          ? `${digits.slice(0, 2)} ${digits.slice(2, 5)} ${digits.slice(5)}`
+          : digits);
+
+      const res = await fetch("/api/merchants", { cache: "no-store" });
+      const data = await res.json();
+      const clean = (s: string) => s.replace(/\s/g, "");
+      const found = (data.merchants || []).find(
+        (m: { phone: string }) => clean(m.phone) === clean(prettyPhone),
+      );
+
+      if (!found) {
+        // No backend record yet — fall back to demo session so existing
+        // demo flows (e.g. Thandi's Spaza) still work.
+        signIn();
+        router.push("/merchant/dashboard");
+        return;
+      }
+
+      signIn(found.id);
+      if (found.status === "approved") {
+        router.push("/merchant/dashboard");
+      } else {
+        router.push("/merchant/pending");
+      }
+    } catch {
+      // On any network hiccup, fall back to the demo session.
       signIn();
       router.push("/merchant/dashboard");
-    }, 500);
+    }
   }
 
   return (

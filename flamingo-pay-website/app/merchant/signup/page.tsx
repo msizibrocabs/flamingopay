@@ -104,13 +104,46 @@ export default function SignupPage() {
     else router.push("/#merchants");
   }
 
-  function submit() {
+  async function submit() {
     setSubmitting(true);
-    // Demo: fake the account creation and drop them into the dashboard
-    setTimeout(() => {
-      signIn();
-      router.push("/merchant/dashboard");
-    }, 1100);
+    setError("");
+    // Normalise phone to "+27 ## ### ####" for the store
+    const digits = phone.replace(/\D/g, "");
+    const prettyPhone =
+      "+27 " +
+      (digits.length === 9
+        ? `${digits.slice(0, 2)} ${digits.slice(2, 5)} ${digits.slice(5)}`
+        : digits);
+
+    try {
+      const res = await fetch("/api/merchants", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          phone: prettyPhone,
+          businessName: businessName.trim(),
+          businessType,
+          ownerName: ownerName.trim(),
+          address: address.trim(),
+          bank,
+          accountNumber,
+          accountType,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || "Something went wrong. Please try again.");
+        setSubmitting(false);
+        return;
+      }
+      // Start a merchant session keyed to the new merchant id, then
+      // hand off to the /merchant/pending screen (which polls for approval).
+      signIn(data.merchant.id);
+      router.push("/merchant/pending");
+    } catch (e) {
+      setError((e as Error).message || "Network error");
+      setSubmitting(false);
+    }
   }
 
   return (
