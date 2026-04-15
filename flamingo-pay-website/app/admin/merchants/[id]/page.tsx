@@ -123,10 +123,14 @@ function Detail({ id }: { id: string }) {
             {m.businessName.charAt(0)}
           </div>
           <div className="min-w-0 flex-1">
-            <h1 className="display text-2xl font-extrabold text-flamingo-dark sm:text-3xl">
+            <span className="display-eyebrow text-[10px] text-flamingo-pink-deep">Merchant file</span>
+            <h1
+              className="display font-black text-flamingo-dark leading-none mt-1"
+              style={{ fontSize: "clamp(1.75rem, 3.5vw, 3rem)", letterSpacing: "-0.035em" }}
+            >
               {m.businessName}
             </h1>
-            <p className="text-sm text-flamingo-dark/70">
+            <p className="mt-2 text-sm text-flamingo-dark/70">
               {m.businessType} · Applied {timeAgo(m.createdAt)}
             </p>
             <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -303,7 +307,7 @@ function InfoCard({
 }) {
   return (
     <div className="rounded-2xl border-2 border-flamingo-dark bg-white p-4 shadow-[0_6px_0_0_#1A1A2E]">
-      <p className="text-[11px] font-bold uppercase tracking-widest text-flamingo-pink-deep">
+      <p className="display-eyebrow text-[10px] text-flamingo-pink-deep">
         {title}
       </p>
       <dl className="mt-2 space-y-1.5">{children}</dl>
