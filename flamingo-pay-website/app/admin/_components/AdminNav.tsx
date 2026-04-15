@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { adminSignOut, currentAdmin } from "../../../lib/admin";
+import { GlobalSearch } from "./GlobalSearch";
 
 const LINKS = [
   { href: "/admin", label: "Overview" },
@@ -64,9 +65,13 @@ export function AdminNav() {
           })}
         </nav>
 
-        <div className="ml-auto flex items-center gap-3">
+        <div className="ml-auto hidden flex-1 justify-end md:flex">
+          <GlobalSearch />
+        </div>
+
+        <div className="ml-auto flex items-center gap-3 md:ml-3">
           {name && (
-            <span className="hidden text-sm font-semibold text-flamingo-dark/70 sm:inline">
+            <span className="hidden text-sm font-semibold text-flamingo-dark/70 lg:inline">
               {name}
             </span>
           )}
@@ -77,6 +82,11 @@ export function AdminNav() {
             Sign out
           </button>
         </div>
+      </div>
+
+      {/* Mobile search */}
+      <div className="border-t border-flamingo-dark/10 bg-white px-5 py-2 md:hidden">
+        <GlobalSearch />
       </div>
 
       {/* Mobile secondary nav */}

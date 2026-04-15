@@ -486,6 +486,58 @@ export function updateMerchantStatus(
   return m;
 }
 
+export type SearchHit =
+  | {
+      kind: "merchant";
+      merchant: MerchantApplication;
+    }
+  | {
+      kind: "transaction";
+      txn: StoredTxn;
+      merchant: MerchantApplication;
+    };
+
+/**
+ * Full-text-ish search across every merchant and every transaction.
+ * Matches merchant business name / owner / phone / id, and transaction
+ * reference / buyer bank / id. Returns up to `limit` hits.
+ */
+export function searchAll(query: string, limit = 20): SearchHit[] {
+  const needle = query.trim().toLowerCase();
+  if (!needle) return [];
+  const hits: SearchHit[] = [];
+
+  const merchants = listMerchants();
+  for (const m of merchants) {
+    if (
+      m.businessName.toLowerCase().includes(needle) ||
+      m.ownerName.toLowerCase().includes(needle) ||
+      m.phone.toLowerCase().includes(needle) ||
+      m.id.toLowerCase().includes(needle)
+    ) {
+      hits.push({ kind: "merchant", merchant: m });
+    }
+  }
+
+  // Transaction reference / id / buyer bank lookup across the entire fleet.
+  for (const m of merchants) {
+    const txns = listTransactions(m.id);
+    for (const t of txns) {
+      if (
+        t.reference.toLowerCase().includes(needle) ||
+        t.id.toLowerCase().includes(needle) ||
+        t.buyerBank.toLowerCase().includes(needle)
+      ) {
+        hits.push({ kind: "transaction", txn: t, merchant: m });
+        if (hits.length >= limit) return hits;
+      }
+    }
+    if (hits.length >= limit) return hits;
+  }
+
+  return hits.slice(0, limit);
+}
+
 export function stats() {
   const all = listMerchants();
   return {

@@ -530,7 +530,7 @@ export default function Home() {
 
       {/* ─────────────────── FOOTER ─────────────────── */}
       <footer className="bg-flamingo-ink text-white/70 border-t border-white/10">
-        <div className="max-w-7xl mx-auto px-6 py-16 grid md:grid-cols-4 gap-10">
+        <div className="max-w-7xl mx-auto px-6 py-16 grid md:grid-cols-5 gap-10">
           <div className="md:col-span-1">
             <div className="flex items-center gap-2">
               <span className="w-10 h-10 rounded-full bg-gradient-flamingo border-2 border-white flex items-center justify-center text-white font-black">
@@ -563,6 +563,14 @@ export default function Home() {
             </ul>
           </div>
           <div>
+            <p className="display-eyebrow text-[10px] text-white/90">Legal</p>
+            <ul className="mt-4 space-y-2 text-sm">
+              <li><Link href="/legal/privacy" className="hover:text-flamingo-pink">Privacy Policy</Link></li>
+              <li><Link href="/legal/terms" className="hover:text-flamingo-pink">Merchant Terms</Link></li>
+              <li><a href="mailto:compliance@flamingopay.co.za" className="hover:text-flamingo-pink">Compliance</a></li>
+            </ul>
+          </div>
+          <div>
             <p className="display-eyebrow text-[10px] text-white/90">Reach us</p>
             <ul className="mt-4 space-y-2 text-sm">
               <li><a href="mailto:info@flamingopay.co.za" className="hover:text-flamingo-pink">info@flamingopay.co.za</a></li>
@@ -574,7 +582,13 @@ export default function Home() {
         <div className="border-t border-white/10">
           <div className="max-w-7xl mx-auto px-6 py-6 flex flex-col md:flex-row items-center justify-between gap-4 text-xs text-white/50">
             <p>© 2026 Flamingo Pay (Pty) Ltd. All rights reserved. No flamingos were harmed.</p>
-            <p>Operating under a Payment Facilitator model · FICA &amp; POPIA compliant</p>
+            <div className="flex items-center gap-3">
+              <Link href="/legal/privacy" className="hover:text-flamingo-pink">Privacy</Link>
+              <span aria-hidden className="text-white/30">·</span>
+              <Link href="/legal/terms" className="hover:text-flamingo-pink">Terms</Link>
+              <span aria-hidden className="text-white/30">·</span>
+              <span>Payment Facilitator · FICA &amp; POPIA compliant</span>
+            </div>
           </div>
         </div>
       </footer>
