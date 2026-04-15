@@ -1,13 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { motion, useScroll, useTransform } from "framer-motion";
 import { useRef } from "react";
+import { motion, useScroll, useTransform } from "framer-motion";
 import { Reveal, RevealGroup, RevealItem } from "../components/motion/Reveal";
 import { AnimatedCounter } from "../components/motion/AnimatedCounter";
-import { MagneticButton } from "../components/motion/MagneticButton";
-import { FlamingoHero } from "../components/three/FlamingoHero";
-import { QRBadge } from "../components/QRBadge";
+import { SpazaOwner } from "../components/art/SpazaOwner";
 
 export default function Home() {
   const heroRef = useRef<HTMLDivElement>(null);
@@ -15,206 +13,267 @@ export default function Home() {
     target: heroRef,
     offset: ["start start", "end start"],
   });
-  const heroParallax = useTransform(scrollYProgress, [0, 1], [0, -120]);
-  const heroOpacity = useTransform(scrollYProgress, [0, 0.8], [1, 0.1]);
+  const heroY = useTransform(scrollYProgress, [0, 1], [0, -80]);
+  const heroWordY = useTransform(scrollYProgress, [0, 1], [0, -160]);
+  const heroWordOpacity = useTransform(scrollYProgress, [0, 0.8], [0.1, 0]);
 
   return (
     <div className="bg-flamingo-cream antialiased w-full overflow-x-hidden">
       {/* ─────────────────── NAV ─────────────────── */}
       <motion.header
-        initial={{ y: -80, opacity: 0 }}
+        initial={{ y: -60, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
-        className="sticky top-0 z-50 glass border-b-2 border-flamingo-dark"
+        className="sticky top-0 z-50 glass border-b border-flamingo-dark/10"
       >
-        <div className="max-w-7xl mx-auto px-6 py-3.5 flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
             <span className="relative grid h-10 w-10 place-items-center rounded-full bg-gradient-flamingo text-white font-black shadow-[0_6px_20px_-6px_rgba(255,82,119,0.8)]">
               F
               <span className="absolute inset-0 rounded-full pulse-ring" />
             </span>
-            <span className="display font-extrabold text-2xl">
+            <span className="display font-extrabold text-2xl tracking-tight">
               Flamingo<span className="text-flamingo-pink">.</span>
             </span>
           </Link>
-          <nav className="hidden md:flex items-center gap-8 text-sm font-semibold">
+          <nav className="hidden md:flex items-center gap-8 text-sm font-semibold text-flamingo-dark/80">
+            <a href="#why" className="hover:text-flamingo-pink transition">Why Flamingo</a>
             <a href="#how" className="hover:text-flamingo-pink transition">How it works</a>
-            <a href="#why" className="hover:text-flamingo-pink transition">Why it works</a>
-            <a href="#merchants" className="hover:text-flamingo-pink transition">For shops</a>
+            <a href="#numbers" className="hover:text-flamingo-pink transition">The numbers</a>
+            <a href="#pricing" className="hover:text-flamingo-pink transition">Pricing</a>
           </nav>
-          <MagneticButton
-            onClick={() => (window.location.href = "/merchant/signup")}
-            className="btn-pink rounded-full px-5 py-2.5 text-sm font-bold"
-          >
+          <Link href="/merchant/signup" className="btn-ink text-sm">
             Get my QR
-          </MagneticButton>
+            <span aria-hidden>→</span>
+          </Link>
         </div>
       </motion.header>
 
-      {/* ─────────────────── HERO ─────────────────── */}
-      <section ref={heroRef} className="relative bg-gradient-sunrise noise overflow-hidden">
-        {/* Parallax blobs */}
-        <motion.div
-          style={{ y: heroParallax }}
-          className="absolute top-24 -left-20 w-72 h-72 bg-flamingo-butter rounded-blob opacity-90 -z-0"
-        />
-        <motion.div
-          style={{ y: heroParallax }}
-          className="absolute -top-10 right-10 w-56 h-56 bg-flamingo-mint rounded-blob opacity-90 -z-0"
-        />
-        <motion.div
-          style={{ y: heroParallax }}
-          className="absolute bottom-16 right-1/3 w-40 h-40 bg-flamingo-sky rounded-full opacity-70 -z-0"
-        />
+      {/* ─────────────────── EDITORIAL HERO ─────────────────── */}
+      <section
+        ref={heroRef}
+        className="relative bg-gradient-sunrise noise overflow-hidden pt-14 pb-24"
+      >
+        {/* Giant decorative word */}
+        <motion.span
+          style={{ y: heroWordY, opacity: heroWordOpacity }}
+          aria-hidden
+          className="display pointer-events-none absolute -top-8 -right-16 md:-right-24 font-black leading-none text-flamingo-pink/10 select-none"
+        >
+          <span className="block" style={{ fontSize: "clamp(8rem, 22vw, 22rem)", letterSpacing: "-0.05em" }}>
+            pay.
+          </span>
+        </motion.span>
 
         <motion.div
-          style={{ opacity: heroOpacity }}
-          className="relative max-w-7xl mx-auto px-6 pt-16 pb-28 grid md:grid-cols-2 gap-12 items-center"
+          style={{ y: heroY }}
+          className="relative max-w-7xl mx-auto px-6 grid md:grid-cols-12 gap-10 md:gap-8 items-center"
         >
-          <div>
+          {/* LEFT — editorial headline */}
+          <div className="md:col-span-6 relative z-10">
             <Reveal>
-              <span className="chip inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-bold">
-                <span className="relative flex h-2 w-2">
-                  <span className="absolute inset-0 animate-ping rounded-full bg-flamingo-pink opacity-75" />
-                  <span className="relative h-2 w-2 rounded-full bg-flamingo-pink" />
-                </span>
-                Proudly SA · Running on PayShap
+              <span className="display-eyebrow text-xs text-flamingo-pink-deep">
+                Banking · Beyond · Built in SA
               </span>
             </Reveal>
-            <Reveal delay={0.1}>
-              <h1 className="display mt-6 text-6xl md:text-7xl font-black leading-[1]">
-                The <span className="text-gradient-flamingo">pink</span> side<br />of money.
+
+            <Reveal delay={0.08}>
+              <h1
+                className="display-xxl mt-5 text-flamingo-dark"
+                style={{ fontSize: "clamp(3.25rem, 8vw, 7.5rem)" }}
+              >
+                Listen<br />for the{" "}
+                <span className="italic text-gradient-flamingo">ping.</span>
+                <br />
+                <span className="text-flamingo-dark/90">That&rsquo;s a sale.</span>
               </h1>
             </Reveal>
-            <Reveal delay={0.2}>
-              <p className="mt-6 text-lg text-flamingo-dark/80 max-w-lg leading-relaxed">
-                One QR. Every bank. No card machine, no monthly fees, no &ldquo;ag sorry, I don&rsquo;t have change&rdquo; awkwardness.
-                Flamingo turns your phone into a till in the time it takes to boil a kettle.
+
+            <Reveal delay={0.18}>
+              <p className="mt-7 max-w-xl text-lg md:text-xl text-flamingo-dark/75 leading-relaxed">
+                One QR. Every bank. No card machine, no monthly fees, no
+                &ldquo;ag sorry, I don&rsquo;t have change&rdquo; awkwardness.
+                Flamingo turns your phone into a till in the time it takes to
+                boil a kettle.
               </p>
             </Reveal>
-            <Reveal delay={0.35}>
-              <div className="mt-8 flex flex-wrap items-center gap-4">
-                <MagneticButton
-                  onClick={() => (window.location.href = "/merchant/signup")}
-                  className="btn-pink rounded-full px-7 py-4 font-bold"
-                >
-                  Sign up my shop →
-                </MagneticButton>
-                <a href="#how" className="btn-dark rounded-full px-7 py-4 font-bold">
-                  Show me how
+
+            <Reveal delay={0.28}>
+              <div className="mt-9 flex flex-wrap items-center gap-3">
+                <Link href="/merchant/signup" className="btn-ink">
+                  Become a till
+                  <span aria-hidden>→</span>
+                </Link>
+                <a href="#how" className="btn-ghost-ink">
+                  See how it works
                 </a>
               </div>
             </Reveal>
-            <Reveal delay={0.5}>
-              <div className="mt-10 flex flex-wrap items-center gap-x-8 gap-y-3 text-sm font-medium text-flamingo-dark/70">
-                <div className="flex items-center gap-2"><span className="text-flamingo-pink text-lg">●</span> 10-min sign-up</div>
-                <div className="flex items-center gap-2"><span className="text-flamingo-pink text-lg">●</span> R0 hardware</div>
-                <div className="flex items-center gap-2"><span className="text-flamingo-pink text-lg">●</span> Instant settlement</div>
+
+            <Reveal delay={0.38}>
+              <div className="mt-10 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs font-semibold text-flamingo-dark/60 uppercase tracking-wider">
+                <span>POPIA protected</span>
+                <Dot />
+                <span>RICA verified</span>
+                <Dot />
+                <span>PayShap ready</span>
+                <Dot />
+                <span>Ozow · EFT · Capitec</span>
               </div>
             </Reveal>
           </div>
 
-          {/* 3D Flamingo + QR composition */}
-          <div className="relative mx-auto w-full max-w-lg">
-            <div className="relative aspect-square w-full">
-              <FlamingoHero />
-            </div>
-            {/* Floating QR badge */}
+          {/* RIGHT — spaza owner illustration + floating cards */}
+          <div className="md:col-span-6 relative">
             <motion.div
-              initial={{ opacity: 0, y: 40, rotate: -6 }}
-              animate={{ opacity: 1, y: 0, rotate: -6 }}
-              transition={{ delay: 0.9, duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
-              className="absolute -bottom-4 left-0 tilt-l hidden sm:block"
+              initial={{ opacity: 0, scale: 0.96, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1] }}
+              className="relative mx-auto w-full max-w-xl"
             >
-              <QRBadge size={160} label="Thandi's Spaza" initial={45} />
-            </motion.div>
-            {/* Floating "+R45 ✓" toast */}
-            <motion.div
-              initial={{ opacity: 0, x: 40, rotate: 4 }}
-              animate={{ opacity: 1, x: 0, rotate: 4 }}
-              transition={{ delay: 1.1, duration: 0.7 }}
-              className="absolute top-6 right-0 tilt-r"
-            >
-              <div className="rounded-full bg-flamingo-dark text-white px-4 py-2.5 text-sm font-black shadow-[0_10px_25px_-8px_rgba(26,26,46,0.5)]">
-                +R45.00 ✓
+              <div className="relative overflow-hidden rounded-[48px] border-2 border-flamingo-dark bg-flamingo-cream shadow-[0_30px_80px_-30px_rgba(26,26,46,0.4)]">
+                <SpazaOwner className="block w-full h-auto" />
               </div>
+
+              {/* Floating "Today" glass card */}
+              <motion.div
+                initial={{ opacity: 0, y: 30, rotate: -3 }}
+                animate={{ opacity: 1, y: 0, rotate: -3 }}
+                transition={{ delay: 0.9, duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+                className="hidden sm:block absolute -left-6 md:-left-10 top-[46%] w-56 glass rounded-2xl p-4 shadow-[0_20px_40px_-20px_rgba(26,26,46,0.35)]"
+              >
+                <p className="display-eyebrow text-[10px] text-flamingo-dark/60">Today</p>
+                <p className="display mt-1 text-3xl font-black tabular-nums text-flamingo-dark">
+                  R<AnimatedCounter to={12480} />
+                </p>
+                <div className="mt-3 flex items-end gap-1 h-8">
+                  {[40, 65, 52, 80, 58, 90, 72].map((h, i) => (
+                    <motion.span
+                      key={i}
+                      initial={{ scaleY: 0 }}
+                      animate={{ scaleY: h / 100 }}
+                      transition={{ delay: 1.1 + i * 0.06, duration: 0.5, ease: "easeOut" }}
+                      style={{ transformOrigin: "bottom" }}
+                      className="flex-1 rounded-sm bg-flamingo-pink"
+                    />
+                  ))}
+                </div>
+              </motion.div>
+
+              {/* Approved PayShap chip */}
+              <motion.div
+                initial={{ opacity: 0, y: -20, rotate: 6 }}
+                animate={{ opacity: 1, y: 0, rotate: 6 }}
+                transition={{ delay: 1.1, duration: 0.6 }}
+                className="absolute -right-2 md:-right-3 top-8 rounded-full bg-flamingo-mint border-2 border-flamingo-dark px-3.5 py-1.5 text-xs font-extrabold text-flamingo-dark shadow-[0_6px_0_0_#1A1A2E]"
+              >
+                ✓ Approved · PayShap
+              </motion.div>
+
+              {/* Toast */}
+              <motion.div
+                initial={{ opacity: 0, y: 20, rotate: -2 }}
+                animate={{ opacity: 1, y: 0, rotate: -2 }}
+                transition={{ delay: 1.3, duration: 0.6 }}
+                className="absolute -right-3 md:-right-4 bottom-12 rounded-xl bg-flamingo-butter border-2 border-flamingo-dark px-3.5 py-2 text-sm font-extrabold text-flamingo-dark shadow-[0_6px_0_0_#1A1A2E]"
+              >
+                +R 45.00 <span className="text-flamingo-pink-deep">✓</span>
+              </motion.div>
             </motion.div>
           </div>
         </motion.div>
-
-        <svg className="block w-full -mb-1" viewBox="0 0 1440 80" preserveAspectRatio="none" aria-hidden="true">
-          <path d="M0 40 Q 360 80 720 40 T 1440 40 L1440 80 L0 80 Z" fill="#FF5277" />
-        </svg>
       </section>
 
-      {/* ─────────────────── MARQUEE TICKER ─────────────────── */}
-      <section className="bg-flamingo-pink text-white py-5 border-y-2 border-flamingo-dark overflow-hidden">
-        <div className="marquee-track text-lg font-bold whitespace-nowrap">
+      {/* ─────────────────── BANK MARQUEE ─────────────────── */}
+      <section
+        aria-label="Supported banks"
+        className="bg-flamingo-dark text-flamingo-cream py-6 border-y border-flamingo-dark overflow-hidden"
+      >
+        <div className="marquee-track whitespace-nowrap text-sm md:text-base font-bold uppercase tracking-[0.22em]">
           {[...Array(2)].map((_, loop) => (
-            <div key={loop} className="flex items-center gap-10 pr-10">
-              <span>🌸 One QR, every bank</span>
-              <span className="opacity-50">✦</span>
-              <span>⚡ Money in seconds, not days</span>
-              <span className="opacity-50">✦</span>
-              <span>📱 Phone = till</span>
-              <span className="opacity-50">✦</span>
-              <span>🇿🇦 Built for the corner shop</span>
-              <span className="opacity-50">✦</span>
-              <span>🦩 No card machine. No monthly fee.</span>
-              <span className="opacity-50">✦</span>
+            <div key={loop} className="flex items-center gap-10 pr-10 text-flamingo-cream/80">
+              {[
+                "Capitec",
+                "FNB",
+                "Nedbank",
+                "Absa",
+                "Standard Bank",
+                "TymeBank",
+                "Discovery",
+                "African Bank",
+                "PayShap",
+                "Ozow",
+              ].map((b) => (
+                <span key={b} className="flex items-center gap-10">
+                  <span>{b}</span>
+                  <span className="text-flamingo-pink">✦</span>
+                </span>
+              ))}
             </div>
           ))}
         </div>
       </section>
 
-      {/* ─────────────────── THREE BENEFITS ─────────────────── */}
-      <section className="relative bg-mesh-cream noise py-24">
-        <div className="absolute top-20 right-10 w-40 h-40 bg-flamingo-butter rounded-blob opacity-70" />
+      {/* ─────────────────── THE PITCH ─────────────────── */}
+      <section id="why" className="relative bg-mesh-cream noise py-28">
         <div className="max-w-7xl mx-auto px-6 relative">
           <Reveal>
-            <div className="max-w-2xl mb-14">
-              <p className="font-bold uppercase tracking-widest text-flamingo-pink text-sm">Why people love it</p>
-              <h2 className="display mt-3 text-5xl font-black">
-                Three <span className="underline-squiggle">big</span> reasons.
-              </h2>
-              <p className="mt-3 text-flamingo-dark/70 text-lg">
-                (Yes, there are more. We kept the list short so your tea doesn&rsquo;t go cold.)
-              </p>
-            </div>
+            <span className="display-eyebrow text-xs text-flamingo-pink-deep">
+              Why Flamingo
+            </span>
+          </Reveal>
+          <Reveal delay={0.08}>
+            <h2
+              className="display mt-4 font-black text-flamingo-dark leading-[0.92] tracking-tight max-w-4xl"
+              style={{ fontSize: "clamp(2.25rem, 5.5vw, 5rem)", letterSpacing: "-0.035em" }}
+            >
+              A card machine costs R3,499.
+              <br />
+              <span className="italic text-gradient-flamingo">
+                Flamingo costs nothing.
+              </span>
+            </h2>
           </Reveal>
 
-          <RevealGroup className="grid md:grid-cols-3 gap-8">
+          <RevealGroup className="mt-16 grid md:grid-cols-3 gap-6">
             {[
               {
                 bg: "bg-flamingo-butter",
-                icon: "⚡",
-                title: "Money arrives in seconds.",
-                body: "PayShap does the heavy lifting. Funds hit the merchant's account before the customer has even put their phone back in their pocket. No T+1, no T+2, no \"please hold\".",
+                kicker: "01",
+                title: "Zero hardware",
+                body: "Print the QR. Stick it on the counter. That's the whole setup. No card machine, no power adapter, no paper rolls.",
               },
               {
                 bg: "bg-flamingo-mint",
-                icon: "⌁",
-                title: "One QR, every bank.",
-                body: "Capitec, FNB, TymeBank, Nedbank, Standard Bank, Absa — if it has a banking app, it can pay you. Buyers don't even download anything. Revolutionary, we know.",
+                kicker: "02",
+                title: "Every bank",
+                body: "Capitec, FNB, Absa, Nedbank, Standard, Tyme, Discovery — if it opens a banking app, it pays you.",
               },
               {
-                bg: "bg-flamingo-sky",
-                icon: "✦",
-                title: "No hardware. No vibes tax.",
-                body: "No R3,000 card machine. No monthly fee. No \"but what if load-shedding?\" Just your phone, a printed QR, and the sound of money going ping.",
+                bg: "bg-flamingo-pink-soft",
+                kicker: "03",
+                title: "No monthly",
+                body: "You pay when you get paid. 1.5% per ping. No subscription, no minimums, no surprise fees at month-end.",
               },
             ].map((c, i) => (
               <RevealItem key={i}>
                 <motion.div
-                  whileHover={{ y: -6, rotate: i % 2 === 0 ? -1 : 1 }}
-                  transition={{ type: "spring", stiffness: 260, damping: 22 }}
-                  className={`${c.bg} card-stamp rounded-3xl p-8 relative cursor-default`}
+                  whileHover={{ y: -6, rotate: i % 2 === 0 ? -0.6 : 0.6 }}
+                  transition={{ type: "spring", stiffness: 240, damping: 22 }}
+                  className={`${c.bg} relative rounded-3xl p-8 border-2 border-flamingo-dark shadow-[0_8px_0_0_#1A1A2E] h-full`}
                 >
-                  <div className="w-14 h-14 rounded-2xl bg-flamingo-dark text-flamingo-butter flex items-center justify-center text-2xl font-black">
-                    {c.icon}
-                  </div>
-                  <h3 className="display mt-5 text-2xl font-black">{c.title}</h3>
-                  <p className="mt-3 text-flamingo-dark/80 leading-relaxed">{c.body}</p>
+                  <span className="display-eyebrow text-[10px] text-flamingo-dark/60">
+                    {c.kicker}
+                  </span>
+                  <h3
+                    className="display mt-3 font-black text-flamingo-dark leading-[0.95]"
+                    style={{ fontSize: "clamp(1.75rem, 2.2vw, 2.5rem)", letterSpacing: "-0.025em" }}
+                  >
+                    {c.title}
+                  </h3>
+                  <p className="mt-4 text-flamingo-dark/80 leading-relaxed">
+                    {c.body}
+                  </p>
                 </motion.div>
               </RevealItem>
             ))}
@@ -222,151 +281,152 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ─────────────────── HOW IT WORKS ─────────────────── */}
-      <section id="how" className="relative bg-white border-y-2 border-flamingo-dark py-24">
-        <div className="absolute top-10 left-10 w-28 h-28 bg-flamingo-pink-soft rounded-blob" />
-        <div className="max-w-7xl mx-auto px-6 relative">
-          <Reveal>
-            <div className="max-w-2xl">
-              <p className="font-bold uppercase tracking-widest text-flamingo-pink text-sm">How it works</p>
-              <h2 className="display mt-3 text-5xl md:text-6xl font-black leading-[1.05]">
-                Scan. Pay. Done.
+      {/* ─────────────────── HOW IT WORKS (dark editorial) ─────────────────── */}
+      <section id="how" className="relative bg-flamingo-ink text-flamingo-cream py-28 overflow-hidden">
+        <div className="absolute inset-0 grid-overlay" />
+        <div className="absolute -top-32 -left-32 w-96 h-96 bg-flamingo-pink/20 rounded-full blur-3xl" />
+        <div className="absolute -bottom-20 -right-20 w-80 h-80 bg-flamingo-pink/10 rounded-full blur-3xl" />
+
+        <div className="relative max-w-7xl mx-auto px-6 grid md:grid-cols-12 gap-12">
+          <div className="md:col-span-5 md:sticky md:top-28 self-start">
+            <Reveal>
+              <span className="display-eyebrow text-xs text-flamingo-pink">
+                How it works
+              </span>
+            </Reveal>
+            <Reveal delay={0.08}>
+              <h2
+                className="display mt-4 font-black leading-[0.9] tracking-tight"
+                style={{ fontSize: "clamp(2.5rem, 5.5vw, 5.5rem)", letterSpacing: "-0.04em" }}
+              >
+                Become a till
                 <br />
-                <span className="italic text-flamingo-pink">(Five seconds, tops.)</span>
+                <span className="italic text-flamingo-pink">in ten minutes.</span>
               </h2>
-            </div>
-          </Reveal>
-
-          <div className="mt-16 grid md:grid-cols-2 gap-10">
-            <Reveal direction="right">
-              <motion.div
-                whileHover={{ rotate: -0.5, y: -4 }}
-                className="bg-flamingo-dark text-white rounded-3xl p-10 card-stamp-pink relative overflow-hidden"
-              >
-                <div className="grid-overlay absolute inset-0 opacity-60" />
-                <div className="relative">
-                  <p className="text-flamingo-pink font-bold text-sm uppercase tracking-wider">For shops &amp; vendors</p>
-                  <h3 className="display mt-2 text-3xl font-black">Become a till in 10 minutes.</h3>
-                  <ol className="mt-8 space-y-5">
-                    {[
-                      "Download the Flamingo app. Sign up. Wave at the camera.",
-                      "Complete tiered KYC — most merchants start trading immediately.",
-                      "Get your unique QR code, linked to your bank account.",
-                      "Stick it on the counter. Or the window. Or the cooler box. Up to you.",
-                      "Listen for the ping. That's a sale. You're welcome.",
-                    ].map((text, i) => (
-                      <motion.li
-                        key={i}
-                        initial={{ opacity: 0, x: -20 }}
-                        whileInView={{ opacity: 1, x: 0 }}
-                        viewport={{ once: true }}
-                        transition={{ delay: i * 0.08, duration: 0.5 }}
-                        className="flex gap-4"
-                      >
-                        <span className="w-9 h-9 shrink-0 bg-flamingo-pink rounded-full flex items-center justify-center font-black">
-                          {i + 1}
-                        </span>
-                        <span>{text}</span>
-                      </motion.li>
-                    ))}
-                  </ol>
-                </div>
-              </motion.div>
             </Reveal>
-
-            <Reveal direction="left" delay={0.1}>
-              <motion.div
-                whileHover={{ rotate: 0.5, y: -4 }}
-                className="bg-flamingo-pink-wash rounded-3xl p-10 card-stamp"
+            <Reveal delay={0.18}>
+              <p className="mt-6 max-w-md text-white/70 text-lg leading-relaxed">
+                No training. No installer visit. No &ldquo;please wait 3–5 business days&rdquo;.
+                You&rsquo;ll take your first payment before the kettle boils.
+              </p>
+            </Reveal>
+            <Reveal delay={0.28}>
+              <Link
+                href="/merchant/signup"
+                className="btn-ink mt-8 bg-flamingo-pink hover:bg-flamingo-pink-dark"
               >
-                <p className="text-flamingo-pink-dark font-bold text-sm uppercase tracking-wider">For buyers</p>
-                <h3 className="display mt-2 text-3xl font-black">No app. No queue. No drama.</h3>
-                <ol className="mt-8 space-y-5 text-flamingo-dark">
-                  {[
-                    "Open your usual banking app (whichever one you yell at about fees).",
-                    "Scan the merchant's Flamingo QR.",
-                    "Type the amount. Confirm.",
-                    "Receipt. Done. Goodbye, ATM queue.",
-                  ].map((text, i) => (
-                    <motion.li
-                      key={i}
-                      initial={{ opacity: 0, x: 20 }}
-                      whileInView={{ opacity: 1, x: 0 }}
-                      viewport={{ once: true }}
-                      transition={{ delay: i * 0.08, duration: 0.5 }}
-                      className="flex gap-4"
+                Start my ten minutes
+                <span aria-hidden>→</span>
+              </Link>
+            </Reveal>
+          </div>
+
+          <div className="md:col-span-7">
+            <ol className="space-y-2">
+              {[
+                {
+                  n: "01",
+                  t: "Scan the QR on any Flamingo poster.",
+                  d: "No app download. Any SA banking app works — Capitec, FNB, Absa, the lot.",
+                },
+                {
+                  n: "02",
+                  t: "Sign up. Wave at the camera.",
+                  d: "Tiered KYC follows FICA's risk-based approach. Most merchants start trading immediately.",
+                },
+                {
+                  n: "03",
+                  t: "Get your unique Flamingo QR.",
+                  d: "Linked directly to your bank account. Branded, printable, yours forever.",
+                },
+                {
+                  n: "04",
+                  t: "Stick it on the counter.",
+                  d: "Or the window. Or the cooler box. Or the taxi dashboard. Up to you.",
+                },
+                {
+                  n: "05",
+                  t: "Listen for the ping. That's a sale. You're welcome.",
+                  d: "Instant settlement. Instant notification. Instant vibe.",
+                },
+              ].map((s, i) => (
+                <motion.li
+                  key={s.n}
+                  initial={{ opacity: 0, x: 30 }}
+                  whileInView={{ opacity: 1, x: 0 }}
+                  viewport={{ once: true, amount: 0.4 }}
+                  transition={{ delay: i * 0.06, duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
+                  className="group grid grid-cols-[auto_1fr] gap-6 py-6 border-b border-white/10"
+                >
+                  <span className="display-eyebrow text-xs text-flamingo-pink pt-2">
+                    {s.n}
+                  </span>
+                  <div>
+                    <h3
+                      className="display font-black leading-[1.02] text-flamingo-cream"
+                      style={{ fontSize: "clamp(1.5rem, 2.4vw, 2.25rem)", letterSpacing: "-0.02em" }}
                     >
-                      <span className="w-9 h-9 shrink-0 bg-flamingo-pink text-white rounded-full flex items-center justify-center font-black">
-                        {i + 1}
-                      </span>
-                      <span>{text}</span>
-                    </motion.li>
-                  ))}
-                </ol>
-                <p className="mt-6 text-sm text-flamingo-dark/70 italic">
-                  Fun fact: this takes roughly the same time as reading this sentence.
-                </p>
-              </motion.div>
-            </Reveal>
+                      {s.t}
+                    </h3>
+                    <p className="mt-2 text-white/60 leading-relaxed">{s.d}</p>
+                  </div>
+                </motion.li>
+              ))}
+            </ol>
           </div>
         </div>
       </section>
 
-      {/* ─────────────────── WHY IT WORKS ─────────────────── */}
-      <section id="why" className="relative bg-gradient-midnight text-white py-24 overflow-hidden">
-        <div className="absolute inset-0 grid-overlay" />
-        <div className="absolute -top-20 -right-20 w-80 h-80 bg-flamingo-pink/25 rounded-full blur-3xl" />
-        <div className="absolute bottom-0 -left-20 w-72 h-72 bg-flamingo-pink/15 rounded-full blur-3xl" />
-
+      {/* ─────────────────── NUMBERS ─────────────────── */}
+      <section id="numbers" className="relative bg-flamingo-cream py-28 noise">
         <div className="max-w-7xl mx-auto px-6 relative">
           <Reveal>
-            <div className="max-w-2xl">
-              <p className="font-bold uppercase tracking-widest text-flamingo-pink text-sm">Why it works</p>
-              <h2 className="display mt-3 text-5xl md:text-6xl font-black leading-[1.05]">
-                Built for the way SA
-                <br />
-                <span className="underline-squiggle">actually</span> trades.
-              </h2>
-              <p className="mt-5 text-white/70 text-lg">
-                Everyone else designed for the boardroom. We designed for the auntie at the corner who runs half the economy with a lever arch file and a prayer.
-              </p>
-            </div>
+            <span className="display-eyebrow text-xs text-flamingo-pink-deep">The numbers</span>
+          </Reveal>
+          <Reveal delay={0.08}>
+            <h2
+              className="display mt-4 font-black text-flamingo-dark leading-[0.92] tracking-tight max-w-4xl"
+              style={{ fontSize: "clamp(2.5rem, 6vw, 5.5rem)", letterSpacing: "-0.04em" }}
+            >
+              Cash is heavy.
+              <br />
+              <span className="italic text-gradient-flamingo">A ping isn&rsquo;t.</span>
+            </h2>
           </Reveal>
 
           <RevealGroup className="mt-14 grid md:grid-cols-3 gap-6">
             {[
               {
-                stat: (
-                  <>
-                    R<AnimatedCounter to={100} />bn+
-                  </>
-                ),
-                title: "PayShap, to date",
-                body: "The rail is real, it's fast, and it's already everywhere. We just make it useful for the corner shop.",
+                stat: <>R<AnimatedCounter to={0} /></>,
+                label: "Monthly fee",
+                sub: "Not now. Not ever. You only pay when you get paid.",
               },
               {
-                stat: (
-                  <>
-                    &lt;<AnimatedCounter to={5} />%
-                  </>
-                ),
-                title: "Of informal shops go digital",
-                body: "Which is a polite way of saying: the biggest payments opportunity in the country has been sitting right here the whole time.",
+                stat: <><AnimatedCounter to={10} /> min</>,
+                label: "To first sale",
+                sub: "From sign-up to a working till. Faster than a queue at Home Affairs.",
               },
               {
-                stat: "✓",
-                title: "KYC that actually fits reality",
-                body: "Our tiered flow follows FICA's risk-based approach — so a vendor with a RICA'd phone can start trading today, not next month.",
+                stat: <><AnimatedCounter to={11} /></>,
+                label: "SA languages",
+                sub: "Because a vendor in KwaMashu should get the same experience as one in Stellenbosch.",
               },
             ].map((c, i) => (
               <RevealItem key={i}>
                 <motion.div
-                  whileHover={{ y: -6, borderColor: "#FF5277" }}
-                  className="glass-dark rounded-3xl p-7 hover:border-flamingo-pink transition cursor-default"
+                  whileHover={{ y: -4 }}
+                  className="relative rounded-3xl border-2 border-flamingo-dark bg-white p-8 shadow-[0_8px_0_0_#1A1A2E]"
                 >
-                  <p className="display text-flamingo-pink font-black text-5xl">{c.stat}</p>
-                  <p className="mt-3 font-bold text-lg">{c.title}</p>
-                  <p className="mt-2 text-sm text-white/60">{c.body}</p>
+                  <p
+                    className="display font-black text-flamingo-dark tabular-nums leading-none"
+                    style={{ fontSize: "clamp(3.5rem, 7vw, 6rem)", letterSpacing: "-0.04em" }}
+                  >
+                    {c.stat}
+                  </p>
+                  <p className="mt-5 display-eyebrow text-[10px] text-flamingo-pink-deep">
+                    {c.label}
+                  </p>
+                  <p className="mt-2 text-flamingo-dark/70 leading-relaxed">{c.sub}</p>
                 </motion.div>
               </RevealItem>
             ))}
@@ -374,56 +434,103 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ─────────────────── MERCHANT CTA ─────────────────── */}
-      <section id="merchants" className="relative overflow-hidden bg-gradient-flamingo py-24">
-        <div className="absolute -top-24 -right-24 w-96 h-96 bg-white/10 rounded-full blur-3xl" />
-        <div className="absolute top-10 left-10 w-28 h-28 bg-flamingo-butter rounded-blob opacity-80" />
-        <div className="absolute bottom-10 right-20 w-36 h-36 bg-flamingo-mint rounded-blob opacity-80" />
-
-        <div className="relative max-w-5xl mx-auto px-6 text-center text-white">
+      {/* ─────────────────── PRICING ─────────────────── */}
+      <section id="pricing" className="relative bg-mesh-cream py-28 overflow-hidden">
+        <div className="max-w-5xl mx-auto px-6 relative text-center">
           <Reveal>
-            <p className="font-bold uppercase tracking-widest text-sm text-white/90">For shops &amp; vendors</p>
+            <span className="display-eyebrow text-xs text-flamingo-pink-deep">Pricing</span>
           </Reveal>
-          <Reveal delay={0.1}>
-            <h2 className="display mt-3 text-5xl md:text-7xl font-black leading-[1.02]">
-              Turn your phone
+          <Reveal delay={0.08}>
+            <h2
+              className="display mt-4 font-black text-flamingo-dark leading-[0.92] tracking-tight"
+              style={{ fontSize: "clamp(2.5rem, 6vw, 5.5rem)", letterSpacing: "-0.04em" }}
+            >
+              One number.
               <br />
-              into a till.
+              <span className="italic text-gradient-flamingo">That&rsquo;s the whole page.</span>
+            </h2>
+          </Reveal>
+
+          <Reveal delay={0.18}>
+            <motion.div
+              whileHover={{ rotate: -0.4, y: -4 }}
+              className="mt-14 mx-auto max-w-2xl rounded-[36px] bg-gradient-flamingo p-12 border-2 border-flamingo-dark shadow-[0_20px_60px_-20px_rgba(255,82,119,0.6)] text-white"
+            >
+              <p className="display-eyebrow text-[10px] text-white/80">Per transaction</p>
+              <p
+                className="display mt-3 font-black leading-none"
+                style={{ fontSize: "clamp(5rem, 14vw, 10rem)", letterSpacing: "-0.05em" }}
+              >
+                1.5%
+              </p>
+              <p className="mt-6 text-white/90 text-lg max-w-md mx-auto">
+                No monthly fee. No minimums. No small print you need a lawyer
+                for. When the ping comes in, we take 1.5%. That&rsquo;s it.
+              </p>
+              <Link
+                href="/merchant/signup"
+                className="mt-8 inline-flex items-center gap-2 rounded-full bg-white text-flamingo-pink-deep px-7 py-3.5 font-extrabold shadow-[0_6px_0_0_#1A1A2E] hover:-translate-y-0.5 transition"
+              >
+                Sign up my shop
+                <span aria-hidden>→</span>
+              </Link>
+            </motion.div>
+          </Reveal>
+        </div>
+      </section>
+
+      {/* ─────────────────── FINAL CTA ─────────────────── */}
+      <section className="relative bg-flamingo-ink text-flamingo-cream py-28 overflow-hidden">
+        <div className="absolute inset-0 grid-overlay" />
+        <motion.div
+          animate={{ rotate: 360 }}
+          transition={{ duration: 60, repeat: Infinity, ease: "linear" }}
+          className="absolute -top-40 -right-40 w-[520px] h-[520px] bg-gradient-flamingo rounded-blob opacity-30 blur-2xl"
+        />
+        <div className="relative max-w-5xl mx-auto px-6 text-center">
+          <Reveal>
+            <span className="display-eyebrow text-xs text-flamingo-pink">
+              The only sticker your till needs
+            </span>
+          </Reveal>
+          <Reveal delay={0.08}>
+            <h2
+              className="display mt-5 font-black leading-[0.88] tracking-tight"
+              style={{ fontSize: "clamp(3rem, 9vw, 8rem)", letterSpacing: "-0.045em" }}
+            >
+              Your till
+              <br />
+              is one
+              <br />
+              <span className="italic text-flamingo-pink">sticker away.</span>
             </h2>
           </Reveal>
           <Reveal delay={0.2}>
-            <p className="display italic mt-4 text-2xl md:text-3xl font-bold">
-              In ten minutes. In your language. For free.
-            </p>
-          </Reveal>
-          <Reveal delay={0.3}>
-            <p className="mt-6 max-w-2xl mx-auto text-white/90 text-lg">
-              No card machine. No monthly fee. No bank lock-in. Just a universal QR, instant PayShap settlement, and one less reason to ever hear the words &ldquo;card is declined&rdquo; again.
-            </p>
-          </Reveal>
-          <Reveal delay={0.4}>
-            <div className="mt-10 flex flex-wrap items-center justify-center gap-4">
-              <MagneticButton
-                onClick={() => (window.location.href = "/merchant/signup")}
-                className="bg-white text-flamingo-pink-dark hover:bg-flamingo-cream px-8 py-4 rounded-full font-black shadow-[0_6px_0_0_#1A1A2E] transition"
+            <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
+              <Link
+                href="/merchant/signup"
+                className="btn-ink bg-flamingo-pink hover:bg-flamingo-pink-dark"
               >
-                Sign up my shop →
-              </MagneticButton>
-              <a href="#how" className="btn-dark rounded-full px-8 py-4 font-bold">
-                How it works
+                Become a till
+                <span aria-hidden>→</span>
+              </Link>
+              <a
+                href="https://wa.me/27639477208"
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-2 rounded-full border-2 border-flamingo-cream/30 px-6 py-4 font-extrabold text-flamingo-cream hover:bg-flamingo-cream hover:text-flamingo-ink transition"
+              >
+                WhatsApp us
+                <span aria-hidden>→</span>
               </a>
             </div>
-            <p className="mt-8 text-sm text-white/80">
-              2.9% + R0.99 per transaction. No subscription. No minimums. No small print you need a lawyer for.
-            </p>
           </Reveal>
         </div>
       </section>
 
       {/* ─────────────────── FOOTER ─────────────────── */}
-      <footer className="bg-flamingo-ink text-white/70 border-t-2 border-flamingo-pink relative overflow-hidden">
-        <div className="absolute inset-0 grid-overlay opacity-30" />
-        <div className="relative max-w-7xl mx-auto px-6 py-16 grid md:grid-cols-4 gap-10">
+      <footer className="bg-flamingo-ink text-white/70 border-t border-white/10">
+        <div className="max-w-7xl mx-auto px-6 py-16 grid md:grid-cols-4 gap-10">
           <div className="md:col-span-1">
             <div className="flex items-center gap-2">
               <span className="w-10 h-10 rounded-full bg-gradient-flamingo border-2 border-white flex items-center justify-center text-white font-black">
@@ -434,19 +541,20 @@ export default function Home() {
               </span>
             </div>
             <p className="mt-4 text-sm leading-relaxed">
-              The pink side of money. QR payments for South Africa&rsquo;s informal economy — because cash is heavy.
+              The pink side of money. QR payments for South Africa&rsquo;s
+              informal economy — because cash is heavy.
             </p>
           </div>
           <div>
-            <p className="text-white font-bold text-sm uppercase tracking-wider">Product</p>
+            <p className="display-eyebrow text-[10px] text-white/90">Merchants</p>
             <ul className="mt-4 space-y-2 text-sm">
+              <li><Link href="/merchant/signup" className="hover:text-flamingo-pink">Sign up</Link></li>
               <li><a href="#how" className="hover:text-flamingo-pink">How it works</a></li>
-              <li><a href="#why" className="hover:text-flamingo-pink">Why Flamingo</a></li>
-              <li><a href="#merchants" className="hover:text-flamingo-pink">For shops</a></li>
+              <li><a href="#pricing" className="hover:text-flamingo-pink">Pricing</a></li>
             </ul>
           </div>
           <div>
-            <p className="text-white font-bold text-sm uppercase tracking-wider">Company</p>
+            <p className="display-eyebrow text-[10px] text-white/90">Company</p>
             <ul className="mt-4 space-y-2 text-sm">
               <li>Flamingo Pay (Pty) Ltd</li>
               <li>Reg No: 2026/276925/07</li>
@@ -455,7 +563,7 @@ export default function Home() {
             </ul>
           </div>
           <div>
-            <p className="text-white font-bold text-sm uppercase tracking-wider">Say hi</p>
+            <p className="display-eyebrow text-[10px] text-white/90">Reach us</p>
             <ul className="mt-4 space-y-2 text-sm">
               <li><a href="mailto:info@flamingopay.co.za" className="hover:text-flamingo-pink">info@flamingopay.co.za</a></li>
               <li><a href="tel:+27639477208" className="hover:text-flamingo-pink">063 947 7208</a></li>
@@ -463,7 +571,7 @@ export default function Home() {
             </ul>
           </div>
         </div>
-        <div className="relative border-t border-white/10">
+        <div className="border-t border-white/10">
           <div className="max-w-7xl mx-auto px-6 py-6 flex flex-col md:flex-row items-center justify-between gap-4 text-xs text-white/50">
             <p>© 2026 Flamingo Pay (Pty) Ltd. All rights reserved. No flamingos were harmed.</p>
             <p>Operating under a Payment Facilitator model · FICA &amp; POPIA compliant</p>
@@ -472,4 +580,8 @@ export default function Home() {
       </footer>
     </div>
   );
+}
+
+function Dot() {
+  return <span aria-hidden className="inline-block w-1 h-1 rounded-full bg-flamingo-pink" />;
 }

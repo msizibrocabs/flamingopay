@@ -84,11 +84,11 @@ function Inner() {
             <span className="pointer-events-none absolute -right-6 -top-6 h-24 w-24 rounded-full bg-white/10 blur-xl" />
             <span className="pointer-events-none absolute -bottom-10 -left-10 h-32 w-32 rounded-full bg-flamingo-butter/30 blur-2xl" />
 
-            <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wide text-white/90">
+            <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-[0.22em] text-white/90">
               <span>{t("today_earnings")}</span>
               <span>{new Date().toLocaleDateString("en-ZA", { day: "numeric", month: "short" })}</span>
             </div>
-            <div className="mt-1 display text-[2.6rem] font-extrabold leading-none">
+            <div className="mt-2 display text-[2.8rem] font-black leading-[0.92] tabular-nums" style={{ letterSpacing: "-0.035em" }}>
               {showBalance ? (
                 <AnimatedCounter
                   to={today.total}
@@ -130,12 +130,12 @@ function Inner() {
         <Reveal delay={0.1} className="mt-4">
           <section className="glass rounded-3xl border-2 border-flamingo-dark p-5 shadow-[0_6px_0_0_#1A1A2E]">
             <div className="flex items-center justify-between">
-              <h2 className="text-sm font-extrabold uppercase tracking-wide text-flamingo-dark/70">
+              <h2 className="display-eyebrow text-[10px] text-flamingo-dark/70">
                 {t("last_7_days")}
               </h2>
               <div className="text-right">
-                <div className="text-xs font-bold text-flamingo-dark/60">{t("total")}</div>
-                <div className="text-base font-extrabold text-flamingo-dark">
+                <div className="display-eyebrow text-[9px] text-flamingo-dark/60">{t("total")}</div>
+                <div className="display text-lg font-black text-flamingo-dark tabular-nums" style={{ letterSpacing: "-0.02em" }}>
                   {showBalance ? formatZARCompact(weekTotal) : "•••"}
                 </div>
               </div>
@@ -177,7 +177,7 @@ function Inner() {
         <Reveal delay={0.25} className="mt-5">
           <section>
             <div className="flex items-center justify-between">
-              <h2 className="text-sm font-extrabold uppercase tracking-wide text-flamingo-dark/70">
+              <h2 className="display-eyebrow text-[10px] text-flamingo-dark/70">
                 {t("recent_sales")}
               </h2>
               <Link href="/merchant/transactions" className="text-xs font-bold text-flamingo-pink-deep">
@@ -233,8 +233,8 @@ function MiniCard({ label, value, tint }: { label: string; value: string; tint: 
       whileHover={{ y: -3, rotate: -0.4 }}
       className={`rounded-2xl border-2 border-flamingo-dark ${tint} p-3 shadow-[0_4px_0_0_#1A1A2E]`}
     >
-      <div className="text-[10px] font-extrabold uppercase tracking-wider text-flamingo-dark/70">{label}</div>
-      <div className="mt-0.5 text-lg font-extrabold text-flamingo-dark">{value}</div>
+      <div className="display-eyebrow text-[9px] text-flamingo-dark/70">{label}</div>
+      <div className="display mt-1 text-lg font-black text-flamingo-dark tabular-nums" style={{ letterSpacing: "-0.02em" }}>{value}</div>
     </motion.div>
   );
 }

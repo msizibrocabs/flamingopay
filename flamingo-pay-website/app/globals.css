@@ -81,6 +81,48 @@ body {
   letter-spacing: -0.02em;
 }
 
+/* Editorial hero type — enormous, tight, slightly expressive. */
+.display-xxl {
+  font-family: var(--font-fraunces), ui-serif, Georgia, serif;
+  font-weight: 900;
+  letter-spacing: -0.045em;
+  line-height: 0.86;
+  font-variation-settings: "SOFT" 100, "WONK" 0;
+}
+.display-eyebrow {
+  font-family: var(--font-dm-sans), system-ui, sans-serif;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  font-weight: 700;
+}
+.tabular-nums { font-variant-numeric: tabular-nums; }
+
+/* Dark pill CTA in the Revolut/Paystack style */
+.btn-ink {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.95rem 1.6rem;
+  border-radius: 9999px;
+  background: #1A1A2E;
+  color: #FFF7F3;
+  font-weight: 800;
+  transition: transform .18s ease, background .18s ease;
+}
+.btn-ink:hover { background: #0B0B17; transform: translateY(-1px); }
+.btn-ghost-ink {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.95rem 1.6rem;
+  border-radius: 9999px;
+  border: 2px solid #1A1A2E;
+  color: #1A1A2E;
+  font-weight: 800;
+  transition: transform .18s ease, background .18s ease;
+}
+.btn-ghost-ink:hover { background: #1A1A2E; color: #FFF7F3; transform: translateY(-1px); }
+
 /* ==========================================================
    Decorative — squiggle, tilts, stamp cards
    ========================================================== */

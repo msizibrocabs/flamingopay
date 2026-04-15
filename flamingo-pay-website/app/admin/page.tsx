@@ -73,11 +73,14 @@ function Overview() {
       <Reveal>
         <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
           <div>
-            <p className="text-xs font-bold uppercase tracking-widest text-flamingo-pink-deep">
-              Operations
-            </p>
-            <h1 className="display text-3xl font-extrabold text-flamingo-dark sm:text-4xl">
-              Overview
+            <span className="display-eyebrow text-[10px] text-flamingo-pink-deep">
+              Operations · Admin
+            </span>
+            <h1
+              className="display mt-2 font-black text-flamingo-dark leading-[0.9]"
+              style={{ fontSize: "clamp(2.25rem, 5vw, 4rem)", letterSpacing: "-0.035em" }}
+            >
+              Overview.
             </h1>
           </div>
           <motion.div whileHover={{ y: -2 }}>
@@ -114,10 +117,13 @@ function Overview() {
       </RevealGroup>
 
       {/* Pending queue */}
-      <section className="mt-8">
-        <div className="mb-3 flex items-end justify-between">
-          <h2 className="display text-xl font-extrabold text-flamingo-dark">
-            Needs review
+      <section className="mt-10">
+        <div className="mb-4 flex items-end justify-between">
+          <h2
+            className="display font-black text-flamingo-dark leading-none"
+            style={{ fontSize: "clamp(1.5rem, 3vw, 2.25rem)", letterSpacing: "-0.03em" }}
+          >
+            Needs review.
             {pending.length > 0 && (
               <span className="ml-2 inline-grid h-6 min-w-6 place-items-center rounded-full border-2 border-flamingo-dark bg-flamingo-pink px-2 text-xs font-extrabold text-white">
                 {pending.length}
@@ -149,9 +155,12 @@ function Overview() {
       </section>
 
       {/* Recent */}
-      <section className="mt-8">
-        <h2 className="display mb-3 text-xl font-extrabold text-flamingo-dark">
-          Recent activity
+      <section className="mt-10">
+        <h2
+          className="display mb-4 font-black text-flamingo-dark leading-none"
+          style={{ fontSize: "clamp(1.5rem, 3vw, 2.25rem)", letterSpacing: "-0.03em" }}
+        >
+          Recent activity.
         </h2>
         {loading ? (
           <Skeleton />
@@ -221,10 +230,13 @@ function StatCard({
         (highlight ? " ring-4 ring-flamingo-pink/30" : "")
       }
     >
-      <p className="text-[11px] font-bold uppercase tracking-widest text-flamingo-dark/70">
+      <p className="display-eyebrow text-[10px] text-flamingo-dark/70">
         {label}
       </p>
-      <p className="display mt-1 text-2xl font-extrabold text-flamingo-dark sm:text-3xl">
+      <p
+        className="display mt-2 font-black text-flamingo-dark tabular-nums leading-none"
+        style={{ fontSize: "clamp(1.75rem, 3.5vw, 2.75rem)", letterSpacing: "-0.03em" }}
+      >
         {hasNumber ? (
           money ? (
             <>R {formatZARCompact(numeric).replace("R ", "")}</>

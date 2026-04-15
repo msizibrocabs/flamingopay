@@ -135,8 +135,13 @@ export default function PayPage() {
             </motion.span>
             <span className="text-sm font-bold opacity-90">Flamingo Pay</span>
           </div>
-          <p className="text-white/80 text-xs font-medium uppercase tracking-wider">{merchant.category}</p>
-          <h1 className="display text-3xl font-black mt-1">{merchant.name}</h1>
+          <p className="display-eyebrow text-[10px] text-white/80">{merchant.category}</p>
+          <h1
+            className="display mt-2 font-black leading-[0.95]"
+            style={{ fontSize: "clamp(1.75rem, 6vw, 3rem)", letterSpacing: "-0.035em" }}
+          >
+            {merchant.name}
+          </h1>
         </div>
       </header>
 
@@ -153,7 +158,7 @@ export default function PayPage() {
                 exit="exit"
                 transition={{ duration: 0.25 }}
               >
-                <p className="text-flamingo-dark/70 text-sm font-medium mb-3">How much are you paying?</p>
+                <p className="display-eyebrow text-[10px] text-flamingo-pink-deep mb-3">How much are you paying?</p>
 
                 <motion.div
                   whileFocus={{ scale: 1.01 }}
