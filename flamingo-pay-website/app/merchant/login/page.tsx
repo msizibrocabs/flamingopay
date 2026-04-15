@@ -112,7 +112,7 @@ export default function LoginPage() {
           </button>
           <div className="text-flamingo-dark/70">
             New to Flamingo?{" "}
-            <Link href="/#merchants" className="font-bold text-flamingo-pink-deep underline-offset-2 hover:underline">
+            <Link href="/merchant/signup" className="font-bold text-flamingo-pink-deep underline-offset-2 hover:underline">
               Sign up
             </Link>
           </div>

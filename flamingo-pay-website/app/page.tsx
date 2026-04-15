@@ -13,7 +13,7 @@ export default function Home() {
             <a href="#why" className="hover:text-flamingo-pink transition">Why it works</a>
             <a href="#merchants" className="hover:text-flamingo-pink transition">For shops</a>
           </nav>
-          <a href="#merchants" className="btn-pink rounded-full px-5 py-2.5 text-sm font-bold">
+          <a href="/merchant/signup" className="btn-pink rounded-full px-5 py-2.5 text-sm font-bold">
             Get my QR
           </a>
         </div>
@@ -39,7 +39,7 @@ export default function Home() {
               Flamingo turns your phone into a till in the time it takes to boil a kettle.
             </p>
             <div className="mt-8 flex flex-wrap items-center gap-4">
-              <a href="#merchants" className="btn-pink rounded-full px-7 py-4 font-bold">
+              <a href="/merchant/signup" className="btn-pink rounded-full px-7 py-4 font-bold">
                 Sign up my shop →
               </a>
               <a href="#how" className="btn-dark rounded-full px-7 py-4 font-bold">
@@ -279,7 +279,7 @@ export default function Home() {
             No card machine. No monthly fee. No bank lock-in. Just a universal QR, instant PayShap settlement, and one less reason to ever hear the words &ldquo;card is declined&rdquo; again.
           </p>
           <div className="mt-10 flex flex-wrap items-center justify-center gap-4">
-            <a href="#" className="bg-white text-flamingo-pink-dark hover:bg-flamingo-cream px-8 py-4 rounded-full font-black shadow-[0_6px_0_0_#1A1A2E] active:shadow-none active:translate-y-1.5 transition">
+            <a href="/merchant/signup" className="bg-white text-flamingo-pink-dark hover:bg-flamingo-cream px-8 py-4 rounded-full font-black shadow-[0_6px_0_0_#1A1A2E] active:shadow-none active:translate-y-1.5 transition">
               Sign up my shop →
             </a>
             <a href="#how" className="btn-dark rounded-full px-8 py-4 font-bold">
