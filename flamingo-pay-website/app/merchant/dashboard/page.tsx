@@ -1,10 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { motion } from "framer-motion";
 import { MerchantGate } from "../_components/MerchantGate";
 import { TabBar } from "../_components/TabBar";
 import { TopBar } from "../_components/TopBar";
+import { Reveal, RevealGroup, RevealItem } from "../../../components/motion/Reveal";
+import { AnimatedCounter } from "../../../components/motion/AnimatedCounter";
+import { flamingoConfetti } from "../../../components/motion/Confetti";
 import {
   DEMO_MERCHANT,
   formatZAR,
@@ -19,13 +24,16 @@ import { useI18n } from "../../../lib/i18n";
 export default function DashboardPage() {
   return (
     <MerchantGate>
-      <Inner />
+      <Suspense fallback={null}>
+        <Inner />
+      </Suspense>
     </MerchantGate>
   );
 }
 
 function Inner() {
   const { t } = useI18n();
+  const search = useSearchParams();
   const txns = useMemo(() => makeMockTransactions(48), []);
   const today = useMemo(() => todayTotals(txns), [txns]);
   const week = useMemo(() => weekTotals(txns), [txns]);
@@ -35,8 +43,16 @@ function Inner() {
   const maxDay = Math.max(...week.map(d => d.total), 1);
   const weekTotal = week.reduce((s, d) => s + d.total, 0);
 
+  // Welcome burst when a merchant lands here fresh from approval
+  useEffect(() => {
+    if (search?.get("welcome") === "1") {
+      const handle = setTimeout(flamingoConfetti, 350);
+      return () => clearTimeout(handle);
+    }
+  }, [search]);
+
   return (
-    <main className="min-h-dvh bg-flamingo-cream pb-28">
+    <main className="min-h-dvh bg-gradient-sunrise pb-28">
       <TopBar
         title={`${t("dash_hi")}, ${DEMO_MERCHANT.owner.split(" ")[0]} 👋`}
         subtitle={DEMO_MERCHANT.name}
@@ -44,7 +60,7 @@ function Inner() {
           <button
             aria-label={showBalance ? "Hide balance" : "Show balance"}
             onClick={() => setShowBalance(v => !v)}
-            className="grid h-9 w-9 place-items-center rounded-full bg-white/15 text-white"
+            className="grid h-9 w-9 place-items-center rounded-full bg-white/15 text-white transition hover:bg-white/25"
           >
             {showBalance ? (
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
@@ -62,108 +78,148 @@ function Inner() {
 
       <div className="mx-auto max-w-md px-4">
         {/* Today's earnings hero */}
-        <section className="mt-4 rounded-3xl border-2 border-flamingo-dark bg-flamingo-pink p-5 text-white shadow-[0_6px_0_0_#1A1A2E]">
-          <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wide text-white/85">
-            <span>{t("today_earnings")}</span>
-            <span>{new Date().toLocaleDateString("en-ZA", { day: "numeric", month: "short" })}</span>
-          </div>
-          <div className="mt-1 display text-[2.6rem] font-extrabold leading-none">
-            {showBalance ? formatZAR(today.total) : "R ••••••"}
-          </div>
-          <div className="mt-2 text-sm text-white/85">
-            {today.count} {today.count === 1 ? t("transaction_singular") : t("transactions_plural")} • {t("avg")} {formatZARCompact(today.total / Math.max(1, today.count))}
-          </div>
+        <Reveal className="mt-4">
+          <section className="relative overflow-hidden rounded-3xl border-2 border-flamingo-dark bg-gradient-flamingo p-5 text-white shadow-[0_10px_0_0_#1A1A2E]">
+            {/* Decorative pulse ring */}
+            <span className="pointer-events-none absolute -right-6 -top-6 h-24 w-24 rounded-full bg-white/10 blur-xl" />
+            <span className="pointer-events-none absolute -bottom-10 -left-10 h-32 w-32 rounded-full bg-flamingo-butter/30 blur-2xl" />
 
-          <div className="mt-4 grid grid-cols-2 gap-3">
-            <Link
-              href="/merchant/qr"
-              className="flex items-center justify-center gap-2 rounded-2xl border-2 border-flamingo-dark bg-white px-3 py-3 text-sm font-extrabold text-flamingo-dark"
-            >
-              <span>📱</span> {t("show_my_qr")}
-            </Link>
-            <Link
-              href="/merchant/settlements"
-              className="flex items-center justify-center gap-2 rounded-2xl border-2 border-flamingo-dark bg-flamingo-cream px-3 py-3 text-sm font-extrabold text-flamingo-dark"
-            >
-              <span>💸</span> {t("payouts")}
-            </Link>
-          </div>
-        </section>
+            <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wide text-white/90">
+              <span>{t("today_earnings")}</span>
+              <span>{new Date().toLocaleDateString("en-ZA", { day: "numeric", month: "short" })}</span>
+            </div>
+            <div className="mt-1 display text-[2.6rem] font-extrabold leading-none">
+              {showBalance ? (
+                <AnimatedCounter
+                  to={today.total}
+                  duration={1.1}
+                  prefix="R "
+                  decimals={2}
+                  locale="en-ZA"
+                />
+              ) : (
+                "R ••••••"
+              )}
+            </div>
+            <div className="mt-2 text-sm text-white/90">
+              {today.count} {today.count === 1 ? t("transaction_singular") : t("transactions_plural")} • {t("avg")} {formatZARCompact(today.total / Math.max(1, today.count))}
+            </div>
+
+            <div className="mt-4 grid grid-cols-2 gap-3">
+              <motion.div whileHover={{ y: -2 }} whileTap={{ scale: 0.97 }}>
+                <Link
+                  href="/merchant/qr"
+                  className="flex items-center justify-center gap-2 rounded-2xl border-2 border-flamingo-dark bg-white px-3 py-3 text-sm font-extrabold text-flamingo-dark shadow-[0_3px_0_0_#1A1A2E]"
+                >
+                  <span>📱</span> {t("show_my_qr")}
+                </Link>
+              </motion.div>
+              <motion.div whileHover={{ y: -2 }} whileTap={{ scale: 0.97 }}>
+                <Link
+                  href="/merchant/settlements"
+                  className="flex items-center justify-center gap-2 rounded-2xl border-2 border-flamingo-dark bg-flamingo-cream px-3 py-3 text-sm font-extrabold text-flamingo-dark shadow-[0_3px_0_0_#1A1A2E]"
+                >
+                  <span>💸</span> {t("payouts")}
+                </Link>
+              </motion.div>
+            </div>
+          </section>
+        </Reveal>
 
         {/* Weekly bar chart */}
-        <section className="mt-4 rounded-3xl border-2 border-flamingo-dark bg-white p-5 shadow-[0_6px_0_0_#1A1A2E]">
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-extrabold uppercase tracking-wide text-flamingo-dark/70">
-              {t("last_7_days")}
-            </h2>
-            <div className="text-right">
-              <div className="text-xs font-bold text-flamingo-dark/60">{t("total")}</div>
-              <div className="text-base font-extrabold text-flamingo-dark">
-                {showBalance ? formatZARCompact(weekTotal) : "•••"}
+        <Reveal delay={0.1} className="mt-4">
+          <section className="glass rounded-3xl border-2 border-flamingo-dark p-5 shadow-[0_6px_0_0_#1A1A2E]">
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-extrabold uppercase tracking-wide text-flamingo-dark/70">
+                {t("last_7_days")}
+              </h2>
+              <div className="text-right">
+                <div className="text-xs font-bold text-flamingo-dark/60">{t("total")}</div>
+                <div className="text-base font-extrabold text-flamingo-dark">
+                  {showBalance ? formatZARCompact(weekTotal) : "•••"}
+                </div>
               </div>
             </div>
-          </div>
-          <div className="mt-3 flex items-end gap-2">
-            {week.map(d => (
-              <div key={d.label} className="flex flex-1 flex-col items-center gap-1">
-                <div className="flex h-24 w-full items-end">
-                  <div
-                    className="w-full rounded-t-md bg-flamingo-pink"
-                    style={{ height: `${(d.total / maxDay) * 100}%`, minHeight: d.total > 0 ? 4 : 0 }}
-                    title={formatZAR(d.total)}
-                  />
+            <div className="mt-3 flex items-end gap-2">
+              {week.map((d, i) => (
+                <div key={d.label} className="flex flex-1 flex-col items-center gap-1">
+                  <div className="flex h-24 w-full items-end">
+                    <motion.div
+                      className="w-full rounded-t-md bg-gradient-to-t from-flamingo-pink-deep to-flamingo-pink"
+                      initial={{ height: 0 }}
+                      whileInView={{
+                        height: `${(d.total / maxDay) * 100}%`,
+                      }}
+                      viewport={{ once: true, amount: 0.3 }}
+                      transition={{ delay: i * 0.06, duration: 0.7, ease: "easeOut" }}
+                      style={{ minHeight: d.total > 0 ? 4 : 0 }}
+                      title={formatZAR(d.total)}
+                    />
+                  </div>
+                  <span className="text-[10px] font-semibold text-flamingo-dark/60">{d.label}</span>
                 </div>
-                <span className="text-[10px] font-semibold text-flamingo-dark/60">{d.label}</span>
-              </div>
-            ))}
-          </div>
-        </section>
+              ))}
+            </div>
+          </section>
+        </Reveal>
 
         {/* Quick stats */}
-        <section className="mt-4 grid grid-cols-2 gap-3">
-          <MiniCard label={t("fee_rate")} value={`${(DEMO_MERCHANT.feeRate * 100).toFixed(1)}%`} tint="bg-flamingo-butter" />
-          <MiniCard label={t("verified")} value={DEMO_MERCHANT.verified ? t("verified_yes") : t("verified_pending")} tint="bg-flamingo-mint" />
-        </section>
+        <RevealGroup delay={0.15} className="mt-4 grid grid-cols-2 gap-3">
+          <RevealItem>
+            <MiniCard label={t("fee_rate")} value={`${(DEMO_MERCHANT.feeRate * 100).toFixed(1)}%`} tint="bg-flamingo-butter" />
+          </RevealItem>
+          <RevealItem>
+            <MiniCard label={t("verified")} value={DEMO_MERCHANT.verified ? t("verified_yes") : t("verified_pending")} tint="bg-flamingo-mint" />
+          </RevealItem>
+        </RevealGroup>
 
         {/* Recent transactions */}
-        <section className="mt-5">
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-extrabold uppercase tracking-wide text-flamingo-dark/70">
-              {t("recent_sales")}
-            </h2>
-            <Link href="/merchant/transactions" className="text-xs font-bold text-flamingo-pink-deep">
-              {t("see_all")} →
-            </Link>
-          </div>
+        <Reveal delay={0.25} className="mt-5">
+          <section>
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-extrabold uppercase tracking-wide text-flamingo-dark/70">
+                {t("recent_sales")}
+              </h2>
+              <Link href="/merchant/transactions" className="text-xs font-bold text-flamingo-pink-deep">
+                {t("see_all")} →
+              </Link>
+            </div>
 
-          <ul className="mt-2 divide-y-2 divide-flamingo-cream rounded-2xl border-2 border-flamingo-dark bg-white shadow-[0_6px_0_0_#1A1A2E]">
-            {recent.map(t => (
-              <li key={t.id}>
-                <Link
-                  href={`/merchant/transactions#${t.id}`}
-                  className="flex items-center gap-3 px-4 py-3 hover:bg-flamingo-pink-wash"
+            <ul className="mt-2 divide-y-2 divide-flamingo-cream rounded-2xl border-2 border-flamingo-dark bg-white shadow-[0_6px_0_0_#1A1A2E]">
+              {recent.map((tx, i) => (
+                <motion.li
+                  key={tx.id}
+                  initial={{ opacity: 0, x: -12 }}
+                  whileInView={{ opacity: 1, x: 0 }}
+                  viewport={{ once: true, amount: 0.3 }}
+                  transition={{ delay: i * 0.05, duration: 0.4 }}
                 >
-                  <div
-                    className={`grid h-10 w-10 flex-none place-items-center rounded-full border-2 border-flamingo-dark text-sm font-extrabold ${
-                      t.rail === "payshap" ? "bg-flamingo-mint" : "bg-flamingo-sky"
-                    }`}
+                  <Link
+                    href={`/merchant/transactions#${tx.id}`}
+                    className="flex items-center gap-3 px-4 py-3 transition hover:bg-flamingo-pink-wash"
                   >
-                    {t.rail === "payshap" ? "PS" : "EFT"}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate text-sm font-extrabold text-flamingo-dark">
-                      {showBalance ? formatZAR(t.amount) : "R •••"}
+                    <div
+                      className={`grid h-10 w-10 flex-none place-items-center rounded-full border-2 border-flamingo-dark text-sm font-extrabold ${
+                        tx.rail === "payshap" ? "bg-flamingo-mint" : "bg-flamingo-sky"
+                      }`}
+                    >
+                      {tx.rail === "payshap" ? "PS" : "EFT"}
                     </div>
-                    <div className="truncate text-xs text-flamingo-dark/60">
-                      {t.buyerBank} • {timeAgo(t.timestamp)}
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-sm font-extrabold text-flamingo-dark">
+                        {showBalance ? formatZAR(tx.amount) : "R •••"}
+                      </div>
+                      <div className="truncate text-xs text-flamingo-dark/60">
+                        {tx.buyerBank} • {timeAgo(tx.timestamp)}
+                      </div>
                     </div>
-                  </div>
-                  <StatusPill status={t.status} />
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </section>
+                    <StatusPill status={tx.status} />
+                  </Link>
+                </motion.li>
+              ))}
+            </ul>
+          </section>
+        </Reveal>
       </div>
 
       <TabBar />
@@ -173,10 +229,13 @@ function Inner() {
 
 function MiniCard({ label, value, tint }: { label: string; value: string; tint: string }) {
   return (
-    <div className={`rounded-2xl border-2 border-flamingo-dark ${tint} p-3 shadow-[0_4px_0_0_#1A1A2E]`}>
+    <motion.div
+      whileHover={{ y: -3, rotate: -0.4 }}
+      className={`rounded-2xl border-2 border-flamingo-dark ${tint} p-3 shadow-[0_4px_0_0_#1A1A2E]`}
+    >
       <div className="text-[10px] font-extrabold uppercase tracking-wider text-flamingo-dark/70">{label}</div>
       <div className="mt-0.5 text-lg font-extrabold text-flamingo-dark">{value}</div>
-    </div>
+    </motion.div>
   );
 }
 

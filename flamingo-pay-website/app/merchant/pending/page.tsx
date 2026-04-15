@@ -31,7 +31,7 @@ export default function PendingPage() {
         setMerchant(data.merchant);
         setReady(true);
         if (data.merchant?.status === "approved") {
-          router.push("/merchant/dashboard");
+          router.push("/merchant/dashboard?welcome=1");
         }
       } catch {
         /* ignore */
@@ -154,7 +154,7 @@ export default function PendingPage() {
 
         <div className="mt-6 flex flex-col items-center gap-2 text-sm">
           <a
-            href="https://wa.me/27000000000"
+            href="https://wa.me/27639477208"
             target="_blank"
             rel="noopener noreferrer"
             className="font-semibold text-flamingo-pink-deep underline-offset-2 hover:underline"

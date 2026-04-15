@@ -10,8 +10,10 @@
   --color-flamingo-butter: #FFE9B8;
   --color-flamingo-mint: #C6F3D8;
   --color-flamingo-sky: #BFE4FF;
+  --color-flamingo-lilac: #E9DCFF;
   --color-flamingo-dark: #1A1A2E;
   --color-flamingo-dark-2: #12121F;
+  --color-flamingo-ink: #0B0B17;
 }
 
 /* ==========================================================
@@ -19,7 +21,6 @@
    color works regardless of Tailwind JIT scanning quirks.
    ========================================================== */
 
-/* Backgrounds */
 .bg-flamingo-pink        { background-color: #FF5277; }
 .bg-flamingo-pink-dark   { background-color: #D93A5C; }
 .bg-flamingo-pink-deep   { background-color: #B42A48; }
@@ -29,15 +30,16 @@
 .bg-flamingo-butter      { background-color: #FFE9B8; }
 .bg-flamingo-mint        { background-color: #C6F3D8; }
 .bg-flamingo-sky         { background-color: #BFE4FF; }
+.bg-flamingo-lilac       { background-color: #E9DCFF; }
 .bg-flamingo-dark        { background-color: #1A1A2E; }
 .bg-flamingo-dark-2      { background-color: #12121F; }
+.bg-flamingo-ink         { background-color: #0B0B17; }
 
-/* Translucent variants used in the dark section */
 .bg-flamingo-pink\/25    { background-color: rgba(255, 82, 119, 0.25); }
 .bg-flamingo-pink\/15    { background-color: rgba(255, 82, 119, 0.15); }
+.bg-flamingo-pink\/10    { background-color: rgba(255, 82, 119, 0.10); }
 .bg-flamingo-cream\/95   { background-color: rgba(255, 247, 243, 0.95); }
 
-/* Text */
 .text-flamingo-pink        { color: #FF5277; }
 .text-flamingo-pink-dark   { color: #D93A5C; }
 .text-flamingo-pink-deep   { color: #B42A48; }
@@ -46,20 +48,21 @@
 .text-flamingo-butter      { color: #FFE9B8; }
 .text-flamingo-mint        { color: #C6F3D8; }
 .text-flamingo-sky         { color: #BFE4FF; }
+.text-flamingo-lilac       { color: #E9DCFF; }
 .text-flamingo-dark        { color: #1A1A2E; }
 .text-flamingo-dark\/80    { color: rgba(26, 26, 46, 0.8); }
 .text-flamingo-dark\/70    { color: rgba(26, 26, 46, 0.7); }
 
-/* Borders */
 .border-flamingo-pink      { border-color: #FF5277; }
 .border-flamingo-dark      { border-color: #1A1A2E; }
+.border-flamingo-lilac     { border-color: #E9DCFF; }
 
 .hover\:text-flamingo-pink:hover       { color: #FF5277; }
 .hover\:border-flamingo-pink:hover     { border-color: #FF5277; }
 .hover\:bg-flamingo-cream:hover        { background-color: #FFF7F3; }
 
 /* ==========================================================
-   Brand typography + decorative styles
+   Brand typography
    ========================================================== */
 
 html {
@@ -70,12 +73,17 @@ body {
   font-family: var(--font-dm-sans), system-ui, sans-serif;
   color: #1A1A2E;
   background: #FFF7F3;
+  overflow-x: hidden;
 }
 
 .display {
   font-family: var(--font-fraunces), ui-serif, Georgia, serif;
   letter-spacing: -0.02em;
 }
+
+/* ==========================================================
+   Decorative — squiggle, tilts, stamp cards
+   ========================================================== */
 
 .underline-squiggle {
   background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 10'><path d='M2 6 Q 15 -2 30 6 T 60 6 T 90 6 T 120 6' fill='none' stroke='%23FF5277' stroke-width='3' stroke-linecap='round'/></svg>");
@@ -110,3 +118,144 @@ body {
 .card-stamp-pink { border: 2px solid #1A1A2E; box-shadow: 6px 6px 0 #FF5277; }
 
 .rounded-blob    { border-radius: 42% 58% 63% 37% / 51% 41% 59% 49%; }
+
+/* ==========================================================
+   NEW — gradients, glass, glow, shimmer, mesh backgrounds
+   ========================================================== */
+
+.bg-gradient-flamingo {
+  background: linear-gradient(120deg, #FF5277 0%, #D93A5C 50%, #B42A48 100%);
+}
+
+.bg-gradient-sunrise {
+  background:
+    radial-gradient(1200px 600px at -10% -20%, rgba(255, 82, 119, 0.35), transparent 60%),
+    radial-gradient(900px 500px at 110% 10%, rgba(255, 233, 184, 0.55), transparent 55%),
+    radial-gradient(800px 500px at 50% 120%, rgba(198, 243, 216, 0.5), transparent 55%),
+    #FFF7F3;
+}
+
+.bg-gradient-midnight {
+  background:
+    radial-gradient(1000px 500px at 20% 0%, rgba(255, 82, 119, 0.22), transparent 60%),
+    radial-gradient(800px 400px at 80% 100%, rgba(233, 220, 255, 0.15), transparent 55%),
+    linear-gradient(180deg, #0B0B17 0%, #12121F 100%);
+}
+
+.bg-mesh-cream {
+  background-color: #FFF7F3;
+  background-image:
+    radial-gradient(circle at 15% 20%, rgba(255, 82, 119, 0.12) 0, transparent 32%),
+    radial-gradient(circle at 85% 10%, rgba(255, 233, 184, 0.55) 0, transparent 35%),
+    radial-gradient(circle at 50% 95%, rgba(191, 228, 255, 0.4) 0, transparent 35%);
+}
+
+.glass {
+  background: rgba(255, 255, 255, 0.65);
+  backdrop-filter: saturate(160%) blur(14px);
+  -webkit-backdrop-filter: saturate(160%) blur(14px);
+  border: 1px solid rgba(26, 26, 46, 0.08);
+}
+
+.glass-dark {
+  background: rgba(18, 18, 31, 0.55);
+  backdrop-filter: saturate(160%) blur(18px);
+  -webkit-backdrop-filter: saturate(160%) blur(18px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.glow-pink {
+  box-shadow:
+    0 0 0 1px rgba(255, 82, 119, 0.35),
+    0 10px 40px -10px rgba(255, 82, 119, 0.55),
+    0 30px 80px -30px rgba(255, 82, 119, 0.45);
+}
+
+.glow-soft {
+  box-shadow:
+    0 10px 30px -12px rgba(26, 26, 46, 0.18),
+    0 30px 60px -30px rgba(26, 26, 46, 0.25);
+}
+
+.text-gradient-flamingo {
+  background: linear-gradient(120deg, #FF5277 0%, #B42A48 55%, #FF5277 100%);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: shimmer 5s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  0%, 100% { background-position: 0% 50%; }
+  50%      { background-position: 100% 50%; }
+}
+
+@keyframes float-slow {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50%      { transform: translateY(-18px) rotate(-2deg); }
+}
+
+.float-slow {
+  animation: float-slow 6s ease-in-out infinite;
+}
+
+@keyframes pulse-ring {
+  0%   { transform: scale(0.9); opacity: 0.9; }
+  100% { transform: scale(1.6); opacity: 0; }
+}
+
+.pulse-ring::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  border: 2px solid #FF5277;
+  animation: pulse-ring 1.8s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+}
+
+/* Animated grid overlay for dark hero sections */
+.grid-overlay {
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+  background-size: 42px 42px;
+  mask-image: radial-gradient(ellipse at center, black 40%, transparent 80%);
+  -webkit-mask-image: radial-gradient(ellipse at center, black 40%, transparent 80%);
+}
+
+/* Marquee */
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+.marquee-track {
+  display: flex;
+  gap: 2.5rem;
+  width: max-content;
+  animation: marquee 38s linear infinite;
+}
+
+/* Noise texture for extra texture on light surfaces */
+.noise::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.035;
+  mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+}
+
+/* Scrollbar polish for dashboards */
+.scrollbar-thin::-webkit-scrollbar       { width: 8px; height: 8px; }
+.scrollbar-thin::-webkit-scrollbar-thumb { background: rgba(26, 26, 46, 0.18); border-radius: 999px; }
+.scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+
+/* Reduced-motion respect */
+@media (prefers-reduced-motion: reduce) {
+  .float-slow, .pulse-ring::after, .text-gradient-flamingo, .marquee-track {
+    animation: none;
+  }
+  html { scroll-behavior: auto; }
+}

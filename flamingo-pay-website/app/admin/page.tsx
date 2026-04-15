@@ -2,9 +2,12 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { motion } from "framer-motion";
 import { AdminGate } from "./_components/AdminGate";
 import { AdminNav } from "./_components/AdminNav";
 import { StatusPill } from "./_components/StatusPill";
+import { Reveal, RevealGroup, RevealItem } from "../../components/motion/Reveal";
+import { AnimatedCounter } from "../../components/motion/AnimatedCounter";
 import { formatZARCompact, timeAgo } from "../../lib/merchant";
 import type { MerchantApplication } from "../../lib/store";
 
@@ -67,39 +70,48 @@ function Overview() {
 
   return (
     <main className="mx-auto max-w-6xl px-5 py-8">
-      <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <p className="text-xs font-bold uppercase tracking-widest text-flamingo-pink-deep">
-            Operations
-          </p>
-          <h1 className="display text-3xl font-extrabold text-flamingo-dark sm:text-4xl">
-            Overview
-          </h1>
+      <Reveal>
+        <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-widest text-flamingo-pink-deep">
+              Operations
+            </p>
+            <h1 className="display text-3xl font-extrabold text-flamingo-dark sm:text-4xl">
+              Overview
+            </h1>
+          </div>
+          <motion.div whileHover={{ y: -2 }}>
+            <Link
+              href="/admin/merchants"
+              className="rounded-xl border-2 border-flamingo-dark bg-white px-4 py-2 text-sm font-bold text-flamingo-dark shadow-[0_3px_0_0_#1A1A2E] hover:bg-flamingo-cream"
+            >
+              All merchants →
+            </Link>
+          </motion.div>
         </div>
-        <Link
-          href="/admin/merchants"
-          className="rounded-xl border-2 border-flamingo-dark bg-white px-4 py-2 text-sm font-bold text-flamingo-dark shadow-[0_3px_0_0_#1A1A2E] hover:bg-flamingo-cream"
-        >
-          All merchants →
-        </Link>
-      </div>
+      </Reveal>
 
       {/* Stats grid */}
-      <section className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <StatCard label="Merchants" value={stats.total} tone="cream" />
-        <StatCard label="Pending review" value={stats.pending} tone="pink" highlight={stats.pending > 0} />
-        <StatCard label="Approved" value={stats.approved} tone="mint" />
-        <StatCard label="Rejected" value={stats.rejected} tone="butter" />
-      </section>
+      <RevealGroup className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <RevealItem><StatCard label="Merchants" value={stats.total} tone="cream" /></RevealItem>
+        <RevealItem><StatCard label="Pending review" value={stats.pending} tone="pink" highlight={stats.pending > 0} /></RevealItem>
+        <RevealItem><StatCard label="Approved" value={stats.approved} tone="mint" /></RevealItem>
+        <RevealItem><StatCard label="Rejected" value={stats.rejected} tone="butter" /></RevealItem>
+      </RevealGroup>
 
-      <section className="mt-4 grid gap-3 sm:grid-cols-2">
-        <StatCard
-          label="Lifetime volume"
-          value={"R " + formatZARCompact(stats.lifetimeVolume).replace("R ", "")}
-          tone="sky"
-        />
-        <StatCard label="Lifetime txns" value={stats.lifetimeTxns.toLocaleString("en-ZA")} tone="sky" />
-      </section>
+      <RevealGroup delay={0.1} className="mt-4 grid gap-3 sm:grid-cols-2">
+        <RevealItem>
+          <StatCard
+            label="Lifetime volume"
+            value={stats.lifetimeVolume}
+            tone="sky"
+            money
+          />
+        </RevealItem>
+        <RevealItem>
+          <StatCard label="Lifetime txns" value={stats.lifetimeTxns} tone="sky" />
+        </RevealItem>
+      </RevealGroup>
 
       {/* Pending queue */}
       <section className="mt-8">
@@ -183,11 +195,13 @@ function StatCard({
   value,
   tone,
   highlight,
+  money,
 }: {
   label: string;
   value: string | number;
   tone: "cream" | "pink" | "mint" | "butter" | "sky";
   highlight?: boolean;
+  money?: boolean;
 }) {
   const bg = {
     cream: "bg-white",
@@ -196,8 +210,11 @@ function StatCard({
     butter: "bg-flamingo-butter",
     sky: "bg-flamingo-sky",
   }[tone];
+  const numeric = typeof value === "number" ? value : Number(value);
+  const hasNumber = !Number.isNaN(numeric);
   return (
-    <div
+    <motion.div
+      whileHover={{ y: -3 }}
       className={
         "rounded-2xl border-2 border-flamingo-dark p-4 shadow-[0_6px_0_0_#1A1A2E] " +
         bg +
@@ -208,9 +225,17 @@ function StatCard({
         {label}
       </p>
       <p className="display mt-1 text-2xl font-extrabold text-flamingo-dark sm:text-3xl">
-        {value}
+        {hasNumber ? (
+          money ? (
+            <>R {formatZARCompact(numeric).replace("R ", "")}</>
+          ) : (
+            <AnimatedCounter to={numeric} duration={1} locale="en-ZA" />
+          )
+        ) : (
+          value
+        )}
       </p>
-    </div>
+    </motion.div>
   );
 }
 

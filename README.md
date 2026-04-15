@@ -8,28 +8,44 @@ A payment processing service with an Express.js backend API and a Next.js fronte
 
 ```
 flamingopay/
-├── src/                          # Express backend
-│   ├── routes/                   # API route definitions
-│   ├── controllers/              # Request handlers
-│   ├── models/                   # Data models
-│   ├── middleware/               # Express middleware
-│   ├── utils/                    # Helper functions
-│   ├── config/                   # Configuration files
-│   └── app.js                    # Express app entry point
-├── flamingo-pay-website/         # Next.js frontend
-│   ├── app/                      # App Router pages & layouts
-│   │   ├── pay/[merchantId]/     # Universal payment page (dynamic)
-│   │   ├── test/page.tsx         # API proxy test page
-│   │   ├── layout.tsx            # Root layout
-│   │   └── page.tsx              # Home page
-│   ├── public/                   # Static assets
-│   ├── next.config.ts            # Next.js config (API proxy)
-│   └── package.json              # Frontend dependencies
-├── tests/                        # Backend test files
-├── docs/                         # Documentation
-├── .env.example                  # Environment variable template
-├── .gitignore                    # Git ignore rules
-├── package.json                  # Backend dependencies
+├── src/                              # Express backend
+│   └── app.js                        # Express app entry point
+├── flamingo-pay-website/             # Next.js frontend
+│   ├── app/                          # App Router pages & layouts
+│   │   ├── admin/                    # Admin operations console (staff)
+│   │   │   ├── _components/          # AdminGate, AdminNav, StatusPill
+│   │   │   ├── merchants/            # Merchant list & detail pages
+│   │   │   │   └── [id]/page.tsx     # Single-merchant review & actions
+│   │   │   ├── login/page.tsx        # Admin sign-in
+│   │   │   └── page.tsx              # Admin overview dashboard
+│   │   ├── merchant/                 # Merchant-facing mobile app
+│   │   │   ├── _components/          # TabBar, TopBar, LanguagePicker, MerchantGate
+│   │   │   ├── dashboard/page.tsx    # Sales dashboard
+│   │   │   ├── transactions/page.tsx # Transaction history
+│   │   │   ├── qr/page.tsx           # QR code display
+│   │   │   ├── settlements/page.tsx  # Payouts / settlements
+│   │   │   ├── profile/page.tsx      # Merchant profile
+│   │   │   ├── login/page.tsx        # Merchant sign-in
+│   │   │   ├── signup/page.tsx       # 4-step merchant onboarding
+│   │   │   └── pending/page.tsx      # Application review status
+│   │   ├── api/merchants/            # Next.js API routes (CRUD)
+│   │   ├── pay/[merchantId]/         # Universal payment page (dynamic)
+│   │   ├── not-found.tsx             # Custom 404 page
+│   │   ├── layout.tsx                # Root layout (fonts, metadata)
+│   │   └── page.tsx                  # Landing page
+│   ├── lib/                          # Shared logic
+│   │   ├── store.ts                  # Server-side merchant store (in-memory)
+│   │   ├── merchant.ts               # Client-side mock data & session helpers
+│   │   ├── admin.ts                  # Admin session helpers (demo)
+│   │   └── i18n.tsx                  # 11-language i18n provider
+│   ├── public/                       # Static assets (logos, QR images)
+│   ├── next.config.ts                # Next.js config
+│   └── package.json                  # Frontend dependencies
+├── brand/                            # Brand assets (logos, favicon)
+├── tests/                            # Backend test files
+├── .env.example                      # Environment variable template
+├── .gitignore                        # Git ignore rules
+├── package.json                      # Backend dependencies
 └── README.md
 ```
 

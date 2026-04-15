@@ -3,9 +3,12 @@
 import Link from "next/link";
 import { use, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
 import { AdminGate } from "../../_components/AdminGate";
 import { AdminNav } from "../../_components/AdminNav";
 import { StatusPill } from "../../_components/StatusPill";
+import { Reveal } from "../../../../components/motion/Reveal";
+import { flamingoConfetti } from "../../../../components/motion/Confetti";
 import { formatZAR, timeAgo } from "../../../../lib/merchant";
 import type { MerchantApplication, MerchantStatus } from "../../../../lib/store";
 
@@ -69,6 +72,9 @@ function Detail({ id }: { id: string }) {
         setM(d.merchant);
         setRejectOpen(false);
         setReason("");
+        if (status === "approved") {
+          flamingoConfetti();
+        }
       }
     } catch (e) {
       setError((e as Error).message);
@@ -110,6 +116,7 @@ function Detail({ id }: { id: string }) {
       </Link>
 
       {/* Header card */}
+      <Reveal>
       <section className="mt-4 rounded-3xl border-2 border-flamingo-dark bg-white p-6 shadow-[0_6px_0_0_#1A1A2E]">
         <div className="flex flex-wrap items-start gap-4">
           <div className="grid h-16 w-16 place-items-center rounded-2xl border-2 border-flamingo-dark bg-flamingo-pink text-2xl font-extrabold text-white shadow-[0_3px_0_0_#1A1A2E]">
@@ -137,34 +144,42 @@ function Detail({ id }: { id: string }) {
           </div>
         )}
       </section>
+      </Reveal>
 
       {/* Action bar */}
+      <Reveal delay={0.1}>
       <section className="mt-4 rounded-2xl border-2 border-flamingo-dark bg-flamingo-cream p-4 shadow-[0_6px_0_0_#1A1A2E]">
         <p className="text-xs font-bold uppercase tracking-widest text-flamingo-dark/70">
           Actions
         </p>
         <div className="mt-2 flex flex-wrap gap-2">
-          <button
+          <motion.button
+            whileHover={{ y: -2 }}
+            whileTap={{ scale: 0.96 }}
             onClick={() => updateStatus("approved")}
             disabled={m.status === "approved" || saving !== null}
-            className="btn-pink rounded-xl border-2 border-flamingo-dark bg-flamingo-mint px-4 py-2 text-sm font-extrabold text-flamingo-dark disabled:opacity-50"
+            className="btn-pink rounded-xl border-2 border-flamingo-dark bg-flamingo-mint px-4 py-2 text-sm font-extrabold text-flamingo-dark shadow-[0_3px_0_0_#1A1A2E] disabled:opacity-50"
           >
             {saving === "approved" ? "Approving…" : "✓ Approve"}
-          </button>
-          <button
+          </motion.button>
+          <motion.button
+            whileHover={{ y: -2 }}
+            whileTap={{ scale: 0.96 }}
             onClick={() => setRejectOpen(true)}
             disabled={m.status === "rejected" || saving !== null}
             className="rounded-xl border-2 border-flamingo-dark bg-flamingo-pink-soft px-4 py-2 text-sm font-extrabold text-flamingo-pink-deep shadow-[0_3px_0_0_#1A1A2E] disabled:opacity-50"
           >
             ✕ Reject
-          </button>
-          <button
+          </motion.button>
+          <motion.button
+            whileHover={{ y: -2 }}
+            whileTap={{ scale: 0.96 }}
             onClick={() => updateStatus("suspended")}
             disabled={m.status === "suspended" || saving !== null}
             className="rounded-xl border-2 border-flamingo-dark bg-white px-4 py-2 text-sm font-extrabold text-flamingo-dark shadow-[0_3px_0_0_#1A1A2E] disabled:opacity-50"
           >
             ⏸ Suspend
-          </button>
+          </motion.button>
           {m.status !== "pending" && (
             <button
               onClick={() => updateStatus("pending")}
@@ -181,8 +196,14 @@ function Detail({ id }: { id: string }) {
           </p>
         )}
 
+        <AnimatePresence>
         {rejectOpen && (
-          <div className="mt-4 rounded-xl border-2 border-flamingo-dark bg-white p-3">
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.25 }}
+            className="mt-4 overflow-hidden rounded-xl border-2 border-flamingo-dark bg-white p-3">
             <label className="text-xs font-bold uppercase tracking-widest text-flamingo-dark/70">
               Reason for rejection (shown to merchant)
             </label>
@@ -211,11 +232,14 @@ function Detail({ id }: { id: string }) {
                 {saving === "rejected" ? "Rejecting…" : "Confirm reject"}
               </button>
             </div>
-          </div>
+          </motion.div>
         )}
+        </AnimatePresence>
       </section>
+      </Reveal>
 
       {/* Details grid */}
+      <Reveal delay={0.2}>
       <section className="mt-4 grid gap-4 sm:grid-cols-2">
         <InfoCard title="Owner">
           <Row k="Name" v={m.ownerName} />
@@ -242,17 +266,22 @@ function Detail({ id }: { id: string }) {
           )}
         </InfoCard>
       </section>
+      </Reveal>
 
       {/* Shortcuts for approved merchants */}
       {m.status === "approved" && (
-        <section className="mt-4 rounded-2xl border-2 border-flamingo-dark bg-flamingo-mint p-4 shadow-[0_6px_0_0_#1A1A2E]">
+        <motion.section
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ type: "spring", stiffness: 180, damping: 18 }}
+          className="mt-4 rounded-2xl border-2 border-flamingo-dark bg-flamingo-mint p-4 shadow-[0_6px_0_0_#1A1A2E]">
           <p className="text-sm font-extrabold text-flamingo-dark">
             This merchant can log in and access their dashboard & QR code.
           </p>
           <p className="mt-1 text-xs text-flamingo-dark/70">
             Signing in with phone {m.phone} goes to <code>/merchant/dashboard</code>.
           </p>
-        </section>
+        </motion.section>
       )}
 
       <button
