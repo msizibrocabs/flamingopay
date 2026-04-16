@@ -20,7 +20,7 @@ type UseTxns = {
   txns: StoredTxn[];
   stats: TxnStats | null;
   refetch: () => Promise<void>;
-  refund: (txnId: string) => Promise<{ ok: true; txn: StoredTxn } | { ok: false; error: string }>;
+  refund: (txnId: string, amount?: number, reason?: string) => Promise<{ ok: true; txn: StoredTxn } | { ok: false; error: string }>;
 };
 
 export function useMerchantTxns(merchantId: string | null | undefined): UseTxns {
@@ -54,11 +54,16 @@ export function useMerchantTxns(merchantId: string | null | undefined): UseTxns 
   }, [load]);
 
   const refund = useCallback(
-    async (txnId: string) => {
+    async (txnId: string, amount?: number, reason?: string) => {
       if (!merchantId) return { ok: false as const, error: "No merchant" };
       try {
+        const body: Record<string, unknown> = {};
+        if (amount != null) body.amount = amount;
+        if (reason) body.reason = reason;
         const res = await fetch(`/api/merchants/${merchantId}/transactions/${txnId}/refund`, {
           method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: Object.keys(body).length ? JSON.stringify(body) : undefined,
         });
         const d = await res.json();
         if (!res.ok) return { ok: false as const, error: d.error || "Refund failed" };

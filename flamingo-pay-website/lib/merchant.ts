@@ -9,7 +9,7 @@ export type Txn = {
   rail: "payshap" | "eft";
   buyerBank: string;
   timestamp: string;    // ISO
-  status: "completed" | "pending" | "refunded";
+  status: "completed" | "pending" | "refunded" | "partial_refund";
   reference: string;
 };
 

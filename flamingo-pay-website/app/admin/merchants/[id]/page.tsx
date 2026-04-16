@@ -369,12 +369,15 @@ function Detail({ id }: { id: string }) {
                     {formatZAR(tx.amount)}
                   </span>
                   <span className="hidden text-right text-xs text-flamingo-dark/70 tabular-nums sm:block">
-                    {tx.status === "completed" ? formatZAR(tx.amount * (stats?.feeRate ?? 0.029) + (stats?.feeFixed ?? 0.99)) : "—"}
+                    {tx.status === "completed" || tx.status === "partial_refund" ? formatZAR(tx.amount * (stats?.feeRate ?? 0.029) + (stats?.feeFixed ?? 0.99)) : "—"}
                   </span>
                   <span className="hidden text-right text-xs text-flamingo-dark/60 sm:block">
                     {timeAgo(tx.timestamp)}
                     {tx.status === "refunded" && (
                       <span className="ml-1 rounded-full bg-flamingo-pink-soft px-1.5 py-0.5 text-[9px] font-extrabold uppercase text-flamingo-pink-deep">R</span>
+                    )}
+                    {tx.status === "partial_refund" && (
+                      <span className="ml-1 rounded-full bg-flamingo-butter px-1.5 py-0.5 text-[9px] font-extrabold uppercase text-flamingo-dark">P</span>
                     )}
                   </span>
                 </li>

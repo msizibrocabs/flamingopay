@@ -24,8 +24,6 @@ function Inner() {
   const [filter, setFilter] = useState<Filter>("all");
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<StoredTxn | null>(null);
-  const [refunding, setRefunding] = useState(false);
-  const [refundError, setRefundError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
   // keep selection fresh after refund mutation
@@ -37,7 +35,7 @@ function Inner() {
   const filtered = txns.filter(t => {
     if (filter === "payshap" && t.rail !== "payshap") return false;
     if (filter === "eft" && t.rail !== "eft") return false;
-    if (filter === "refunded" && t.status !== "refunded") return false;
+    if (filter === "refunded" && t.status !== "refunded" && t.status !== "partial_refund") return false;
     if (query) {
       const q = query.toLowerCase();
       if (
@@ -60,15 +58,17 @@ function Inner() {
   });
 
   const totalShown = filtered
-    .filter(t => t.status === "completed")
+    .filter(t => t.status === "completed" || t.status === "partial_refund")
     .reduce((s, t) => s + t.amount, 0);
 
   function exportCSV() {
-    const header = "Date,Reference,Rail,Bank,Amount (ZAR),Fee (ZAR),Status\n";
+    const header = "Date,Reference,Rail,Bank,Amount (ZAR),Fee (ZAR),Status,Refund Amount,Refund Reason\n";
     const rows = filtered.map(t => {
       const date = new Date(t.timestamp).toLocaleString("en-ZA");
-      const fee = t.status === "completed" ? (t.amount * 0.029 + 0.99).toFixed(2) : "0.00";
-      return `"${date}","${t.reference}","${t.rail}","${t.buyerBank}","${t.amount.toFixed(2)}","${fee}","${t.status}"`;
+      const fee = t.status === "completed" || t.status === "partial_refund" ? (t.amount * 0.029 + 0.99).toFixed(2) : "0.00";
+      const refAmt = t.refundAmount != null ? t.refundAmount.toFixed(2) : "";
+      const refReason = t.refundReason ? `"${t.refundReason.replace(/"/g, '""')}"` : "";
+      return `"${date}","${t.reference}","${t.rail}","${t.buyerBank}","${t.amount.toFixed(2)}","${fee}","${t.status}","${refAmt}",${refReason}`;
     });
     const csv = header + rows.join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
@@ -80,20 +80,6 @@ function Inner() {
     URL.revokeObjectURL(url);
     setToast("CSV downloaded");
     setTimeout(() => setToast(null), 2500);
-  }
-
-  async function handleRefund() {
-    if (!liveSelected) return;
-    setRefunding(true);
-    setRefundError(null);
-    const r = await refund(liveSelected.id);
-    setRefunding(false);
-    if (r.ok) {
-      setToast(`Refunded ${formatZAR(liveSelected.amount)}`);
-      setTimeout(() => setToast(null), 2500);
-    } else {
-      setRefundError(r.error);
-    }
   }
 
   return (
@@ -171,7 +157,7 @@ function Inner() {
           </div>
         ) : (
           Array.from(groups.entries()).map(([day, list]) => {
-            const dayTotal = list.filter(l => l.status === "completed").reduce((s, l) => s + l.amount, 0);
+            const dayTotal = list.filter(l => l.status === "completed" || l.status === "partial_refund").reduce((s, l) => s + l.amount, 0);
             return (
               <section key={day} className="mt-4">
                 <div className="mb-1 flex items-center justify-between px-1">
@@ -184,10 +170,7 @@ function Inner() {
                   {list.map(t => (
                     <li key={t.id} id={t.id}>
                       <button
-                        onClick={() => {
-                          setSelected(t);
-                          setRefundError(null);
-                        }}
+                        onClick={() => setSelected(t)}
                         className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-flamingo-pink-wash"
                       >
                         <div className={`grid h-10 w-10 flex-none place-items-center rounded-full border-2 border-flamingo-dark text-[11px] font-extrabold ${
@@ -209,6 +192,11 @@ function Inner() {
                             {t.status === "refunded" && (
                               <span className="ml-2 rounded-full bg-flamingo-pink-soft px-1.5 py-0.5 text-[10px] font-extrabold uppercase text-flamingo-pink-deep">
                                 Refunded
+                              </span>
+                            )}
+                            {t.status === "partial_refund" && (
+                              <span className="ml-2 rounded-full bg-flamingo-butter px-1.5 py-0.5 text-[10px] font-extrabold uppercase text-flamingo-dark">
+                                Partial refund
                               </span>
                             )}
                           </div>
@@ -238,7 +226,7 @@ function Inner() {
               animate={{ y: 0 }}
               exit={{ y: 40 }}
               transition={{ type: "spring", stiffness: 220, damping: 24 }}
-              className="w-full max-w-md rounded-t-3xl border-t-2 border-flamingo-dark bg-white p-5"
+              className="max-h-[85dvh] w-full max-w-md overflow-y-auto rounded-t-3xl border-t-2 border-flamingo-dark bg-white p-5"
               onClick={e => e.stopPropagation()}
             >
               <div className="mx-auto mb-2 h-1.5 w-12 rounded-full bg-flamingo-dark/20" />
@@ -254,7 +242,7 @@ function Inner() {
                   ✕
                 </button>
               </div>
-              <div className={`mt-3 rounded-2xl p-4 text-center ${liveSelected.status === "refunded" ? "bg-flamingo-pink-soft" : "bg-flamingo-pink-wash"}`}>
+              <div className={`mt-3 rounded-2xl p-4 text-center ${liveSelected.status === "refunded" ? "bg-flamingo-pink-soft" : liveSelected.status === "partial_refund" ? "bg-flamingo-butter/40" : "bg-flamingo-pink-wash"}`}>
                 <div className="display-eyebrow text-[10px] text-flamingo-pink-deep">Amount</div>
                 <div
                   className={`display mt-1 font-black tabular-nums ${liveSelected.status === "refunded" ? "text-flamingo-dark/50 line-through" : "text-flamingo-dark"}`}
@@ -262,6 +250,11 @@ function Inner() {
                 >
                   {formatZAR(liveSelected.amount)}
                 </div>
+                {liveSelected.status === "partial_refund" && liveSelected.refundAmount != null && (
+                  <div className="mt-1 text-sm font-bold text-flamingo-pink-deep">
+                    {formatZAR(liveSelected.refundAmount)} refunded to buyer
+                  </div>
+                )}
               </div>
               <dl className="mt-4 divide-y-2 divide-flamingo-cream text-sm">
                 <Row k="Reference" v={liveSelected.reference} />
@@ -270,21 +263,36 @@ function Inner() {
                 <Row k="Status" v={labelFor(liveSelected.status)} />
                 <Row k="Time" v={new Date(liveSelected.timestamp).toLocaleString("en-ZA")} />
                 {liveSelected.refundedAt && (
-                  <Row k="Refunded" v={new Date(liveSelected.refundedAt).toLocaleString("en-ZA")} />
+                  <Row k="Refunded at" v={new Date(liveSelected.refundedAt).toLocaleString("en-ZA")} />
+                )}
+                {liveSelected.refundAmount != null && (
+                  <Row k="Refund amount" v={formatZAR(liveSelected.refundAmount)} />
+                )}
+                {liveSelected.refundReason && (
+                  <Row k="Reason" v={liveSelected.refundReason} />
                 )}
               </dl>
 
-              {refundError && (
-                <p className="mt-3 rounded-lg bg-flamingo-pink-soft px-3 py-2 text-sm font-semibold text-flamingo-pink-deep">
-                  {refundError}
-                </p>
-              )}
-
               {liveSelected.status === "completed" ? (
-                <RefundButton onClick={handleRefund} loading={refunding} amount={liveSelected.amount} />
+                <RefundPanel
+                  txn={liveSelected}
+                  onRefund={async (amt, reason) => {
+                    const r = await refund(liveSelected.id, amt, reason);
+                    if (r.ok) {
+                      const label = amt < liveSelected.amount ? "Partial refund" : "Full refund";
+                      setToast(`${label}: ${formatZAR(amt)}`);
+                      setTimeout(() => setToast(null), 3000);
+                    }
+                    return r;
+                  }}
+                />
               ) : liveSelected.status === "refunded" ? (
                 <div className="mt-5 flex items-center justify-center gap-2 rounded-2xl border-2 border-flamingo-dark bg-flamingo-pink-soft px-4 py-3 text-sm font-extrabold uppercase text-flamingo-pink-deep">
-                  ↩ Already refunded
+                  ↩ Fully refunded
+                </div>
+              ) : liveSelected.status === "partial_refund" ? (
+                <div className="mt-5 flex items-center justify-center gap-2 rounded-2xl border-2 border-flamingo-dark bg-flamingo-butter px-4 py-3 text-sm font-extrabold uppercase text-flamingo-dark">
+                  ↩ Partially refunded · {formatZAR(liveSelected.refundAmount ?? 0)}
                 </div>
               ) : (
                 <div className="mt-5 flex items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-flamingo-dark/40 bg-white px-4 py-3 text-sm text-flamingo-dark/60">
@@ -314,57 +322,305 @@ function Inner() {
   );
 }
 
-function RefundButton({
-  onClick,
-  loading,
-  amount,
+/* ------------------------------------------------------------------ */
+/*  Refund Panel                                                       */
+/* ------------------------------------------------------------------ */
+
+type RefundMode = "idle" | "choose" | "confirm" | "success";
+
+const REFUND_REASONS = [
+  "Customer overpaid",
+  "Wrong amount charged",
+  "Goods returned",
+  "Service not rendered",
+  "Duplicate payment",
+  "Customer request",
+  "Other",
+];
+
+function RefundPanel({
+  txn,
+  onRefund,
 }: {
-  onClick: () => void;
-  loading: boolean;
-  amount: number;
+  txn: StoredTxn;
+  onRefund: (amount: number, reason: string) => Promise<{ ok: boolean; error?: string }>;
 }) {
-  const [confirm, setConfirm] = useState(false);
-  if (!confirm) {
+  const [mode, setMode] = useState<RefundMode>("idle");
+  const [refundType, setRefundType] = useState<"full" | "partial">("full");
+  const [partialAmount, setPartialAmount] = useState("");
+  const [reason, setReason] = useState("");
+  const [customReason, setCustomReason] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const effectiveReason = reason === "Other" ? customReason : reason;
+  const effectiveAmount = refundType === "full" ? txn.amount : parseFloat(partialAmount) || 0;
+
+  const canProceed =
+    effectiveAmount > 0 &&
+    effectiveAmount <= txn.amount &&
+    effectiveReason.trim().length > 0;
+
+  async function handleConfirm() {
+    setLoading(true);
+    setError(null);
+    const r = await onRefund(effectiveAmount, effectiveReason.trim());
+    setLoading(false);
+    if (r.ok) {
+      setMode("success");
+    } else {
+      setError(r.error ?? "Refund failed");
+    }
+  }
+
+  /* Step 0: "Refund this sale" button */
+  if (mode === "idle") {
     return (
       <motion.button
         whileHover={{ y: -1 }}
         whileTap={{ scale: 0.97 }}
-        onClick={() => setConfirm(true)}
+        onClick={() => setMode("choose")}
         className="mt-5 w-full rounded-2xl border-2 border-flamingo-dark bg-flamingo-pink px-4 py-3 text-sm font-extrabold uppercase tracking-wide text-white shadow-[0_4px_0_0_#B42A48]"
       >
         Refund this sale
       </motion.button>
     );
   }
+
+  /* Step 3: Success — Ozow processing times */
+  if (mode === "success") {
+    return (
+      <motion.div
+        initial={{ opacity: 0, height: 0 }}
+        animate={{ opacity: 1, height: "auto" }}
+        className="mt-5 overflow-hidden rounded-2xl border-2 border-flamingo-dark bg-flamingo-mint p-4"
+      >
+        <div className="flex items-center gap-2">
+          <span className="text-xl">✓</span>
+          <h4 className="display text-base font-black text-flamingo-dark">Refund submitted</h4>
+        </div>
+        <p className="mt-2 text-sm text-flamingo-dark">
+          <strong>{formatZAR(effectiveAmount)}</strong> is being processed back to the buyer via Ozow.
+        </p>
+
+        <div className="mt-3 rounded-xl bg-white/60 p-3">
+          <h5 className="text-xs font-extrabold uppercase tracking-wide text-flamingo-dark/70">
+            When will the buyer get their money?
+          </h5>
+          <ul className="mt-2 space-y-2 text-sm text-flamingo-dark">
+            <li className="flex items-start gap-2">
+              <span className="mt-0.5 flex h-5 w-5 flex-none items-center justify-center rounded-full bg-flamingo-mint border border-flamingo-dark/20 text-[10px] font-bold">⚡</span>
+              <div>
+                <strong>PayShap refunds:</strong> Processed within <strong>60 seconds</strong>. The buyer&rsquo;s bank may take a few extra minutes to reflect it.
+              </div>
+            </li>
+            <li className="flex items-start gap-2">
+              <span className="mt-0.5 flex h-5 w-5 flex-none items-center justify-center rounded-full bg-flamingo-sky border border-flamingo-dark/20 text-[10px] font-bold">🏦</span>
+              <div>
+                <strong>EFT refunds:</strong> Ozow processes within <strong>1 business day</strong>. The buyer should see the funds within <strong>2–3 business days</strong> depending on their bank.
+              </div>
+            </li>
+          </ul>
+          <p className="mt-3 text-xs text-flamingo-dark/60">
+            Refund timelines are governed by Ozow&rsquo;s settlement rules. Weekends and public holidays may add an extra day for EFT refunds.
+          </p>
+        </div>
+      </motion.div>
+    );
+  }
+
+  /* Step 1 & 2: Choose type, amount, reason → Confirm */
   return (
     <motion.div
       initial={{ opacity: 0, height: 0 }}
       animate={{ opacity: 1, height: "auto" }}
-      exit={{ opacity: 0, height: 0 }}
-      className="mt-5 overflow-hidden rounded-2xl border-2 border-flamingo-pink bg-flamingo-pink-wash p-3"
+      className="mt-5 overflow-hidden rounded-2xl border-2 border-flamingo-dark bg-flamingo-pink-wash p-4"
     >
-      <p className="text-sm font-semibold text-flamingo-dark">
-        Refund R{amount.toFixed(2)} back to the buyer? This can&rsquo;t be undone.
-      </p>
-      <div className="mt-3 flex gap-2">
-        <button
-          onClick={() => setConfirm(false)}
-          disabled={loading}
-          className="flex-1 rounded-xl border-2 border-flamingo-dark/40 bg-white px-3 py-2 text-sm font-bold text-flamingo-dark/70"
-        >
-          Cancel
-        </button>
-        <button
-          onClick={onClick}
-          disabled={loading}
-          className="flex-1 rounded-xl border-2 border-flamingo-dark bg-flamingo-pink px-3 py-2 text-sm font-extrabold text-white shadow-[0_3px_0_0_#B42A48] disabled:opacity-60"
-        >
-          {loading ? "Refunding…" : "Yes, refund"}
-        </button>
-      </div>
+      {mode === "choose" && (
+        <>
+          {/* Full vs Partial toggle */}
+          <h4 className="display text-sm font-black text-flamingo-dark">Refund type</h4>
+          <div className="mt-2 flex gap-2">
+            <button
+              onClick={() => { setRefundType("full"); setPartialAmount(""); }}
+              className={`flex-1 rounded-xl border-2 px-3 py-2.5 text-sm font-bold transition-colors ${
+                refundType === "full"
+                  ? "border-flamingo-dark bg-flamingo-pink text-white shadow-[0_3px_0_0_#B42A48]"
+                  : "border-flamingo-dark/40 bg-white text-flamingo-dark/70"
+              }`}
+            >
+              Full refund
+              <div className="mt-0.5 text-xs font-semibold opacity-80">{formatZAR(txn.amount)}</div>
+            </button>
+            <button
+              onClick={() => setRefundType("partial")}
+              className={`flex-1 rounded-xl border-2 px-3 py-2.5 text-sm font-bold transition-colors ${
+                refundType === "partial"
+                  ? "border-flamingo-dark bg-flamingo-pink text-white shadow-[0_3px_0_0_#B42A48]"
+                  : "border-flamingo-dark/40 bg-white text-flamingo-dark/70"
+              }`}
+            >
+              Partial refund
+              <div className="mt-0.5 text-xs font-semibold opacity-80">You decide</div>
+            </button>
+          </div>
+
+          {/* Partial amount input */}
+          <AnimatePresence>
+            {refundType === "partial" && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                className="overflow-hidden"
+              >
+                <label className="mt-3 block">
+                  <span className="text-xs font-bold uppercase tracking-wide text-flamingo-dark/70">
+                    Refund amount (max {formatZAR(txn.amount)})
+                  </span>
+                  <div className="mt-1 flex items-center gap-2 rounded-xl border-2 border-flamingo-dark bg-white px-3 py-2.5">
+                    <span className="text-sm font-bold text-flamingo-dark/60">R</span>
+                    <input
+                      type="number"
+                      inputMode="decimal"
+                      step="0.01"
+                      min="0.01"
+                      max={txn.amount}
+                      value={partialAmount}
+                      onChange={e => setPartialAmount(e.target.value)}
+                      placeholder="0.00"
+                      className="min-w-0 flex-1 bg-transparent text-lg font-bold text-flamingo-dark outline-none placeholder:text-flamingo-dark/30 tabular-nums"
+                    />
+                  </div>
+                  {parseFloat(partialAmount) > txn.amount && (
+                    <p className="mt-1 text-xs font-semibold text-flamingo-pink-deep">
+                      Can&rsquo;t exceed {formatZAR(txn.amount)}
+                    </p>
+                  )}
+                </label>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Reason */}
+          <div className="mt-4">
+            <span className="text-xs font-bold uppercase tracking-wide text-flamingo-dark/70">
+              Reason for refund
+            </span>
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {REFUND_REASONS.map(r => (
+                <button
+                  key={r}
+                  onClick={() => setReason(r)}
+                  className={`rounded-full border-2 px-3 py-1.5 text-xs font-bold transition-colors ${
+                    reason === r
+                      ? "border-flamingo-dark bg-flamingo-dark text-white"
+                      : "border-flamingo-dark/30 bg-white text-flamingo-dark/70 hover:border-flamingo-dark"
+                  }`}
+                >
+                  {r}
+                </button>
+              ))}
+            </div>
+            <AnimatePresence>
+              {reason === "Other" && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="overflow-hidden"
+                >
+                  <textarea
+                    value={customReason}
+                    onChange={e => setCustomReason(e.target.value)}
+                    placeholder="Tell us why…"
+                    rows={2}
+                    maxLength={200}
+                    className="mt-2 w-full rounded-xl border-2 border-flamingo-dark bg-white px-3 py-2 text-sm text-flamingo-dark outline-none placeholder:text-flamingo-dark/40 resize-none"
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
+          {/* Proceed / Cancel */}
+          <div className="mt-4 flex gap-2">
+            <button
+              onClick={() => { setMode("idle"); setReason(""); setPartialAmount(""); setRefundType("full"); }}
+              className="flex-1 rounded-xl border-2 border-flamingo-dark/40 bg-white px-3 py-2.5 text-sm font-bold text-flamingo-dark/70"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => setMode("confirm")}
+              disabled={!canProceed}
+              className="flex-1 rounded-xl border-2 border-flamingo-dark bg-flamingo-pink px-3 py-2.5 text-sm font-extrabold text-white shadow-[0_3px_0_0_#B42A48] disabled:opacity-40"
+            >
+              Review refund
+            </button>
+          </div>
+        </>
+      )}
+
+      {mode === "confirm" && (
+        <>
+          <h4 className="display text-sm font-black text-flamingo-dark">Confirm refund</h4>
+          <div className="mt-3 rounded-xl bg-white p-3 text-sm text-flamingo-dark">
+            <div className="flex justify-between py-1">
+              <span className="text-flamingo-dark/60">Type</span>
+              <span className="font-bold">{refundType === "full" ? "Full refund" : "Partial refund"}</span>
+            </div>
+            <div className="flex justify-between py-1">
+              <span className="text-flamingo-dark/60">Amount</span>
+              <span className="font-bold text-flamingo-pink-deep">{formatZAR(effectiveAmount)}</span>
+            </div>
+            <div className="flex justify-between py-1">
+              <span className="text-flamingo-dark/60">Reason</span>
+              <span className="max-w-[60%] text-right font-bold">{effectiveReason}</span>
+            </div>
+            <div className="flex justify-between py-1">
+              <span className="text-flamingo-dark/60">Rail</span>
+              <span className="font-bold">{txn.rail === "payshap" ? "PayShap" : "Instant EFT"}</span>
+            </div>
+          </div>
+
+          <p className="mt-3 text-xs text-flamingo-dark/70">
+            {txn.rail === "payshap"
+              ? "PayShap refunds are processed near-instantly via Ozow. The buyer should see funds within 60 seconds."
+              : "EFT refunds are processed by Ozow within 1 business day. The buyer should see funds within 2–3 business days."}
+          </p>
+
+          {error && (
+            <p className="mt-2 rounded-lg bg-flamingo-pink-soft px-3 py-2 text-sm font-semibold text-flamingo-pink-deep">
+              {error}
+            </p>
+          )}
+
+          <div className="mt-4 flex gap-2">
+            <button
+              onClick={() => { setMode("choose"); setError(null); }}
+              disabled={loading}
+              className="flex-1 rounded-xl border-2 border-flamingo-dark/40 bg-white px-3 py-2.5 text-sm font-bold text-flamingo-dark/70"
+            >
+              Back
+            </button>
+            <button
+              onClick={handleConfirm}
+              disabled={loading}
+              className="flex-1 rounded-xl border-2 border-flamingo-dark bg-flamingo-pink px-3 py-2.5 text-sm font-extrabold text-white shadow-[0_3px_0_0_#B42A48] disabled:opacity-60"
+            >
+              {loading ? "Processing…" : `Refund ${formatZAR(effectiveAmount)}`}
+            </button>
+          </div>
+        </>
+      )}
     </motion.div>
   );
 }
+
+/* ------------------------------------------------------------------ */
+/*  Helper components                                                  */
+/* ------------------------------------------------------------------ */
 
 function MiniStat({ label, value, tint }: { label: string; value: string; tint: string }) {
   return (
@@ -399,5 +655,6 @@ function Row({ k, v }: { k: string; v: string }) {
 function labelFor(status: StoredTxn["status"]): string {
   if (status === "completed") return "Paid";
   if (status === "refunded") return "Refunded";
+  if (status === "partial_refund") return "Partial refund";
   return "Pending";
 }

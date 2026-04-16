@@ -49,9 +49,11 @@ export type StoredTxn = {
   rail: "payshap" | "eft";
   buyerBank: string;
   timestamp: string;
-  status: "completed" | "pending" | "refunded";
+  status: "completed" | "pending" | "refunded" | "partial_refund";
   reference: string;
   refundedAt?: string;
+  refundAmount?: number;
+  refundReason?: string;
 };
 
 export type MerchantApplication = {
@@ -423,6 +425,9 @@ export function listTransactions(merchantId: string): StoredTxn[] {
 export function refundTransaction(
   merchantId: string,
   txnId: string,
+  /** If omitted or equal to txn amount → full refund. Otherwise partial. */
+  refundAmount?: number,
+  refundReason?: string,
 ): { merchant: MerchantApplication; txn: StoredTxn } | { error: string } {
   const m = getStore().get(merchantId);
   if (!m) return { error: "Merchant not found" };
@@ -431,27 +436,35 @@ export function refundTransaction(
   if (idx === -1) return { error: "Transaction not found" };
   const t = list[idx];
   if (t.status === "refunded") return { error: "Already refunded" };
+  if (t.status === "partial_refund") return { error: "Already partially refunded" };
   if (t.status !== "completed") return { error: "Only completed transactions can be refunded" };
+
+  const amt = refundAmount != null && refundAmount > 0 ? refundAmount : t.amount;
+  if (amt > t.amount) return { error: "Refund amount exceeds transaction amount" };
+
+  const isPartial = amt < t.amount;
   const refunded: StoredTxn = {
     ...t,
-    status: "refunded",
+    status: isPartial ? "partial_refund" : "refunded",
     refundedAt: new Date().toISOString(),
+    refundAmount: amt,
+    refundReason: refundReason || undefined,
   };
   list[idx] = refunded;
   txnStore().set(merchantId, list);
   // Keep merchant lifetime counters consistent for admin displays.
-  m.grossVolume = Math.max(0, m.grossVolume - t.amount);
-  m.txnCount = Math.max(0, m.txnCount - 1);
+  m.grossVolume = Math.max(0, m.grossVolume - amt);
+  if (!isPartial) m.txnCount = Math.max(0, m.txnCount - 1);
   getStore().set(merchantId, m);
   return { merchant: m, txn: refunded };
 }
 
 export function transactionStats(merchantId: string) {
   const list = listTransactions(merchantId);
-  const completed = list.filter(t => t.status === "completed");
-  const refunded = list.filter(t => t.status === "refunded");
+  const completed = list.filter(t => t.status === "completed" || t.status === "partial_refund");
+  const refunded = list.filter(t => t.status === "refunded" || t.status === "partial_refund");
   const processed = completed.reduce((s, t) => s + t.amount, 0);
-  const refundedValue = refunded.reduce((s, t) => s + t.amount, 0);
+  const refundedValue = refunded.reduce((s, t) => s + (t.refundAmount ?? t.amount), 0);
   const fees = +(processed * FLAMINGO_FEE_RATE + completed.length * FLAMINGO_FEE_FIXED).toFixed(2);
   return {
     count: list.length,
