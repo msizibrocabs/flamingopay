@@ -242,21 +242,20 @@ function Inner() {
                   ✕
                 </button>
               </div>
-              <div className={`mt-3 rounded-2xl p-4 text-center ${liveSelected.status === "refunded" ? "bg-flamingo-pink-soft" : liveSelected.status === "partial_refund" ? "bg-flamingo-butter/40" : "bg-flamingo-pink-wash"}`}>
-                <div className="display-eyebrow text-[10px] text-flamingo-pink-deep">Amount</div>
+              <div className={`mt-2 rounded-2xl px-4 py-3 text-center ${liveSelected.status === "refunded" ? "bg-flamingo-pink-soft" : liveSelected.status === "partial_refund" ? "bg-flamingo-butter/40" : "bg-flamingo-pink-wash"}`}>
                 <div
-                  className={`display mt-1 font-black tabular-nums ${liveSelected.status === "refunded" ? "text-flamingo-dark/50 line-through" : "text-flamingo-dark"}`}
-                  style={{ fontSize: "clamp(2rem, 5vw, 2.75rem)", letterSpacing: "-0.03em" }}
+                  className={`display font-black tabular-nums ${liveSelected.status === "refunded" ? "text-flamingo-dark/50 line-through" : "text-flamingo-dark"}`}
+                  style={{ fontSize: "clamp(1.75rem, 4vw, 2.25rem)", letterSpacing: "-0.03em" }}
                 >
                   {formatZAR(liveSelected.amount)}
                 </div>
                 {liveSelected.status === "partial_refund" && liveSelected.refundAmount != null && (
-                  <div className="mt-1 text-sm font-bold text-flamingo-pink-deep">
+                  <div className="text-xs font-bold text-flamingo-pink-deep">
                     {formatZAR(liveSelected.refundAmount)} refunded to buyer
                   </div>
                 )}
               </div>
-              <dl className="mt-4 divide-y-2 divide-flamingo-cream text-sm">
+              <dl className="mt-2 divide-y-2 divide-flamingo-cream text-sm">
                 <Row k="Reference" v={liveSelected.reference} />
                 <Row k="Rail" v={liveSelected.rail === "payshap" ? "PayShap" : "Instant EFT"} />
                 <Row k="Buyer bank" v={liveSelected.buyerBank} />
@@ -380,7 +379,7 @@ function RefundPanel({
         whileHover={{ y: -1 }}
         whileTap={{ scale: 0.97 }}
         onClick={() => setMode("choose")}
-        className="mt-5 w-full rounded-2xl border-2 border-flamingo-dark bg-flamingo-pink px-4 py-3 text-sm font-extrabold uppercase tracking-wide text-white shadow-[0_4px_0_0_#B42A48]"
+        className="mt-3 w-full rounded-2xl border-2 border-flamingo-dark bg-flamingo-pink px-4 py-3 text-sm font-extrabold uppercase tracking-wide text-white shadow-[0_4px_0_0_#B42A48]"
       >
         Refund this sale
       </motion.button>
@@ -645,9 +644,9 @@ function Skeleton() {
 
 function Row({ k, v }: { k: string; v: string }) {
   return (
-    <div className="flex items-center justify-between py-2.5">
-      <dt className="text-flamingo-dark/60">{k}</dt>
-      <dd className="max-w-[60%] text-right font-semibold text-flamingo-dark">{v}</dd>
+    <div className="flex items-center justify-between py-1.5">
+      <dt className="text-xs text-flamingo-dark/60">{k}</dt>
+      <dd className="max-w-[60%] text-right text-sm font-semibold text-flamingo-dark">{v}</dd>
     </div>
   );
 }
