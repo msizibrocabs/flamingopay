@@ -1,14 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import { AnimatedCounter } from "../../../components/motion/AnimatedCounter";
 import { flamingoConfetti } from "../../../components/motion/Confetti";
 
 /* ──────────────────────────────────────────────
-   Mock merchant database — will be replaced
-   with real API lookup later
+   Mock merchant database
    ────────────────────────────────────────────── */
 const MERCHANTS: Record<string, { name: string; category: string }> = {
   "thandis-spaza": { name: "Thandi's Spaza", category: "Grocery" },
@@ -56,6 +55,82 @@ const METHODS: Record<PaymentMethod, MethodInfo> = {
 
 const PRESETS = [10, 20, 50, 100, 200, 500];
 
+/* ──────────────────────────────────────────────
+   Viral witty screens — random each transaction
+   ────────────────────────────────────────────── */
+type ViralQuote = { emoji: string; headline: string; sub: string };
+
+const SUCCESS_QUOTES: ViralQuote[] = [
+  { emoji: "🦩", headline: "Money moves like a flamingo", sub: "Graceful. Pink. Unstoppable." },
+  { emoji: "🔥", headline: "Transaction hotter than a braai on Heritage Day", sub: "Somebody call the fire department." },
+  { emoji: "⚡", headline: "Faster than Eskom switching off your lights", sub: "At least something in SA works instantly." },
+  { emoji: "💅", headline: "Paid with main character energy", sub: "Your bank balance left the chat, but you look good doing it." },
+  { emoji: "🚀", headline: "Payment went through faster than a taxi on the N1", sub: "No stops. No drama. Just vibes." },
+  { emoji: "👑", headline: "Big spender alert", sub: "Somebody tell the Reserve Bank we found the economy." },
+  { emoji: "🦩", headline: "You just flamingo'd that payment", sub: "Stand on one leg if you agree this was too easy." },
+  { emoji: "😤", headline: "Wallet said 'I'll allow it'", sub: "Your money left peacefully. No complaints filed." },
+  { emoji: "🎵", headline: "Money moved smoother than an Amapiano bassline", sub: "Log drum energy. No skips." },
+  { emoji: "🧘", headline: "Inner peace achieved", sub: "No card machine. No awkward tap. Just a clean QR scan and done." },
+  { emoji: "🏎️", headline: "Gone in 0.3 seconds", sub: "Your payment was faster than your ex moving on." },
+  { emoji: "🤝", headline: "Deal sealed. Ancestors approved.", sub: "Even gogo would be proud of how easy that was." },
+  { emoji: "🪩", headline: "Payment went through like a Friday night", sub: "Smooth, effortless, and everyone's happy." },
+  { emoji: "🧾", headline: "Receipt secured. Screenshot this.", sub: "Proof you support local. Put it on your story." },
+  { emoji: "🦩", headline: "Pink money hits different", sub: "Cash is boring. Cards are mid. QR is elite." },
+  { emoji: "💸", headline: "Money teleported successfully", sub: "Scientists can't explain it. Flamingo can." },
+  { emoji: "🫡", headline: "Salute to you, legend", sub: "Supporting local business like it's a personality trait." },
+  { emoji: "🎯", headline: "Bullseye. Nailed it.", sub: "Scan. Pay. Done. Why is everything else in life so complicated?" },
+  { emoji: "🍕", headline: "Easier than ordering pizza", sub: "And you didn't even have to argue about toppings." },
+  { emoji: "🦩", headline: "One scan to rule them all", sub: "No card machine needed. Just vibes and a camera." },
+  { emoji: "😎", headline: "Paid like a boss", sub: "Your accountant would be proud. If you had one." },
+  { emoji: "🌍", headline: "One small tap for you, one giant leap for local business", sub: "Neil Armstrong wishes he was this smooth." },
+  { emoji: "🎤", headline: "Drop the mic. Payment complete.", sub: "This is what peak performance looks like." },
+  { emoji: "🐐", headline: "GOAT behaviour", sub: "Paying with QR instead of fumbling for cash? Elite move." },
+  { emoji: "🦩", headline: "Flamingo mode: activated", sub: "You're officially too cool for card machines." },
+  { emoji: "🧃", headline: "Sippin' on that cashless lifestyle", sub: "No coins. No notes. No problems." },
+  { emoji: "🏆", headline: "Winner winner, chicken dinner", sub: "You paid. They smiled. Everyone wins." },
+  { emoji: "🤯", headline: "Your bank didn't even see it coming", sub: "By the time they blinked, the money was already there." },
+  { emoji: "🦩", headline: "Built different. Paid different.", sub: "Welcome to the pink side of money." },
+  { emoji: "💫", headline: "Manifested that transaction", sub: "You visualised it. You scanned it. You conquered it." },
+];
+
+const FAIL_QUOTES: ViralQuote[] = [
+  { emoji: "😭", headline: "Payment said 'not today, fam'", sub: "Even your money needs a mental health day sometimes." },
+  { emoji: "🦩", headline: "Flamingo tripped", sub: "Even the most graceful bird stumbles. Try again, legend." },
+  { emoji: "💀", headline: "Transaction flatlined", sub: "We're performing CPR on your payment. Stand by." },
+  { emoji: "🤡", headline: "Plot twist: payment failed", sub: "The universe is testing you. Don't let it win." },
+  { emoji: "😤", headline: "Bank said 'let me think about it'", sub: "Your bank is acting like your crush. Playing hard to get." },
+  { emoji: "🧊", headline: "Payment frozen like loadshedding stage 6", sub: "We'll thaw this out. Give it another go." },
+  { emoji: "🦩", headline: "Flamingo fell off the branch", sub: "Getting back up now. One more try?" },
+  { emoji: "📡", headline: "Signal lost somewhere between you and the money", sub: "Probably Telkom's fault. It usually is." },
+  { emoji: "🙃", headline: "This is fine. Everything is fine.", sub: "Your payment didn't go through but at least you still have your money?" },
+  { emoji: "🫠", headline: "Payment melted", sub: "Like ice cream on a Durban December day. Try again before it all disappears." },
+  { emoji: "🤔", headline: "Your bank is overthinking it", sub: "It's giving 'I need to speak to my manager' energy." },
+  { emoji: "🏚️", headline: "Connection went on lunch break", sub: "South African timing. It'll be back... eventually." },
+  { emoji: "🦩", headline: "Even flamingos have off days", sub: "Shake it off. Scan again. We believe in you." },
+  { emoji: "🫣", headline: "Awkward... that didn't work", sub: "But hey, at least nobody saw. Oh wait, you're reading this." },
+  { emoji: "🔌", headline: "Something got unplugged", sub: "No, it wasn't loadshedding this time. Probably." },
+];
+
+function pickRandom<T>(arr: T[]): T {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
+/* ──────────────────────────────────────────────
+   Processing quips — rotates while waiting
+   ────────────────────────────────────────────── */
+const PROCESSING_QUIPS = [
+  "Convincing your bank this is legit...",
+  "Sending money at the speed of light...",
+  "Whispering sweet nothings to the server...",
+  "Teaching your rands to fly...",
+  "Bribing the payment gods...",
+  "Almost there... probably...",
+  "Your money is putting on its shoes...",
+  "Loading... unlike Eskom, we'll actually finish.",
+  "Calculating how many kotas that is...",
+  "Making your bank jealous of how easy this is...",
+];
+
 const stepVariants = {
   initial: { opacity: 0, x: 20 },
   animate: { opacity: 1, x: 0 },
@@ -68,16 +143,32 @@ export default function PayPage() {
   const merchant = MERCHANTS[merchantId];
 
   const [amount, setAmount] = useState("");
-  const [step, setStep] = useState<"amount" | "method" | "processing" | "done" | "manual">("amount");
+  const [step, setStep] = useState<"amount" | "method" | "processing" | "done" | "failed" | "manual">("amount");
   const [selectedMethod, setSelectedMethod] = useState<PaymentMethod | null>(null);
+  const [processingQuip, setProcessingQuip] = useState(0);
 
   const numericAmount = parseFloat(amount);
   const isValidAmount = !isNaN(numericAmount) && numericAmount >= 1 && numericAmount <= 50000;
 
+  // Pick a fresh random quote when step changes to done or failed
+  const viralQuote = useMemo(
+    () => step === "done" ? pickRandom(SUCCESS_QUOTES) : step === "failed" ? pickRandom(FAIL_QUOTES) : null,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [step],
+  );
+
   useEffect(() => {
-    if (step === "done") {
-      flamingoConfetti();
-    }
+    if (step === "done") flamingoConfetti();
+  }, [step]);
+
+  // Rotate processing quips
+  useEffect(() => {
+    if (step !== "processing") return;
+    setProcessingQuip(Math.floor(Math.random() * PROCESSING_QUIPS.length));
+    const interval = setInterval(() => {
+      setProcessingQuip(q => (q + 1) % PROCESSING_QUIPS.length);
+    }, 1800);
+    return () => clearInterval(interval);
   }, [step]);
 
   function handlePreset(val: number) {
@@ -92,13 +183,21 @@ export default function PayPage() {
       setStep("manual");
     } else {
       setStep("processing");
-      setTimeout(() => setStep("done"), 2200);
+      // ~12% chance of "failure" for demo variety
+      const willFail = Math.random() < 0.12;
+      setTimeout(() => setStep(willFail ? "failed" : "done"), 2200);
     }
   }
   function handleReset() {
     setAmount("");
     setStep("amount");
     setSelectedMethod(null);
+  }
+  function handleRetry() {
+    if (!selectedMethod) return;
+    setStep("processing");
+    // Retry always succeeds
+    setTimeout(() => setStep("done"), 2200);
   }
 
   if (!merchant) {
@@ -307,11 +406,17 @@ export default function PayPage() {
                   </span>
                 </motion.div>
                 <h2 className="display text-2xl font-black text-flamingo-dark mt-6">Processing payment...</h2>
-                <p className="mt-2 text-flamingo-dark/60 text-sm">
-                  {selectedMethod === "payshap"
-                    ? "Connecting to PayShap..."
-                    : "Redirecting to your bank via Ozow..."}
-                </p>
+                <AnimatePresence mode="wait">
+                  <motion.p
+                    key={processingQuip}
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -6 }}
+                    className="mt-2 text-flamingo-dark/60 text-sm h-5"
+                  >
+                    {PROCESSING_QUIPS[processingQuip]}
+                  </motion.p>
+                </AnimatePresence>
                 <div className="mt-8 flex justify-center">
                   <div className="flex gap-1.5">
                     {[0, 1, 2].map(i => (
@@ -378,7 +483,7 @@ export default function PayPage() {
                   }}
                   className="mt-4 w-full py-3 rounded-full border-2 border-flamingo-dark bg-white text-flamingo-dark font-bold text-sm"
                 >
-                  📋 Copy details
+                  Copy details
                 </motion.button>
 
                 <motion.button
@@ -396,7 +501,10 @@ export default function PayPage() {
               </motion.div>
             )}
 
-            {step === "done" && (
+            {/* ═══════════════════════════════════════
+               SUCCESS SCREEN — viral witty content
+               ═══════════════════════════════════════ */}
+            {step === "done" && viralQuote && (
               <motion.div
                 key="done"
                 variants={stepVariants}
@@ -404,75 +512,195 @@ export default function PayPage() {
                 animate="animate"
                 exit="exit"
                 transition={{ duration: 0.3 }}
-                className="text-center py-12"
+                className="text-center py-8"
               >
+                {/* Big emoji hero */}
                 <motion.div
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  transition={{ type: "spring", stiffness: 240, damping: 14 }}
-                  className="w-24 h-24 rounded-full bg-emerald-500 mx-auto flex items-center justify-center shadow-[0_14px_30px_-10px_rgba(16,185,129,0.5)]"
+                  initial={{ scale: 0, rotate: -20 }}
+                  animate={{ scale: 1, rotate: 0 }}
+                  transition={{ type: "spring", stiffness: 200, damping: 12 }}
+                  className="text-7xl mx-auto"
                 >
-                  <motion.span
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    transition={{ delay: 0.2, type: "spring", stiffness: 260 }}
-                    className="text-white text-5xl"
-                  >
-                    ✓
-                  </motion.span>
+                  {viralQuote.emoji}
                 </motion.div>
-                <h2 className="display text-3xl font-black text-flamingo-dark mt-6">
-                  {selectedMethod === "manual" ? "Payment noted!" : "Payment sent!"}
-                </h2>
-                <p className="mt-2 text-flamingo-dark/60">
-                  {selectedMethod === "manual"
-                    ? `We'll confirm with ${merchant.name} once the funds arrive.`
-                    : (
-                      <>
-                        <AnimatedCounter to={parseFloat(amount)} duration={0.9} prefix="R" decimals={2} locale="en-ZA" /> sent to {merchant.name}
-                      </>
-                    )}
-                </p>
 
+                {/* Witty headline */}
+                <motion.h2
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.15 }}
+                  className="display font-black text-flamingo-dark mt-4 px-2"
+                  style={{ fontSize: "clamp(1.4rem, 5.5vw, 1.875rem)", letterSpacing: "-0.02em", lineHeight: 1.1 }}
+                >
+                  {viralQuote.headline}
+                </motion.h2>
+
+                <motion.p
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.3 }}
+                  className="mt-2 text-flamingo-dark/60 text-sm px-4"
+                >
+                  {viralQuote.sub}
+                </motion.p>
+
+                {/* Amount badge */}
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: 0.4 }}
+                  className="mt-5 inline-flex items-center gap-2 rounded-full border-2 border-flamingo-dark bg-flamingo-mint px-5 py-2.5 shadow-[0_4px_0_0_#1A1A2E]"
+                >
+                  <span className="text-sm font-bold text-flamingo-dark/60">
+                    {selectedMethod === "manual" ? "Sent" : "Paid"}
+                  </span>
+                  <span className="display text-xl font-black text-flamingo-dark tabular-nums">
+                    {selectedMethod !== "manual" ? (
+                      <AnimatedCounter to={parseFloat(amount)} duration={0.9} prefix="R" decimals={2} locale="en-ZA" />
+                    ) : (
+                      `R${parseFloat(amount).toFixed(2)}`
+                    )}
+                  </span>
+                </motion.div>
+
+                {/* Receipt card */}
                 <motion.div
                   initial={{ opacity: 0, y: 12 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.25 }}
-                  className="mt-8 bg-white rounded-2xl border-2 border-flamingo-dark p-5 shadow-[4px_4px_0_#1A1A2E] text-left"
+                  transition={{ delay: 0.5 }}
+                  className="mt-5 bg-white rounded-2xl border-2 border-flamingo-dark p-4 shadow-[4px_4px_0_#1A1A2E] text-left"
                 >
-                  <p className="text-xs text-flamingo-dark/50 font-medium mb-3">Receipt</p>
-                  <div className="space-y-2">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs text-flamingo-dark/50 font-medium">Receipt</span>
+                    <span className="rounded-full bg-emerald-500 px-2.5 py-0.5 text-[10px] font-bold text-white">
+                      {selectedMethod === "manual" ? "PENDING" : "COMPLETE"}
+                    </span>
+                  </div>
+                  <div className="space-y-1.5 text-sm">
                     <div className="flex justify-between">
-                      <span className="text-sm text-flamingo-dark/60">Amount</span>
-                      <span className="text-sm font-bold tabular-nums">R{parseFloat(amount).toFixed(2)}</span>
+                      <span className="text-flamingo-dark/60">To</span>
+                      <span className="font-bold">{merchant.name}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-sm text-flamingo-dark/60">To</span>
-                      <span className="text-sm font-bold">{merchant.name}</span>
+                      <span className="text-flamingo-dark/60">Amount</span>
+                      <span className="font-bold tabular-nums">R{parseFloat(amount).toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-sm text-flamingo-dark/60">Method</span>
-                      <span className="text-sm font-bold">{selectedMethod && METHODS[selectedMethod].label}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-flamingo-dark/60">Status</span>
-                      <span className="text-sm font-bold text-emerald-600">
-                        {selectedMethod === "manual" ? "Pending confirmation" : "Completed"}
-                      </span>
+                      <span className="text-flamingo-dark/60">Via</span>
+                      <span className="font-bold">{selectedMethod && METHODS[selectedMethod].label}</span>
                     </div>
                   </div>
                 </motion.div>
+
+                {/* Share prompt */}
+                <motion.p
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.7 }}
+                  className="mt-4 text-xs text-flamingo-dark/50 font-medium"
+                >
+                  Screenshot this. Flex on your friends. You deserve it.
+                </motion.p>
 
                 <motion.button
                   whileHover={{ y: -2 }}
                   whileTap={{ scale: 0.97 }}
                   onClick={handleReset}
-                  className="mt-6 w-full py-3 rounded-full border-2 border-flamingo-dark bg-white text-flamingo-dark font-bold text-sm"
+                  className="mt-4 w-full py-3.5 rounded-full border-2 border-flamingo-dark bg-white text-flamingo-dark font-bold text-sm"
                 >
                   Make another payment
                 </motion.button>
 
-                <div className="mt-6 flex items-center justify-center gap-2">
+                <div className="mt-4 flex items-center justify-center gap-2">
+                  <span className="w-6 h-6 rounded-full bg-flamingo-pink flex items-center justify-center text-white text-xs font-black">F</span>
+                  <span className="text-xs text-flamingo-dark/40">Powered by Flamingo Pay</span>
+                </div>
+              </motion.div>
+            )}
+
+            {/* ═══════════════════════════════════════
+               FAILURE SCREEN — witty but reassuring
+               ═══════════════════════════════════════ */}
+            {step === "failed" && viralQuote && (
+              <motion.div
+                key="failed"
+                variants={stepVariants}
+                initial="initial"
+                animate="animate"
+                exit="exit"
+                transition={{ duration: 0.3 }}
+                className="text-center py-10"
+              >
+                {/* Shake emoji */}
+                <motion.div
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1, rotate: [0, -5, 5, -5, 0] }}
+                  transition={{ type: "spring", stiffness: 200, damping: 14 }}
+                  className="text-7xl mx-auto"
+                >
+                  {viralQuote.emoji}
+                </motion.div>
+
+                <motion.h2
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.15 }}
+                  className="display font-black text-flamingo-dark mt-4 px-2"
+                  style={{ fontSize: "clamp(1.4rem, 5.5vw, 1.875rem)", letterSpacing: "-0.02em", lineHeight: 1.1 }}
+                >
+                  {viralQuote.headline}
+                </motion.h2>
+
+                <motion.p
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.3 }}
+                  className="mt-2 text-flamingo-dark/60 text-sm px-4"
+                >
+                  {viralQuote.sub}
+                </motion.p>
+
+                {/* Failed amount */}
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: 0.4 }}
+                  className="mt-5 inline-flex items-center gap-2 rounded-full border-2 border-flamingo-dark bg-flamingo-pink-soft px-5 py-2.5 shadow-[0_4px_0_0_#1A1A2E]"
+                >
+                  <span className="text-sm font-bold text-flamingo-pink-deep">Failed</span>
+                  <span className="display text-xl font-black text-flamingo-dark tabular-nums line-through opacity-60">
+                    R{parseFloat(amount).toFixed(2)}
+                  </span>
+                </motion.div>
+
+                <motion.p
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.5 }}
+                  className="mt-4 text-xs text-flamingo-dark/50 font-medium"
+                >
+                  No money was deducted. Your balance is safe.
+                </motion.p>
+
+                {/* Retry + Change method */}
+                <motion.button
+                  whileHover={{ y: -2 }}
+                  whileTap={{ scale: 0.97 }}
+                  onClick={handleRetry}
+                  className="mt-5 w-full py-4 rounded-full bg-gradient-flamingo text-white font-black text-lg shadow-[0_8px_20px_-6px_rgba(255,82,119,0.55)]"
+                >
+                  Try again
+                </motion.button>
+
+                <motion.button
+                  whileTap={{ scale: 0.97 }}
+                  onClick={() => setStep("method")}
+                  className="mt-3 w-full py-3.5 rounded-full border-2 border-flamingo-dark bg-white text-flamingo-dark font-bold text-sm"
+                >
+                  Choose a different method
+                </motion.button>
+
+                <div className="mt-5 flex items-center justify-center gap-2">
                   <span className="w-6 h-6 rounded-full bg-flamingo-pink flex items-center justify-center text-white text-xs font-black">F</span>
                   <span className="text-xs text-flamingo-dark/40">Powered by Flamingo Pay</span>
                 </div>
