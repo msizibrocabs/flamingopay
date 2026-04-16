@@ -8,7 +8,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
-  const merchant = getMerchant(id);
+  const merchant = await getMerchant(id);
   if (!merchant) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }

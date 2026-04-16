@@ -8,12 +8,12 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
-  const merchant = getMerchant(id);
+  const merchant = await getMerchant(id);
   if (!merchant) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
-  const transactions = listTransactions(id);
-  const stats = transactionStats(id);
+  const transactions = await listTransactions(id);
+  const stats = await transactionStats(id);
   return NextResponse.json({ transactions, stats });
 }
 
@@ -22,7 +22,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
-  const merchant = getMerchant(id);
+  const merchant = await getMerchant(id);
   if (!merchant) {
     return NextResponse.json({ error: "Merchant not found" }, { status: 404 });
   }
@@ -47,7 +47,7 @@ export async function POST(
     ? body.buyerBank.trim()
     : banks[Math.floor(Math.random() * banks.length)];
 
-  const txn = createTransaction(id, { amount: body.amount, rail, buyerBank });
+  const txn = await createTransaction(id, { amount: body.amount, rail, buyerBank });
   if (!txn) {
     return NextResponse.json({ error: "Failed to create transaction" }, { status: 500 });
   }

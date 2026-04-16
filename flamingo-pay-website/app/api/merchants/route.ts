@@ -9,7 +9,7 @@ import {
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  return NextResponse.json({ merchants: listMerchants() });
+  return NextResponse.json({ merchants: await listMerchants() });
 }
 
 export async function POST(req: NextRequest) {
@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const existing = getMerchantByPhone(body.phone!);
+  const existing = await getMerchantByPhone(body.phone!);
   if (existing) {
     return NextResponse.json(
       { error: "A merchant with this phone is already registered", merchant: existing },
@@ -52,6 +52,6 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const merchant = createMerchant(body as NewMerchantInput);
+  const merchant = await createMerchant(body as NewMerchantInput);
   return NextResponse.json({ merchant }, { status: 201 });
 }

@@ -31,7 +31,7 @@ export async function PATCH(
       { status: 400 },
     );
   }
-  const m = updateMerchantStatus(id, body.status, body.reason);
+  const m = await updateMerchantStatus(id, body.status, body.reason);
   if (!m) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }

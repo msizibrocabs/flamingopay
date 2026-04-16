@@ -20,7 +20,7 @@ export async function POST(
     // No body or invalid JSON → full refund, no reason. That's fine.
   }
 
-  const result = refundTransaction(id, txnId, refundAmount, refundReason);
+  const result = await refundTransaction(id, txnId, refundAmount, refundReason);
   if ("error" in result) {
     const code = result.error === "Merchant not found" || result.error === "Transaction not found" ? 404 : 409;
     return NextResponse.json({ error: result.error }, { status: code });

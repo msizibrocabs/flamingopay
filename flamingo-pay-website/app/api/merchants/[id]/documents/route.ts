@@ -16,7 +16,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
-  const merchant = getMerchant(id);
+  const merchant = await getMerchant(id);
   if (!merchant) return NextResponse.json({ error: "Not found" }, { status: 404 });
   return NextResponse.json({ documents: merchant.documents });
 }
@@ -43,7 +43,7 @@ export async function PATCH(
   if (body.status && !STATUSES.includes(body.status)) {
     return NextResponse.json({ error: `status must be one of: ${STATUSES.join(", ")}` }, { status: 400 });
   }
-  const m = updateMerchantDocument(id, body.kind, {
+  const m = await updateMerchantDocument(id, body.kind, {
     status: body.status,
     note: body.note,
     fileName: body.fileName,
