@@ -63,6 +63,25 @@ function Inner() {
     .filter(t => t.status === "completed")
     .reduce((s, t) => s + t.amount, 0);
 
+  function exportCSV() {
+    const header = "Date,Reference,Rail,Bank,Amount (ZAR),Fee (ZAR),Status\n";
+    const rows = filtered.map(t => {
+      const date = new Date(t.timestamp).toLocaleString("en-ZA");
+      const fee = t.status === "completed" ? (t.amount * 0.029 + 0.99).toFixed(2) : "0.00";
+      return `"${date}","${t.reference}","${t.rail}","${t.buyerBank}","${t.amount.toFixed(2)}","${fee}","${t.status}"`;
+    });
+    const csv = header + rows.join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `flamingo-transactions-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    setToast("CSV downloaded");
+    setTimeout(() => setToast(null), 2500);
+  }
+
   async function handleRefund() {
     if (!liveSelected) return;
     setRefunding(true);
@@ -105,18 +124,33 @@ function Inner() {
             />
           </label>
 
-          <div className="mt-2 flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:'none'] [scrollbar-width:'none'] [&::-webkit-scrollbar]:hidden">
-            {(["all", "payshap", "eft", "refunded"] as Filter[]).map(f => (
-              <button
-                key={f}
-                onClick={() => setFilter(f)}
-                className={`flex-none rounded-full border-2 border-flamingo-dark px-3.5 py-1.5 text-xs font-extrabold uppercase tracking-wide ${
-                  filter === f ? "bg-flamingo-pink text-white" : "bg-white text-flamingo-dark"
-                }`}
-              >
-                {f === "all" ? "All" : f === "payshap" ? "PayShap" : f === "eft" ? "EFT" : "Refunded"}
-              </button>
-            ))}
+          <div className="mt-2 flex items-center gap-2">
+            <div className="flex flex-1 gap-2 overflow-x-auto pb-1 [-ms-overflow-style:'none'] [scrollbar-width:'none'] [&::-webkit-scrollbar]:hidden">
+              {(["all", "payshap", "eft", "refunded"] as Filter[]).map(f => (
+                <button
+                  key={f}
+                  onClick={() => setFilter(f)}
+                  className={`flex-none rounded-full border-2 border-flamingo-dark px-3.5 py-1.5 text-xs font-extrabold uppercase tracking-wide ${
+                    filter === f ? "bg-flamingo-pink text-white" : "bg-white text-flamingo-dark"
+                  }`}
+                >
+                  {f === "all" ? "All" : f === "payshap" ? "PayShap" : f === "eft" ? "EFT" : "Refunded"}
+                </button>
+              ))}
+            </div>
+            <button
+              onClick={exportCSV}
+              disabled={filtered.length === 0}
+              className="flex-none rounded-full border-2 border-flamingo-dark bg-white px-3 py-1.5 text-xs font-extrabold uppercase tracking-wide text-flamingo-dark hover:bg-flamingo-butter disabled:opacity-40"
+              title="Export filtered transactions as CSV"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="inline -mt-0.5 mr-1">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" strokeLinecap="round" strokeLinejoin="round" />
+                <polyline points="7 10 12 15 17 10" strokeLinecap="round" strokeLinejoin="round" />
+                <line x1="12" y1="15" x2="12" y2="3" strokeLinecap="round" />
+              </svg>
+              CSV
+            </button>
           </div>
         </div>
 

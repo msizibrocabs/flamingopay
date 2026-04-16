@@ -98,13 +98,13 @@ function Inner() {
             icon="🏦"
             title="Change payout bank"
             subtitle="We'll verify before switching"
-            onClick={() => alert("Bank change flow — verification required. (Demo)")}
+            onClick={() => window.open("https://wa.me/27825550142?text=Hi%20Flamingo%2C%20I%20need%20to%20change%20my%20payout%20bank%20account.%20Please%20send%20me%20the%20verification%20steps.", "_blank")}
           />
           <ActionRow
             icon="🧾"
             title="Tax invoices & statements"
             subtitle="Download monthly reports"
-            onClick={() => alert("Statements coming soon. (Demo)")}
+            onClick={() => alert("Statements will be available from your first full calendar month of trading.")}
           />
           <ActionRow
             icon="🛟"
@@ -116,7 +116,7 @@ function Inner() {
             icon="📄"
             title="Terms & privacy"
             subtitle="Read the merchant agreement"
-            onClick={() => alert("Legal pages — link to website. (Demo)")}
+            onClick={() => window.open("/legal/terms", "_blank")}
           />
         </section>
 

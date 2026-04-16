@@ -421,14 +421,14 @@ export default function SignupPage() {
                 />
                 <span className="text-xs text-flamingo-dark">
                   I agree to the Flamingo{" "}
-                  <a href="#" className="font-bold text-flamingo-pink-deep underline-offset-2 hover:underline">
+                  <a href="/legal/terms" target="_blank" className="font-bold text-flamingo-pink-deep underline-offset-2 hover:underline">
                     merchant terms
                   </a>{" "}
                   and{" "}
-                  <a href="#" className="font-bold text-flamingo-pink-deep underline-offset-2 hover:underline">
+                  <a href="/legal/privacy" target="_blank" className="font-bold text-flamingo-pink-deep underline-offset-2 hover:underline">
                     privacy policy
                   </a>
-                  . Fees are 2.5% all-in with no monthly charges.
+                  . Fees are 2.9% + R0.99 per transaction with no monthly charges.
                 </span>
               </label>
             </div>
