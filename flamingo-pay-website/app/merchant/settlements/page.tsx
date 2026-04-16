@@ -50,7 +50,7 @@ function Inner() {
           <div className="text-xs font-bold uppercase tracking-wide text-white/85">
             Arriving next
           </div>
-          <div className="mt-1 display text-[2.2rem] font-extrabold leading-none">
+          <div className="mt-1 display font-extrabold leading-none" style={{ fontSize: "clamp(1.6rem, 7vw, 2.2rem)" }}>
             {formatZAR(pendingNet)}
           </div>
           <div className="mt-2 text-sm text-white/85">

@@ -165,14 +165,15 @@ export default function PayPage() {
                   className="bg-white rounded-2xl border-2 border-flamingo-dark p-5 shadow-[4px_4px_0_#1A1A2E]"
                 >
                   <div className="flex items-center gap-2">
-                    <span className="text-flamingo-dark/40 text-3xl font-black">R</span>
+                    <span className="text-flamingo-dark/40 font-black" style={{ fontSize: "clamp(1.5rem, 6vw, 1.875rem)" }}>R</span>
                     <input
                       type="number"
                       inputMode="decimal"
                       placeholder="0.00"
                       value={amount}
                       onChange={(e) => setAmount(e.target.value)}
-                      className="flex-1 text-4xl font-black text-flamingo-dark bg-transparent outline-none placeholder:text-flamingo-dark/20 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none tabular-nums"
+                      style={{ fontSize: "clamp(1.75rem, 8vw, 2.25rem)" }}
+                      className="flex-1 font-black text-flamingo-dark bg-transparent outline-none placeholder:text-flamingo-dark/20 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none tabular-nums"
                       autoFocus
                     />
                   </div>
@@ -187,7 +188,7 @@ export default function PayPage() {
                       transition={{ delay: 0.05 + i * 0.03 }}
                       whileTap={{ scale: 0.94 }}
                       onClick={() => handlePreset(val)}
-                      className={`px-4 py-2 rounded-full border-2 border-flamingo-dark text-sm font-bold transition
+                      className={`px-4 py-2.5 rounded-full border-2 border-flamingo-dark text-sm font-bold transition
                         ${amount === val.toString()
                           ? "bg-flamingo-dark text-white"
                           : "bg-white text-flamingo-dark hover:bg-flamingo-dark/5"
@@ -345,7 +346,7 @@ export default function PayPage() {
                 <div className="bg-white rounded-2xl border-2 border-flamingo-dark p-5 shadow-[4px_4px_0_#1A1A2E] space-y-4">
                   <div className="bg-flamingo-pink/10 rounded-xl px-4 py-3 text-center">
                     <p className="text-xs text-flamingo-dark/60">Amount to send</p>
-                    <p className="display text-3xl font-black text-flamingo-pink tabular-nums">R{parseFloat(amount).toFixed(2)}</p>
+                    <p className="display font-black text-flamingo-pink tabular-nums" style={{ fontSize: "clamp(1.5rem, 6vw, 1.875rem)" }}>R{parseFloat(amount).toFixed(2)}</p>
                   </div>
 
                   <div className="space-y-3">

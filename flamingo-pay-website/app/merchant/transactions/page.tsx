@@ -527,12 +527,12 @@ function RefundPanel({
             <span className="text-xs font-bold uppercase tracking-wide text-flamingo-dark/70">
               Reason for refund
             </span>
-            <div className="mt-2 flex flex-wrap gap-1.5">
+            <div className="mt-2 flex flex-wrap gap-2">
               {REFUND_REASONS.map(r => (
                 <button
                   key={r}
                   onClick={() => setReason(r)}
-                  className={`rounded-full border-2 px-3 py-1.5 text-xs font-bold transition-colors ${
+                  className={`rounded-full border-2 px-3.5 py-2 text-xs font-bold transition-colors ${
                     reason === r
                       ? "border-flamingo-dark bg-flamingo-dark text-white"
                       : "border-flamingo-dark/30 bg-white text-flamingo-dark/70 hover:border-flamingo-dark"
@@ -567,14 +567,14 @@ function RefundPanel({
           <div className="mt-4 flex gap-2">
             <button
               onClick={() => { setMode("idle"); setReason(""); setPartialAmount(""); setRefundType("full"); }}
-              className="flex-1 rounded-xl border-2 border-flamingo-dark/40 bg-white px-3 py-2.5 text-sm font-bold text-flamingo-dark/70"
+              className="flex-1 rounded-xl border-2 border-flamingo-dark/40 bg-white px-3 py-3.5 text-sm font-bold text-flamingo-dark/70"
             >
               Cancel
             </button>
             <button
               onClick={() => setMode("confirm")}
               disabled={!canProceed}
-              className="flex-1 rounded-xl border-2 border-flamingo-dark bg-flamingo-pink px-3 py-2.5 text-sm font-extrabold text-white shadow-[0_3px_0_0_#B42A48] disabled:opacity-40"
+              className="flex-1 rounded-xl border-2 border-flamingo-dark bg-flamingo-pink px-3 py-3.5 text-sm font-extrabold text-white shadow-[0_3px_0_0_#B42A48] disabled:opacity-40"
             >
               Review refund
             </button>
@@ -620,14 +620,14 @@ function RefundPanel({
             <button
               onClick={() => { setMode("choose"); setError(null); }}
               disabled={loading}
-              className="flex-1 rounded-xl border-2 border-flamingo-dark/40 bg-white px-3 py-2.5 text-sm font-bold text-flamingo-dark/70"
+              className="flex-1 rounded-xl border-2 border-flamingo-dark/40 bg-white px-3 py-3.5 text-sm font-bold text-flamingo-dark/70"
             >
               Back
             </button>
             <button
               onClick={handleConfirm}
               disabled={loading}
-              className="flex-1 rounded-xl border-2 border-flamingo-dark bg-flamingo-pink px-3 py-2.5 text-sm font-extrabold text-white shadow-[0_3px_0_0_#B42A48] disabled:opacity-60"
+              className="flex-1 rounded-xl border-2 border-flamingo-dark bg-flamingo-pink px-3 py-3.5 text-sm font-extrabold text-white shadow-[0_3px_0_0_#B42A48] disabled:opacity-60"
             >
               {loading ? "Processing…" : `Refund ${formatZAR(effectiveAmount)}`}
             </button>

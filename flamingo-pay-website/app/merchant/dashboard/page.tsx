@@ -60,7 +60,7 @@ function Inner() {
           <button
             aria-label={showBalance ? "Hide balance" : "Show balance"}
             onClick={() => setShowBalance(v => !v)}
-            className="grid h-9 w-9 place-items-center rounded-full bg-white/15 text-white transition hover:bg-white/25"
+            className="grid h-11 w-11 place-items-center rounded-full bg-white/15 text-white transition hover:bg-white/25"
           >
             {showBalance ? (
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
@@ -88,7 +88,7 @@ function Inner() {
               <span>{t("today_earnings")}</span>
               <span>{new Date().toLocaleDateString("en-ZA", { day: "numeric", month: "short" })}</span>
             </div>
-            <div className="mt-2 display text-[2.8rem] font-black leading-[0.92] tabular-nums" style={{ letterSpacing: "-0.035em" }}>
+            <div className="mt-2 display font-black leading-[0.92] tabular-nums" style={{ fontSize: "clamp(2rem, 8vw, 2.8rem)", letterSpacing: "-0.035em" }}>
               {showBalance ? (
                 <AnimatedCounter
                   to={today.total}

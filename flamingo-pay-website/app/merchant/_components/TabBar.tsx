@@ -28,7 +28,7 @@ export function TabBar() {
             <li key={tab.href} className="flex-1">
               <Link
                 href={tab.href}
-                className={`flex flex-col items-center justify-center py-2 text-[11px] font-bold ${
+                className={`flex flex-col items-center justify-center py-3 text-[11px] font-bold ${
                   active ? "text-flamingo-pink" : "text-flamingo-dark/70"
                 }`}
                 aria-current={active ? "page" : undefined}
