@@ -251,6 +251,10 @@ Expected results:
 - **Hosting:** Vercel (frontend)
 - **Tooling:** ESLint, Turbopack
 
+## Changelog
+
+See [`CHANGELOG.md`](./CHANGELOG.md) for the release history.
+
 ## License
 
 MIT
