@@ -226,52 +226,42 @@ function Inner() {
               animate={{ y: 0 }}
               exit={{ y: 40 }}
               transition={{ type: "spring", stiffness: 220, damping: 24 }}
-              className="max-h-[85dvh] w-full max-w-md overflow-y-auto rounded-t-3xl border-t-2 border-flamingo-dark bg-white p-5"
+              className="max-h-[90dvh] w-full max-w-md overflow-y-auto rounded-t-3xl border-t-2 border-flamingo-dark bg-white px-5 pt-3 pb-5"
               onClick={e => e.stopPropagation()}
             >
               <div className="mx-auto mb-2 h-1.5 w-12 rounded-full bg-flamingo-dark/20" />
-              <div className="flex items-center justify-between">
-                <h3 className="display text-lg font-black text-flamingo-dark" style={{ letterSpacing: "-0.02em" }}>
-                  Transaction
-                </h3>
+
+              {/* Compact header: amount + status + close in one row */}
+              <div className="flex items-center gap-3">
+                <div className="flex-1">
+                  <div
+                    className={`display font-black tabular-nums ${liveSelected.status === "refunded" ? "text-flamingo-dark/50 line-through" : "text-flamingo-dark"}`}
+                    style={{ fontSize: "clamp(1.5rem, 4vw, 2rem)", letterSpacing: "-0.03em" }}
+                  >
+                    {formatZAR(liveSelected.amount)}
+                  </div>
+                  <div className="text-xs text-flamingo-dark/60">
+                    {liveSelected.rail === "payshap" ? "PayShap" : "EFT"} · {liveSelected.buyerBank} · {liveSelected.reference}
+                  </div>
+                </div>
+                <span className={`rounded-full px-2.5 py-1 text-[10px] font-extrabold uppercase ${
+                  liveSelected.status === "completed" ? "bg-flamingo-mint text-flamingo-dark" :
+                  liveSelected.status === "refunded" ? "bg-flamingo-pink-soft text-flamingo-pink-deep" :
+                  liveSelected.status === "partial_refund" ? "bg-flamingo-butter text-flamingo-dark" :
+                  "bg-flamingo-cream text-flamingo-dark/60"
+                }`}>
+                  {labelFor(liveSelected.status)}
+                </span>
                 <button
                   aria-label="Close"
                   onClick={() => setSelected(null)}
-                  className="grid h-8 w-8 place-items-center rounded-full bg-flamingo-cream"
+                  className="grid h-8 w-8 flex-none place-items-center rounded-full bg-flamingo-cream"
                 >
                   ✕
                 </button>
               </div>
-              <div className={`mt-2 rounded-2xl px-4 py-3 text-center ${liveSelected.status === "refunded" ? "bg-flamingo-pink-soft" : liveSelected.status === "partial_refund" ? "bg-flamingo-butter/40" : "bg-flamingo-pink-wash"}`}>
-                <div
-                  className={`display font-black tabular-nums ${liveSelected.status === "refunded" ? "text-flamingo-dark/50 line-through" : "text-flamingo-dark"}`}
-                  style={{ fontSize: "clamp(1.75rem, 4vw, 2.25rem)", letterSpacing: "-0.03em" }}
-                >
-                  {formatZAR(liveSelected.amount)}
-                </div>
-                {liveSelected.status === "partial_refund" && liveSelected.refundAmount != null && (
-                  <div className="text-xs font-bold text-flamingo-pink-deep">
-                    {formatZAR(liveSelected.refundAmount)} refunded to buyer
-                  </div>
-                )}
-              </div>
-              <dl className="mt-2 divide-y-2 divide-flamingo-cream text-sm">
-                <Row k="Reference" v={liveSelected.reference} />
-                <Row k="Rail" v={liveSelected.rail === "payshap" ? "PayShap" : "Instant EFT"} />
-                <Row k="Buyer bank" v={liveSelected.buyerBank} />
-                <Row k="Status" v={labelFor(liveSelected.status)} />
-                <Row k="Time" v={new Date(liveSelected.timestamp).toLocaleString("en-ZA")} />
-                {liveSelected.refundedAt && (
-                  <Row k="Refunded at" v={new Date(liveSelected.refundedAt).toLocaleString("en-ZA")} />
-                )}
-                {liveSelected.refundAmount != null && (
-                  <Row k="Refund amount" v={formatZAR(liveSelected.refundAmount)} />
-                )}
-                {liveSelected.refundReason && (
-                  <Row k="Reason" v={liveSelected.refundReason} />
-                )}
-              </dl>
 
+              {/* Refund action — IMMEDIATELY visible */}
               {liveSelected.status === "completed" ? (
                 <RefundPanel
                   txn={liveSelected}
@@ -286,16 +276,39 @@ function Inner() {
                   }}
                 />
               ) : liveSelected.status === "refunded" ? (
-                <div className="mt-5 flex items-center justify-center gap-2 rounded-2xl border-2 border-flamingo-dark bg-flamingo-pink-soft px-4 py-3 text-sm font-extrabold uppercase text-flamingo-pink-deep">
+                <div className="mt-3 flex items-center justify-center gap-2 rounded-2xl border-2 border-flamingo-dark bg-flamingo-pink-soft px-4 py-2.5 text-sm font-extrabold uppercase text-flamingo-pink-deep">
                   ↩ Fully refunded
                 </div>
               ) : liveSelected.status === "partial_refund" ? (
-                <div className="mt-5 flex items-center justify-center gap-2 rounded-2xl border-2 border-flamingo-dark bg-flamingo-butter px-4 py-3 text-sm font-extrabold uppercase text-flamingo-dark">
+                <div className="mt-3 flex items-center justify-center gap-2 rounded-2xl border-2 border-flamingo-dark bg-flamingo-butter px-4 py-2.5 text-sm font-extrabold uppercase text-flamingo-dark">
                   ↩ Partially refunded · {formatZAR(liveSelected.refundAmount ?? 0)}
                 </div>
               ) : (
-                <div className="mt-5 flex items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-flamingo-dark/40 bg-white px-4 py-3 text-sm text-flamingo-dark/60">
+                <div className="mt-3 flex items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-flamingo-dark/40 bg-white px-4 py-2.5 text-sm text-flamingo-dark/60">
                   Pending transactions can&rsquo;t be refunded yet.
+                </div>
+              )}
+
+              {/* Details — below the fold, scrollable */}
+              <dl className="mt-3 divide-y-2 divide-flamingo-cream text-sm">
+                <Row k="Reference" v={liveSelected.reference} />
+                <Row k="Rail" v={liveSelected.rail === "payshap" ? "PayShap" : "Instant EFT"} />
+                <Row k="Buyer bank" v={liveSelected.buyerBank} />
+                <Row k="Time" v={new Date(liveSelected.timestamp).toLocaleString("en-ZA")} />
+                {liveSelected.refundedAt && (
+                  <Row k="Refunded at" v={new Date(liveSelected.refundedAt).toLocaleString("en-ZA")} />
+                )}
+                {liveSelected.refundAmount != null && (
+                  <Row k="Refund amount" v={formatZAR(liveSelected.refundAmount)} />
+                )}
+                {liveSelected.refundReason && (
+                  <Row k="Reason" v={liveSelected.refundReason} />
+                )}
+              </dl>
+
+              {liveSelected.status === "partial_refund" && liveSelected.refundAmount != null && (
+                <div className="mt-2 rounded-xl bg-flamingo-butter/30 px-3 py-2 text-xs text-flamingo-dark/70">
+                  {formatZAR(liveSelected.refundAmount)} was refunded. Net received: {formatZAR(liveSelected.amount - liveSelected.refundAmount)}
                 </div>
               )}
             </motion.div>
