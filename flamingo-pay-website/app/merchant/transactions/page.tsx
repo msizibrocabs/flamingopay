@@ -226,16 +226,19 @@ function Inner() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-end justify-center bg-flamingo-dark/40"
+            className="fixed inset-0 z-50 flex items-end justify-center bg-flamingo-dark/40 touch-none"
             onClick={() => setSelected(null)}
+            onTouchMove={e => e.preventDefault()}
           >
             <motion.div
               initial={{ y: 40 }}
               animate={{ y: 0 }}
               exit={{ y: 40 }}
               transition={{ type: "spring", stiffness: 220, damping: 24 }}
-              className="max-h-[90dvh] w-full max-w-md overflow-y-auto overscroll-contain rounded-t-3xl border-t-2 border-flamingo-dark bg-white px-5 pt-3 pb-5"
+              className="max-h-[90dvh] w-full max-w-md overflow-y-auto overscroll-contain rounded-t-3xl border-t-2 border-flamingo-dark bg-white px-5 pt-3 pb-10 touch-auto"
+              style={{ paddingBottom: "max(2.5rem, env(safe-area-inset-bottom, 2.5rem))" }}
               onClick={e => e.stopPropagation()}
+              onTouchMove={e => e.stopPropagation()}
             >
               <div className="mx-auto mb-2 h-1.5 w-12 rounded-full bg-flamingo-dark/20" />
 
