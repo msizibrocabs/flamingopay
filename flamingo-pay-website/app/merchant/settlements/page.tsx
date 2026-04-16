@@ -5,13 +5,14 @@ import { MerchantGate } from "../_components/MerchantGate";
 import { TabBar } from "../_components/TabBar";
 import { TopBar } from "../_components/TopBar";
 import {
-  DEMO_MERCHANT,
+  currentMerchantId,
   formatZAR,
   formatZARCompact,
   makeMockSettlements,
-  makeMockTransactions,
   type Settlement,
 } from "../../../lib/merchant";
+import { useMerchantTxns } from "../../../lib/useMerchantTxns";
+import { useMerchant } from "../../../lib/useMerchant";
 
 export default function SettlementsPage() {
   return (
@@ -22,8 +23,19 @@ export default function SettlementsPage() {
 }
 
 function Inner() {
-  const txns = useMemo(() => makeMockTransactions(48), []);
+  const mid = currentMerchantId();
+  const { merchant: m } = useMerchant();
+  const { txns: rawTxns } = useMerchantTxns(mid);
+  // Map StoredTxn → Txn shape for makeMockSettlements
+  const txns = useMemo(() => rawTxns.map(t => ({
+    ...t,
+    status: (t.status === "partial_refund" ? "completed" : t.status) as "completed" | "pending" | "refunded",
+  })), [rawTxns]);
   const settlements = useMemo(() => makeMockSettlements(txns), [txns]);
+
+  const bankName = m?.bank ?? "Your bank";
+  const accountMasked = m?.accountLast4 ? `•••• ${m.accountLast4}` : "••••";
+  const feeRate = 0.029;
 
   const pending = settlements.filter(s => s.status === "pending");
   const settled = settlements.filter(s => s.status === "settled");
@@ -67,7 +79,7 @@ function Inner() {
             <div className="flex items-center justify-between">
               <span className="font-bold text-white/90">To</span>
               <span className="font-extrabold">
-                {DEMO_MERCHANT.bank} {DEMO_MERCHANT.accountMasked}
+                {bankName} {accountMasked}
               </span>
             </div>
           </div>
@@ -84,7 +96,7 @@ function Inner() {
           <StatCard
             label="Fees paid"
             value={formatZARCompact(totalFees)}
-            sub={`at ${(DEMO_MERCHANT.feeRate * 100).toFixed(1)}%`}
+            sub={`at ${(feeRate * 100).toFixed(1)}%`}
             tint="bg-flamingo-butter"
           />
         </section>
@@ -120,8 +132,8 @@ function Inner() {
           </h3>
           <p className="mt-2 text-sm text-flamingo-dark/80">
             Every morning at 09:00 we settle yesterday&apos;s sales into your{" "}
-            {DEMO_MERCHANT.bank} account {DEMO_MERCHANT.accountMasked}.
-            The {(DEMO_MERCHANT.feeRate * 100).toFixed(1)}% fee covers the bank rail and
+            {bankName} account {accountMasked}.
+            The {(feeRate * 100).toFixed(1)}% + R0.99 fee covers the bank rail and
             Flamingo service — no hidden charges.
           </p>
         </section>

@@ -7,14 +7,9 @@ import { AnimatedCounter } from "../../../components/motion/AnimatedCounter";
 import { flamingoConfetti } from "../../../components/motion/Confetti";
 
 /* ──────────────────────────────────────────────
-   Mock merchant database
+   Merchant type fetched from API
    ────────────────────────────────────────────── */
-const MERCHANTS: Record<string, { name: string; category: string }> = {
-  "thandis-spaza": { name: "Thandi's Spaza", category: "Grocery" },
-  "bra-mike-braai": { name: "Bra Mike's Braai Stand", category: "Food" },
-  "mama-joy-fruit": { name: "Mama Joy's Fruit & Veg", category: "Fresh Produce" },
-  demo: { name: "Flamingo Demo Shop", category: "Demo" },
-};
+type MerchantInfo = { name: string; category: string };
 
 /* ──────────────────────────────────────────────
    Payment method configs
@@ -140,15 +135,35 @@ const stepVariants = {
 export default function PayPage() {
   const params = useParams();
   const merchantId = params.merchantId as string;
-  const merchant = MERCHANTS[merchantId];
+  const [merchant, setMerchant] = useState<MerchantInfo | null>(null);
+  const [merchantLoading, setMerchantLoading] = useState(true);
 
   const [amount, setAmount] = useState("");
   const [step, setStep] = useState<"amount" | "method" | "processing" | "done" | "failed" | "manual">("amount");
   const [selectedMethod, setSelectedMethod] = useState<PaymentMethod | null>(null);
   const [processingQuip, setProcessingQuip] = useState(0);
+  const [txnRef, setTxnRef] = useState<string | null>(null);
 
   const numericAmount = parseFloat(amount);
   const isValidAmount = !isNaN(numericAmount) && numericAmount >= 1 && numericAmount <= 50000;
+
+  // Fetch merchant from API on mount
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch(`/api/merchants/${merchantId}`, { cache: "no-store" });
+        if (!res.ok) { setMerchantLoading(false); return; }
+        const data = await res.json();
+        if (data.merchant) {
+          setMerchant({
+            name: data.merchant.businessName,
+            category: data.merchant.businessType,
+          });
+        }
+      } catch { /* merchant not found */ }
+      setMerchantLoading(false);
+    })();
+  }, [merchantId]);
 
   // Pick a fresh random quote when step changes to done or failed
   const viralQuote = useMemo(
@@ -171,6 +186,26 @@ export default function PayPage() {
     return () => clearInterval(interval);
   }, [step]);
 
+  /** Record the transaction on the server so it shows on merchant dashboard + admin */
+  async function recordTransaction(rail: "payshap" | "eft") {
+    try {
+      const banks = ["Capitec", "FNB", "Standard Bank", "Nedbank", "ABSA", "TymeBank", "Discovery Bank"];
+      const res = await fetch(`/api/merchants/${merchantId}/transactions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          amount: numericAmount,
+          rail,
+          buyerBank: banks[Math.floor(Math.random() * banks.length)],
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setTxnRef(data.transaction?.reference ?? null);
+      }
+    } catch { /* best-effort */ }
+  }
+
   function handlePreset(val: number) {
     setAmount(val.toString());
   }
@@ -185,19 +220,40 @@ export default function PayPage() {
       setStep("processing");
       // ~12% chance of "failure" for demo variety
       const willFail = Math.random() < 0.12;
-      setTimeout(() => setStep(willFail ? "failed" : "done"), 2200);
+      const rail = method === "payshap" ? "payshap" as const : "eft" as const;
+      setTimeout(async () => {
+        if (!willFail) {
+          await recordTransaction(rail);
+          setStep("done");
+        } else {
+          setStep("failed");
+        }
+      }, 2200);
     }
   }
   function handleReset() {
     setAmount("");
     setStep("amount");
     setSelectedMethod(null);
+    setTxnRef(null);
   }
   function handleRetry() {
     if (!selectedMethod) return;
     setStep("processing");
+    const rail = selectedMethod === "payshap" ? "payshap" as const : "eft" as const;
     // Retry always succeeds
-    setTimeout(() => setStep("done"), 2200);
+    setTimeout(async () => {
+      await recordTransaction(rail);
+      setStep("done");
+    }, 2200);
+  }
+
+  if (merchantLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-sunrise flex items-center justify-center">
+        <span className="inline-block h-4 w-4 animate-ping rounded-full bg-flamingo-pink" />
+      </div>
+    );
   }
 
   if (!merchant) {
@@ -589,6 +645,12 @@ export default function PayPage() {
                       <span className="text-flamingo-dark/60">Via</span>
                       <span className="font-bold">{selectedMethod && METHODS[selectedMethod].label}</span>
                     </div>
+                    {txnRef && (
+                      <div className="flex justify-between">
+                        <span className="text-flamingo-dark/60">Ref</span>
+                        <span className="font-bold font-mono text-xs">{txnRef}</span>
+                      </div>
+                    )}
                   </div>
                 </motion.div>
 

@@ -422,6 +422,33 @@ export function listTransactions(merchantId: string): StoredTxn[] {
   return s.get(merchantId) ?? [];
 }
 
+export function createTransaction(
+  merchantId: string,
+  input: { amount: number; rail: "payshap" | "eft"; buyerBank: string },
+): StoredTxn | null {
+  const m = getStore().get(merchantId);
+  if (!m) return null;
+  const s = txnStore();
+  const list = listTransactions(merchantId); // ensures list is initialised
+  const ref = `FP-${Math.floor(Math.random() * 9e5 + 1e5)}`;
+  const txn: StoredTxn = {
+    id: `tx_${merchantId.slice(0, 6)}_${Date.now().toString(36)}`,
+    amount: input.amount,
+    rail: input.rail,
+    buyerBank: input.buyerBank,
+    timestamp: new Date().toISOString(),
+    status: "completed",
+    reference: ref,
+  };
+  list.unshift(txn); // newest first
+  s.set(merchantId, list);
+  // Update merchant lifetime counters
+  m.txnCount += 1;
+  m.grossVolume += input.amount;
+  getStore().set(merchantId, m);
+  return txn;
+}
+
 export function refundTransaction(
   merchantId: string,
   txnId: string,

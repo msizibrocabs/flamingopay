@@ -11,7 +11,7 @@ import { Reveal, RevealGroup, RevealItem } from "../../../components/motion/Reve
 import { AnimatedCounter } from "../../../components/motion/AnimatedCounter";
 import { flamingoConfetti } from "../../../components/motion/Confetti";
 import {
-  DEMO_MERCHANT,
+  currentMerchantId,
   formatZAR,
   formatZARCompact,
   timeAgo,
@@ -19,6 +19,7 @@ import {
   weekTotals,
 } from "../../../lib/merchant";
 import { useMerchantTxns } from "../../../lib/useMerchantTxns";
+import { useMerchant } from "../../../lib/useMerchant";
 import { useI18n } from "../../../lib/i18n";
 
 export default function DashboardPage() {
@@ -34,7 +35,9 @@ export default function DashboardPage() {
 function Inner() {
   const { t } = useI18n();
   const search = useSearchParams();
-  const { txns } = useMerchantTxns(DEMO_MERCHANT.id);
+  const mid = currentMerchantId();
+  const { merchant: m } = useMerchant();
+  const { txns } = useMerchantTxns(mid);
   const today = useMemo(() => todayTotals(txns), [txns]);
   const week = useMemo(() => weekTotals(txns), [txns]);
   const recent = txns.slice(0, 5);
@@ -42,6 +45,11 @@ function Inner() {
 
   const maxDay = Math.max(...week.map(d => d.total), 1);
   const weekTotal = week.reduce((s, d) => s + d.total, 0);
+
+  const merchantName = m?.businessName ?? "Your Shop";
+  const ownerFirst = m?.ownerName?.split(" ")[0] ?? "Boss";
+  const feeRate = 0.029;
+  const isVerified = m?.status === "approved";
 
   // Welcome burst when a merchant lands here fresh from approval
   useEffect(() => {
@@ -54,8 +62,8 @@ function Inner() {
   return (
     <main className="min-h-dvh bg-gradient-sunrise pb-28">
       <TopBar
-        title={`${t("dash_hi")}, ${DEMO_MERCHANT.owner.split(" ")[0]} 👋`}
-        subtitle={DEMO_MERCHANT.name}
+        title={`${t("dash_hi")}, ${ownerFirst} 👋`}
+        subtitle={merchantName}
         action={
           <button
             aria-label={showBalance ? "Hide balance" : "Show balance"}
@@ -166,10 +174,10 @@ function Inner() {
         {/* Quick stats */}
         <RevealGroup delay={0.15} className="mt-4 grid grid-cols-2 gap-3">
           <RevealItem>
-            <MiniCard label={t("fee_rate")} value={`${(DEMO_MERCHANT.feeRate * 100).toFixed(1)}% + R0.99`} tint="bg-flamingo-butter" />
+            <MiniCard label={t("fee_rate")} value={`${(feeRate * 100).toFixed(1)}% + R0.99`} tint="bg-flamingo-butter" />
           </RevealItem>
           <RevealItem>
-            <MiniCard label={t("verified")} value={DEMO_MERCHANT.verified ? t("verified_yes") : t("verified_pending")} tint="bg-flamingo-mint" />
+            <MiniCard label={t("verified")} value={isVerified ? t("verified_yes") : t("verified_pending")} tint="bg-flamingo-mint" />
           </RevealItem>
         </RevealGroup>
 

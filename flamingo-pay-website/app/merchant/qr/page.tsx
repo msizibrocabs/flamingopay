@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { MerchantGate } from "../_components/MerchantGate";
@@ -8,7 +7,8 @@ import { TabBar } from "../_components/TabBar";
 import { TopBar } from "../_components/TopBar";
 import { Reveal } from "../../../components/motion/Reveal";
 import { burstAt } from "../../../components/motion/Confetti";
-import { DEMO_MERCHANT } from "../../../lib/merchant";
+import { currentMerchantId } from "../../../lib/merchant";
+import { useMerchant } from "../../../lib/useMerchant";
 
 export default function QrPage() {
   return (
@@ -20,7 +20,12 @@ export default function QrPage() {
 
 function Inner() {
   const [copied, setCopied] = useState(false);
-  const url = `https://flamingopay.co.za/pay/${DEMO_MERCHANT.id}`;
+  const mid = currentMerchantId() ?? "demo";
+  const { merchant: m } = useMerchant();
+  const name = m?.businessName ?? "Your Shop";
+  const url = `https://flamingopay.co.za/pay/${mid}`;
+  // Use QR code API for dynamic generation — works for any merchant
+  const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=340x340&data=${encodeURIComponent(url)}&color=E8315B&bgcolor=FFF5F0`;
 
   async function copyLink(e?: React.MouseEvent) {
     try {
@@ -39,8 +44,8 @@ function Inner() {
   function share() {
     if (navigator.share) {
       navigator.share({
-        title: `Pay ${DEMO_MERCHANT.name} with Flamingo`,
-        text: `Scan or tap to pay ${DEMO_MERCHANT.name}`,
+        title: `Pay ${name} with Flamingo`,
+        text: `Scan or tap to pay ${name}`,
         url,
       }).catch(() => {});
     } else {
@@ -57,7 +62,7 @@ function Inner() {
           <button
             onClick={share}
             aria-label="Share"
-            className="grid h-9 w-9 place-items-center rounded-full bg-white/15 text-white transition hover:bg-white/25"
+            className="grid h-11 w-11 place-items-center rounded-full bg-white/15 text-white transition hover:bg-white/25"
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7M16 6l-4-4-4 4M12 2v14" />
@@ -75,7 +80,7 @@ function Inner() {
             <div className="text-center">
               <p className="text-xs font-extrabold uppercase tracking-wider text-flamingo-pink-deep">Scan to pay</p>
               <h2 className="display mt-1 text-2xl font-extrabold text-flamingo-dark">
-                {DEMO_MERCHANT.name}
+                {name}
               </h2>
             </div>
 
@@ -85,14 +90,13 @@ function Inner() {
               transition={{ type: "spring", stiffness: 180, damping: 18 }}
               className="mt-4 grid place-items-center rounded-3xl bg-flamingo-cream p-4"
             >
-              {/* Pre-generated branded QR from /public */}
-              <Image
-                src={`/qr-${DEMO_MERCHANT.id}.png`}
-                alt={`Flamingo Pay QR for ${DEMO_MERCHANT.name}`}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={qrSrc}
+                alt={`Flamingo Pay QR for ${name}`}
                 width={340}
-                height={420}
-                className="h-auto w-full max-w-xs"
-                priority
+                height={340}
+                className="h-auto w-full max-w-xs rounded-xl"
               />
             </motion.div>
 
@@ -116,7 +120,7 @@ function Inner() {
               title="Print poster"
               subtitle="A4 print-ready"
               icon="🖨️"
-              onClick={() => window.open(`/qr-${DEMO_MERCHANT.id}.png`, "_blank")}
+              onClick={() => window.open(qrSrc, "_blank")}
             />
             <ActionCard
               title="Share link"

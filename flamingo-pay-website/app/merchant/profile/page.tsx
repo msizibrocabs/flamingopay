@@ -6,7 +6,8 @@ import { MerchantGate } from "../_components/MerchantGate";
 import { TabBar } from "../_components/TabBar";
 import { TopBar } from "../_components/TopBar";
 import { LanguagePicker } from "../_components/LanguagePicker";
-import { DEMO_MERCHANT, signOut } from "../../../lib/merchant";
+import { signOut } from "../../../lib/merchant";
+import { useMerchant } from "../../../lib/useMerchant";
 import { LANGUAGES, useI18n } from "../../../lib/i18n";
 
 export default function ProfilePage() {
@@ -23,13 +24,23 @@ function Inner() {
   const [showLangPicker, setShowLangPicker] = useState(false);
   const { lang, t } = useI18n();
   const currentLang = LANGUAGES.find(l => l.code === lang) ?? LANGUAGES[0];
+  const { merchant: m } = useMerchant();
 
   function handleSignOut() {
     signOut();
     router.replace("/merchant/login");
   }
 
-  const m = DEMO_MERCHANT;
+  const name = m?.businessName ?? "Your Shop";
+  const category = m?.businessType ?? "";
+  const verified = m?.status === "approved";
+  const owner = m?.ownerName ?? "—";
+  const phone = m?.phone ?? "—";
+  const address = m?.address ?? "—";
+  const bank = m?.bank ?? "—";
+  const accountMasked = m?.accountLast4 ? `•••• ${m.accountLast4}` : "—";
+  const joinedAt = m?.createdAt ?? new Date().toISOString();
+  const feeRate = 0.029;
 
   return (
     <main className="min-h-dvh bg-flamingo-cream pb-28">
@@ -41,15 +52,15 @@ function Inner() {
           <div className="flex items-center gap-4">
             <div className="grid h-16 w-16 flex-none place-items-center rounded-2xl border-2 border-flamingo-dark bg-flamingo-pink shadow-[0_4px_0_0_#1A1A2E]">
               <span className="display text-3xl font-extrabold text-white">
-                {m.name.charAt(0)}
+                {name.charAt(0)}
               </span>
             </div>
             <div className="min-w-0 flex-1">
               <h2 className="display truncate text-xl font-extrabold text-flamingo-dark">
-                {m.name}
+                {name}
               </h2>
-              <p className="truncate text-sm text-flamingo-dark/70">{m.category}</p>
-              {m.verified && (
+              <p className="truncate text-sm text-flamingo-dark/70">{category}</p>
+              {verified && (
                 <span className="mt-1 inline-flex items-center gap-1 rounded-full border-2 border-flamingo-dark bg-flamingo-mint px-2 py-0.5 text-[10px] font-extrabold uppercase text-flamingo-dark">
                   ✓ Verified
                 </span>
@@ -60,18 +71,17 @@ function Inner() {
 
         {/* Owner info */}
         <Group title="Owner">
-          <InfoRow label="Name" value={m.owner} />
-          <InfoRow label="Phone" value={m.phone} />
-          <InfoRow label="Email" value={m.email} />
+          <InfoRow label="Name" value={owner} />
+          <InfoRow label="Phone" value={phone} />
         </Group>
 
         {/* Business info */}
         <Group title="Business">
-          <InfoRow label="Address" value={m.address} />
-          <InfoRow label="Category" value={m.category} />
+          <InfoRow label="Address" value={address} />
+          <InfoRow label="Category" value={category} />
           <InfoRow
             label="Joined"
-            value={new Date(m.joinedAt).toLocaleDateString("en-ZA", {
+            value={new Date(joinedAt).toLocaleDateString("en-ZA", {
               day: "numeric",
               month: "long",
               year: "numeric",
@@ -81,9 +91,9 @@ function Inner() {
 
         {/* Bank info */}
         <Group title="Payout account">
-          <InfoRow label="Bank" value={m.bank} />
-          <InfoRow label="Account" value={m.accountMasked} />
-          <InfoRow label="Fee rate" value={`${(m.feeRate * 100).toFixed(1)}% all-in`} />
+          <InfoRow label="Bank" value={bank} />
+          <InfoRow label="Account" value={accountMasked} />
+          <InfoRow label="Fee rate" value={`${(feeRate * 100).toFixed(1)}% + R0.99`} />
         </Group>
 
         {/* Actions */}
@@ -132,7 +142,7 @@ function Inner() {
           ) : (
             <div className="rounded-2xl border-2 border-flamingo-dark bg-flamingo-pink-wash p-4 shadow-[0_4px_0_0_#1A1A2E]">
               <p className="text-sm font-bold text-flamingo-dark">
-                {t("sign_out")} — {m.name}?
+                {t("sign_out")} — {name}?
               </p>
               <div className="mt-3 grid grid-cols-2 gap-2">
                 <button

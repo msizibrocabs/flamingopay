@@ -5,7 +5,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { MerchantGate } from "../_components/MerchantGate";
 import { TabBar } from "../_components/TabBar";
 import { TopBar } from "../_components/TopBar";
-import { DEMO_MERCHANT, formatZAR, timeAgo } from "../../../lib/merchant";
+import { currentMerchantId, formatZAR, timeAgo } from "../../../lib/merchant";
 import { useMerchantTxns } from "../../../lib/useMerchantTxns";
 import type { StoredTxn } from "../../../lib/store";
 
@@ -20,7 +20,7 @@ export default function TransactionsPage() {
 }
 
 function Inner() {
-  const { loading, txns, stats, refund } = useMerchantTxns(DEMO_MERCHANT.id);
+  const { loading, txns, stats, refund } = useMerchantTxns(currentMerchantId());
   const [filter, setFilter] = useState<Filter>("all");
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<StoredTxn | null>(null);
