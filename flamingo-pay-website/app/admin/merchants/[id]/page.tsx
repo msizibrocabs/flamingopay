@@ -379,6 +379,9 @@ function Detail({ id }: { id: string }) {
                     {tx.status === "partial_refund" && (
                       <span className="ml-1 rounded-full bg-flamingo-butter px-1.5 py-0.5 text-[9px] font-extrabold uppercase text-flamingo-dark">P</span>
                     )}
+                    {tx.status === "pending" && (
+                      <span className="ml-1 rounded-full bg-flamingo-cream px-1.5 py-0.5 text-[9px] font-extrabold uppercase text-flamingo-dark/50">⏳</span>
+                    )}
                   </span>
                 </li>
               ))}

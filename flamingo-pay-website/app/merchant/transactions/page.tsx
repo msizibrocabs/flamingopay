@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { MerchantGate } from "../_components/MerchantGate";
 import { TabBar } from "../_components/TabBar";
@@ -25,6 +25,14 @@ function Inner() {
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<StoredTxn | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+
+  // Lock background scroll when the detail sheet is open
+  useEffect(() => {
+    if (selected) {
+      document.body.style.overflow = "hidden";
+      return () => { document.body.style.overflow = ""; };
+    }
+  }, [selected]);
 
   // keep selection fresh after refund mutation
   const liveSelected = useMemo(
@@ -226,7 +234,7 @@ function Inner() {
               animate={{ y: 0 }}
               exit={{ y: 40 }}
               transition={{ type: "spring", stiffness: 220, damping: 24 }}
-              className="max-h-[90dvh] w-full max-w-md overflow-y-auto rounded-t-3xl border-t-2 border-flamingo-dark bg-white px-5 pt-3 pb-5"
+              className="max-h-[90dvh] w-full max-w-md overflow-y-auto overscroll-contain rounded-t-3xl border-t-2 border-flamingo-dark bg-white px-5 pt-3 pb-5"
               onClick={e => e.stopPropagation()}
             >
               <div className="mx-auto mb-2 h-1.5 w-12 rounded-full bg-flamingo-dark/20" />
