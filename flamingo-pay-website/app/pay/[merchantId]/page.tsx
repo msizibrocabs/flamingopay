@@ -56,54 +56,69 @@ const PRESETS = [10, 20, 50, 100, 200, 500];
 type ViralQuote = { emoji: string; headline: string; sub: string };
 
 const SUCCESS_QUOTES: ViralQuote[] = [
-  { emoji: "🦩", headline: "Money moves like a flamingo", sub: "Graceful. Pink. Unstoppable." },
-  { emoji: "🔥", headline: "Transaction hotter than a braai on Heritage Day", sub: "Somebody call the fire department." },
-  { emoji: "⚡", headline: "Faster than Eskom switching off your lights", sub: "At least something in SA works instantly." },
-  { emoji: "💅", headline: "Paid with main character energy", sub: "Your bank balance left the chat, but you look good doing it." },
-  { emoji: "🚀", headline: "Payment went through faster than a taxi on the N1", sub: "No stops. No drama. Just vibes." },
-  { emoji: "👑", headline: "Big spender alert", sub: "Somebody tell the Reserve Bank we found the economy." },
-  { emoji: "🦩", headline: "You just flamingo'd that payment", sub: "Stand on one leg if you agree this was too easy." },
-  { emoji: "😤", headline: "Wallet said 'I'll allow it'", sub: "Your money left peacefully. No complaints filed." },
-  { emoji: "🎵", headline: "Money moved smoother than an Amapiano bassline", sub: "Log drum energy. No skips." },
-  { emoji: "🧘", headline: "Inner peace achieved", sub: "No card machine. No awkward tap. Just a clean QR scan and done." },
-  { emoji: "🏎️", headline: "Gone in 0.3 seconds", sub: "Your payment was faster than your ex moving on." },
-  { emoji: "🤝", headline: "Deal sealed. Ancestors approved.", sub: "Even gogo would be proud of how easy that was." },
-  { emoji: "🪩", headline: "Payment went through like a Friday night", sub: "Smooth, effortless, and everyone's happy." },
-  { emoji: "🧾", headline: "Receipt secured. Screenshot this.", sub: "Proof you support local. Put it on your story." },
-  { emoji: "🦩", headline: "Pink money hits different", sub: "Cash is boring. Cards are mid. QR is elite." },
-  { emoji: "💸", headline: "Money teleported successfully", sub: "Scientists can't explain it. Flamingo can." },
-  { emoji: "🫡", headline: "Salute to you, legend", sub: "Supporting local business like it's a personality trait." },
-  { emoji: "🎯", headline: "Bullseye. Nailed it.", sub: "Scan. Pay. Done. Why is everything else in life so complicated?" },
-  { emoji: "🍕", headline: "Easier than ordering pizza", sub: "And you didn't even have to argue about toppings." },
-  { emoji: "🦩", headline: "One scan to rule them all", sub: "No card machine needed. Just vibes and a camera." },
-  { emoji: "😎", headline: "Paid like a boss", sub: "Your accountant would be proud. If you had one." },
-  { emoji: "🌍", headline: "One small tap for you, one giant leap for local business", sub: "Neil Armstrong wishes he was this smooth." },
-  { emoji: "🎤", headline: "Drop the mic. Payment complete.", sub: "This is what peak performance looks like." },
-  { emoji: "🐐", headline: "GOAT behaviour", sub: "Paying with QR instead of fumbling for cash? Elite move." },
-  { emoji: "🦩", headline: "Flamingo mode: activated", sub: "You're officially too cool for card machines." },
-  { emoji: "🧃", headline: "Sippin' on that cashless lifestyle", sub: "No coins. No notes. No problems." },
-  { emoji: "🏆", headline: "Winner winner, chicken dinner", sub: "You paid. They smiled. Everyone wins." },
-  { emoji: "🤯", headline: "Your bank didn't even see it coming", sub: "By the time they blinked, the money was already there." },
-  { emoji: "🦩", headline: "Built different. Paid different.", sub: "Welcome to the pink side of money." },
-  { emoji: "💫", headline: "Manifested that transaction", sub: "You visualised it. You scanned it. You conquered it." },
+  { emoji: "🦩", headline: "Your money just did the splits", sub: "Right out of your account, into theirs. Didn't even stretch first." },
+  { emoji: "🔥", headline: "Hotter than a braai with no tongs", sub: "You just grabbed that payment with your bare hands. Respect." },
+  { emoji: "⚡", headline: "Eskom could never", sub: "Your payment arrived in 2 seconds. Your electricity? See you in 4 hours." },
+  { emoji: "💅", headline: "Money left and didn't even slam the door", sub: "Peaceful exit. No drama. Unlike your last relationship." },
+  { emoji: "🚕", headline: "Your rands just caught a quantum taxi", sub: "No waiting at the rank. No arguing about change. Just poof. Gone." },
+  { emoji: "👑", headline: "Someone call the Reserve Bank", sub: "There's been a devastating act of supporting local business." },
+  { emoji: "🦩", headline: "You just out-flamingoed a flamingo", sub: "Standing on one leg, looking pink, absolutely unbothered." },
+  { emoji: "😤", headline: "Your bank account accepted its fate", sub: "It fought briefly. Then it saw the QR code. Then it surrendered." },
+  { emoji: "🎵", headline: "This payment has log drum energy", sub: "Amapiano bassline. No skips. Your bank is doing the backspin." },
+  { emoji: "🧘", headline: "You have achieved financial nirvana", sub: "No card machine. No 'tap again.' No 'try inserting.' Just peace." },
+  { emoji: "🏎️", headline: "Faster than your ex's rebound", sub: "The money moved on before you even blinked. Emotional damage." },
+  { emoji: "🤝", headline: "Ancestors called. They're impressed.", sub: "Gogo said 'in my day we used cash.' Then she downloaded the app." },
+  { emoji: "🪩", headline: "Your wallet just did the Kilimanjaro", sub: "Everybody's happy. The DJ is playing. The rands are vibing." },
+  { emoji: "🧾", headline: "Screenshot this. Frame it. Hang it up.", sub: "This is proof you're a functioning adult. Don't waste this moment." },
+  { emoji: "🦩", headline: "Cash is dead. You attended the funeral.", sub: "Cards sent flowers. QR codes delivered the eulogy." },
+  { emoji: "💸", headline: "Your money ghosted you", sub: "No goodbye. No explanation. Just left. At least it went to a good place." },
+  { emoji: "🫡", headline: "You absolute legend of a human", sub: "Some people talk about supporting local. You actually did it. With a phone." },
+  { emoji: "🎯", headline: "Bullseye. First try. No notes.", sub: "If paying people was an Olympic sport, you'd be on the podium crying." },
+  { emoji: "🍕", headline: "Easier than splitting a bill", sub: "And nobody had to do that awkward 'I'll get you back' thing." },
+  { emoji: "🦩", headline: "One scan and the deed is done", sub: "That's it. That's the whole thing. We refuse to make this complicated." },
+  { emoji: "😎", headline: "Accountant energy. CEO execution.", sub: "You just paid someone using a bird app. The future is unhinged." },
+  { emoji: "🌍", headline: "One small scan for man, one giant flex for SA", sub: "Neil Armstrong walked on the moon. You paid a spaza with a QR code. Same energy." },
+  { emoji: "🎤", headline: "Mic dropped. Payment cleared. Crowd roaring.", sub: "Standing ovation from your bank. Slow clap from your wallet." },
+  { emoji: "🐐", headline: "Absolute GOAT behaviour detected", sub: "You chose QR over fumbling for R4.50 in coins. Society thanks you." },
+  { emoji: "🦩", headline: "You're now certified flamingo", sub: "Side effects include: never wanting to use cash again." },
+  { emoji: "🧃", headline: "Sipping on that cashless juice", sub: "No coins jingling in your pocket like a toddler's toy. Just elegance." },
+  { emoji: "🏆", headline: "Winner winner, 7 colours dinner", sub: "You paid. They smiled. Dumpling did a little dance." },
+  { emoji: "🤯", headline: "Your bank is still processing what just happened", sub: "The money arrived before the notification. That's not even legal." },
+  { emoji: "🦩", headline: "Welcome to the pink side", sub: "We have QR codes, instant payments, and absolutely zero card machines." },
+  { emoji: "💫", headline: "Manifestation works, apparently", sub: "You visualised paying. You scanned. Money left. The universe delivered." },
+  { emoji: "🫠", headline: "That was suspiciously easy", sub: "No queue. No PIN. No 'card declined' embarrassment. What is this sorcery." },
+  { emoji: "🧠", headline: "200 IQ payment right there", sub: "While people are still counting coins, you're living in 2035." },
+  { emoji: "🦩", headline: "Flam. Ingo. Done.", sub: "Three syllables. One payment. Zero regrets. That's the tweet." },
+  { emoji: "🫶", headline: "Your money found a loving home", sub: "It's with a local business now. It's happy. Please don't call." },
+  { emoji: "🍗", headline: "Smoother than a Nando's extra mild", sub: "Except this actually had flavour. And speed. And no queue." },
+  { emoji: "🧊", headline: "Ice cold execution", sub: "You walked in. Scanned. Paid. Walked out. They're still shook." },
+  { emoji: "🦩", headline: "The QR code feared you", sub: "It knew what was coming. It accepted its fate. It processed. GG." },
+  { emoji: "🎪", headline: "And for my next trick", sub: "I will make your money disappear... into a local business. *applause*" },
+  { emoji: "🫣", headline: "Your bank account when it sees this", sub: "'Ah here we go again.' Too late. It's done. No refunds on vibes." },
+  { emoji: "🦩", headline: "You just made capitalism cute", sub: "A flamingo helped you pay a human. The economy is healing." },
 ];
 
 const FAIL_QUOTES: ViralQuote[] = [
-  { emoji: "😭", headline: "Payment said 'not today, fam'", sub: "Even your money needs a mental health day sometimes." },
-  { emoji: "🦩", headline: "Flamingo tripped", sub: "Even the most graceful bird stumbles. Try again, legend." },
-  { emoji: "💀", headline: "Transaction flatlined", sub: "We're performing CPR on your payment. Stand by." },
-  { emoji: "🤡", headline: "Plot twist: payment failed", sub: "The universe is testing you. Don't let it win." },
-  { emoji: "😤", headline: "Bank said 'let me think about it'", sub: "Your bank is acting like your crush. Playing hard to get." },
-  { emoji: "🧊", headline: "Payment frozen like loadshedding stage 6", sub: "We'll thaw this out. Give it another go." },
-  { emoji: "🦩", headline: "Flamingo fell off the branch", sub: "Getting back up now. One more try?" },
-  { emoji: "📡", headline: "Signal lost somewhere between you and the money", sub: "Probably Telkom's fault. It usually is." },
-  { emoji: "🙃", headline: "This is fine. Everything is fine.", sub: "Your payment didn't go through but at least you still have your money?" },
-  { emoji: "🫠", headline: "Payment melted", sub: "Like ice cream on a Durban December day. Try again before it all disappears." },
-  { emoji: "🤔", headline: "Your bank is overthinking it", sub: "It's giving 'I need to speak to my manager' energy." },
-  { emoji: "🏚️", headline: "Connection went on lunch break", sub: "South African timing. It'll be back... eventually." },
-  { emoji: "🦩", headline: "Even flamingos have off days", sub: "Shake it off. Scan again. We believe in you." },
-  { emoji: "🫣", headline: "Awkward... that didn't work", sub: "But hey, at least nobody saw. Oh wait, you're reading this." },
-  { emoji: "🔌", headline: "Something got unplugged", sub: "No, it wasn't loadshedding this time. Probably." },
+  { emoji: "😭", headline: "Your payment is having a gap year", sub: "It'll find itself eventually. Just not right now. Try again." },
+  { emoji: "🦩", headline: "The flamingo face-planted", sub: "Beak first into the ground. Dignity? Gone. But we're getting up." },
+  { emoji: "💀", headline: "Transaction said 'I'm deceased'", sub: "We're sending thoughts and prayers. And also a retry button." },
+  { emoji: "🤡", headline: "You've been clowned by technology", sub: "Somewhere, a card machine is laughing. Don't give it the satisfaction." },
+  { emoji: "😤", headline: "Your bank left you on read", sub: "Seen 12:04. No reply. Classic. The audacity of these financial institutions." },
+  { emoji: "🧊", headline: "Payment frozen. Blame stage 6.", sub: "Eskom didn't do this. But it's easier to blame them. Try again." },
+  { emoji: "🦩", headline: "Flamingo fell off the wifi", sub: "One leg? Fine. No signal? Even flamingos have limits." },
+  { emoji: "📡", headline: "Telkom woke up and chose violence", sub: "We can't prove it was them. But we can't prove it wasn't." },
+  { emoji: "🙃", headline: "Cool cool cool. No payment.", sub: "This is fine. The room is on fire. But your money is safe. So there's that." },
+  { emoji: "🫠", headline: "Payment melted like a Cornetto in December", sub: "Durban heat. No survivors. Try again before your battery also dies." },
+  { emoji: "🤔", headline: "Your bank needs a moment", sub: "'I need to speak to my manager' energy. Give it a sec and retry." },
+  { emoji: "🏚️", headline: "The internet took a lunch break", sub: "South African lunch break. So like 2 hours. But try again now." },
+  { emoji: "🦩", headline: "Even pink birds have bad days", sub: "But unlike your ex, we're willing to try again. Hit retry." },
+  { emoji: "🫣", headline: "Well this is embarrassing", sub: "For us, not you. You did everything right. We just... flopped." },
+  { emoji: "🔌", headline: "Someone tripped over the cable", sub: "Was it loadshedding? Was it Dave from IT? The investigation continues." },
+  { emoji: "🥲", headline: "Payment ghosted harder than Hinge", sub: "It was right there. We made eye contact. Then poof. Gone. Like everyone on dating apps." },
+  { emoji: "🦩", headline: "Plot twist nobody asked for", sub: "In the movie of your life, this is the part where the hero retries and succeeds." },
+  { emoji: "🧠", headline: "Error 404: payment not found", sub: "Your money is safe. The payment just went to get milk and never came back." },
+  { emoji: "🦩", headline: "Technical difficulties feat. bad vibes", sub: "The vibes were off. Mercury is in retrograde. Also, try again." },
+  { emoji: "🐌", headline: "That payment is moving at SAPO speed", sub: "It'll arrive in 3-5 business forevers. Or just retry now." },
 ];
 
 function pickRandom<T>(arr: T[]): T {
@@ -114,16 +129,21 @@ function pickRandom<T>(arr: T[]): T {
    Processing quips — rotates while waiting
    ────────────────────────────────────────────── */
 const PROCESSING_QUIPS = [
-  "Convincing your bank this is legit...",
-  "Sending money at the speed of light...",
-  "Whispering sweet nothings to the server...",
-  "Teaching your rands to fly...",
-  "Bribing the payment gods...",
-  "Almost there... probably...",
-  "Your money is putting on its shoes...",
-  "Loading... unlike Eskom, we'll actually finish.",
-  "Calculating how many kotas that is...",
-  "Making your bank jealous of how easy this is...",
+  "Explaining to your bank why this is a good idea...",
+  "Your rands are putting on their running shoes...",
+  "Whispering 'it's going to be okay' to your wallet...",
+  "Loading... unlike Eskom, we actually finish things.",
+  "Teaching your money to do parkour across banks...",
+  "Calculating how many vetkoeks that is...",
+  "Your bank is Googling 'what is a flamingo'...",
+  "Negotiating with the payment gods. They drive a hard bargain.",
+  "Your money just said 'goodbye cruel wallet'...",
+  "Buffering at the speed of South African wifi...",
+  "Drafting a motivational speech for your rands...",
+  "Asking your bank nicely. Very nicely. Please.",
+  "Your payment is in the uber. 3 min away. Probably.",
+  "Converting your money into flamingo energy...",
+  "Almost done. We're not Telkom. We promise.",
 ];
 
 const stepVariants = {
@@ -258,7 +278,7 @@ export default function PayPage() {
 
   if (!merchant) {
     return (
-      <div className="min-h-screen bg-gradient-sunrise flex items-center justify-center p-6">
+      <div className="min-h-dvh bg-gradient-sunrise flex items-center justify-center p-6">
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
@@ -273,7 +293,7 @@ export default function PayPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-sunrise flex flex-col">
+    <div className="min-h-dvh bg-gradient-sunrise">
       {/* Header */}
       <header className="relative overflow-hidden bg-gradient-flamingo text-white px-5 pt-8 pb-6">
         <span className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-flamingo-butter/30 blur-2xl" />
@@ -301,7 +321,7 @@ export default function PayPage() {
       </header>
 
       {/* Body */}
-      <main className="flex-1 px-5 py-6">
+      <main className="px-5 py-6">
         <div className="max-w-md mx-auto">
           <AnimatePresence mode="wait">
             {step === "amount" && (
