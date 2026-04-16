@@ -13,6 +13,15 @@ export type Txn = {
   reference: string;
 };
 
+export type SettlementTxn = {
+  id: string;
+  amount: number;
+  rail: string;
+  buyerBank: string;
+  timestamp: string;
+  reference: string;
+};
+
 export type Settlement = {
   id: string;
   amount: number;
@@ -21,6 +30,7 @@ export type Settlement = {
   date: string;
   txnCount: number;
   status: "settled" | "pending";
+  transactions: SettlementTxn[];
 };
 
 export type Merchant = {
@@ -86,6 +96,9 @@ export function makeMockTransactions(count = 48): Txn[] {
   return txns;
 }
 
+/** Flat R3 payout fee per settlement (Ozow settlement fee). */
+const PAYOUT_FEE = 3;
+
 export function makeMockSettlements(txns: Txn[]): Settlement[] {
   const settled: Settlement[] = [];
   const now = new Date();
@@ -97,8 +110,9 @@ export function makeMockSettlements(txns: Txn[]): Settlement[] {
     byDay[d].push(t);
   });
   Object.entries(byDay).forEach(([day, list], idx) => {
-    const gross = list.filter(l => l.status === "completed").reduce((s, l) => s + l.amount, 0);
-    const fee = +(gross * 0.025).toFixed(2);
+    const completedTxns = list.filter(l => l.status === "completed");
+    const gross = completedTxns.reduce((s, l) => s + l.amount, 0);
+    const fee = PAYOUT_FEE;
     const net = +(gross - fee).toFixed(2);
     const dayDate = new Date(day);
     const daysAgo = Math.floor((now.getTime() - dayDate.getTime()) / 86400000);
@@ -106,10 +120,18 @@ export function makeMockSettlements(txns: Txn[]): Settlement[] {
       id: `st_${idx}`,
       amount: +gross.toFixed(2),
       fee,
-      net,
+      net: Math.max(0, net),
       date: day,
       txnCount: list.length,
       status: daysAgo > 0 ? "settled" : "pending",
+      transactions: list.map(t => ({
+        id: t.id,
+        amount: t.amount,
+        rail: t.rail,
+        buyerBank: t.buyerBank,
+        timestamp: t.timestamp,
+        reference: t.reference,
+      })),
     });
   });
   return settled.sort((a, b) => b.date.localeCompare(a.date));
