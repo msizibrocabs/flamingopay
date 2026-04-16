@@ -226,7 +226,7 @@ function Inner() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-end justify-center bg-flamingo-dark/40 touch-none"
+            className="fixed inset-0 z-[60] flex items-end justify-center bg-flamingo-dark/40 touch-none"
             onClick={() => setSelected(null)}
             onTouchMove={e => e.preventDefault()}
           >
@@ -333,7 +333,7 @@ function Inner() {
             initial={{ opacity: 0, y: 40 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 10 }}
-            className="fixed bottom-24 left-1/2 z-[60] -translate-x-1/2 rounded-full border-2 border-flamingo-dark bg-flamingo-mint px-4 py-2 text-sm font-extrabold text-flamingo-dark shadow-[0_6px_0_0_#1A1A2E]"
+            className="fixed bottom-24 left-1/2 z-[70] -translate-x-1/2 rounded-full border-2 border-flamingo-dark bg-flamingo-mint px-4 py-2 text-sm font-extrabold text-flamingo-dark shadow-[0_6px_0_0_#1A1A2E]"
           >
             ↩ {toast}
           </motion.div>
