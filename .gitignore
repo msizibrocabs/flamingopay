@@ -6,3 +6,7 @@ coverage/
 .DS_Store
 .vercel
 .env*.local
+
+# Local business/personal documents (not for version control)
+/FNB_*.docx
+/Flamingo_Pay_Introduction_*.docx
