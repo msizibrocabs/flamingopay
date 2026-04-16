@@ -17,8 +17,9 @@ import "server-only";
 
 export type MerchantStatus = "pending" | "approved" | "rejected" | "suspended";
 
-/** KYC / compliance fee rate applied to every completed transaction. */
-export const FLAMINGO_FEE_RATE = 0.015; // 1.5%
+/** Fee applied to every completed transaction: 2.9% + R0.99 fixed. */
+export const FLAMINGO_FEE_RATE = 0.029; // 2.9%
+export const FLAMINGO_FEE_FIXED = 0.99; // R0.99 per txn
 
 export type DocumentKind =
   | "id"
@@ -451,7 +452,7 @@ export function transactionStats(merchantId: string) {
   const refunded = list.filter(t => t.status === "refunded");
   const processed = completed.reduce((s, t) => s + t.amount, 0);
   const refundedValue = refunded.reduce((s, t) => s + t.amount, 0);
-  const fees = +(processed * FLAMINGO_FEE_RATE).toFixed(2);
+  const fees = +(processed * FLAMINGO_FEE_RATE + completed.length * FLAMINGO_FEE_FIXED).toFixed(2);
   return {
     count: list.length,
     completedCount: completed.length,
@@ -460,6 +461,7 @@ export function transactionStats(merchantId: string) {
     refundedValue: +refundedValue.toFixed(2),
     fees,
     feeRate: FLAMINGO_FEE_RATE,
+    feeFixed: FLAMINGO_FEE_FIXED,
   };
 }
 

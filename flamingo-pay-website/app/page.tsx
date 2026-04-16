@@ -253,7 +253,7 @@ export default function Home() {
                 bg: "bg-flamingo-pink-soft",
                 kicker: "03",
                 title: "No monthly",
-                body: "You pay when you get paid. 1.5% per ping. No subscription, no minimums, no surprise fees at month-end.",
+                body: "You pay when you get paid. 2.9% + R0.99 per ping. No subscription, no minimums, no surprise fees at month-end.",
               },
             ].map((c, i) => (
               <RevealItem key={i}>
@@ -445,7 +445,7 @@ export default function Home() {
               className="display mt-4 font-black text-flamingo-dark leading-[0.92] tracking-tight"
               style={{ fontSize: "clamp(2.5rem, 6vw, 5.5rem)", letterSpacing: "-0.04em" }}
             >
-              One number.
+              Two numbers.
               <br />
               <span className="italic text-gradient-flamingo">That&rsquo;s the whole page.</span>
             </h2>
@@ -459,13 +459,13 @@ export default function Home() {
               <p className="display-eyebrow text-[10px] text-white/80">Per transaction</p>
               <p
                 className="display mt-3 font-black leading-none"
-                style={{ fontSize: "clamp(5rem, 14vw, 10rem)", letterSpacing: "-0.05em" }}
+                style={{ fontSize: "clamp(3.5rem, 10vw, 7rem)", letterSpacing: "-0.05em" }}
               >
-                1.5%
+                2.9% <span className="text-white/70">+</span> R0.99
               </p>
               <p className="mt-6 text-white/90 text-lg max-w-md mx-auto">
                 No monthly fee. No minimums. No small print you need a lawyer
-                for. When the ping comes in, we take 1.5%. That&rsquo;s it.
+                for. When the ping comes in, we take 2.9% + R0.99. That&rsquo;s it.
               </p>
               <Link
                 href="/merchant/signup"

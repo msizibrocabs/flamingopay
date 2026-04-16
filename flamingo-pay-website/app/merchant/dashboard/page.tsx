@@ -166,7 +166,7 @@ function Inner() {
         {/* Quick stats */}
         <RevealGroup delay={0.15} className="mt-4 grid grid-cols-2 gap-3">
           <RevealItem>
-            <MiniCard label={t("fee_rate")} value={`${(DEMO_MERCHANT.feeRate * 100).toFixed(1)}%`} tint="bg-flamingo-butter" />
+            <MiniCard label={t("fee_rate")} value={`${(DEMO_MERCHANT.feeRate * 100).toFixed(1)}% + R0.99`} tint="bg-flamingo-butter" />
           </RevealItem>
           <RevealItem>
             <MiniCard label={t("verified")} value={DEMO_MERCHANT.verified ? t("verified_yes") : t("verified_pending")} tint="bg-flamingo-mint" />

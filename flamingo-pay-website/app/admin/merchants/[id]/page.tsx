@@ -26,6 +26,7 @@ type TxnStats = {
   refundedValue: number;
   fees: number;
   feeRate: number;
+  feeFixed: number;
 };
 
 export default function MerchantDetailPage({
@@ -313,7 +314,7 @@ function Detail({ id }: { id: string }) {
           <div className="mt-3 grid gap-3 sm:grid-cols-4">
             <BigStat label="Processed" value={formatZAR(stats.processed)} tint="bg-flamingo-mint" sub={`${stats.completedCount} completed`} />
             <BigStat label="Refunded" value={formatZAR(stats.refundedValue)} tint="bg-flamingo-pink-soft" sub={`${stats.refundedCount} refunds`} />
-            <BigStat label={`Fees (${(stats.feeRate * 100).toFixed(1)}%)`} value={formatZAR(stats.fees)} tint="bg-flamingo-butter" sub="Collected by Flamingo" />
+            <BigStat label={`Fees (${(stats.feeRate * 100).toFixed(1)}% + R${stats.feeFixed?.toFixed(2) ?? "0.99"})`} value={formatZAR(stats.fees)} tint="bg-flamingo-butter" sub="Collected by Flamingo" />
             <BigStat label="Transactions" value={stats.count.toLocaleString("en-ZA")} tint="bg-flamingo-sky" sub="Total on file" />
           </div>
         </section>
@@ -368,7 +369,7 @@ function Detail({ id }: { id: string }) {
                     {formatZAR(tx.amount)}
                   </span>
                   <span className="hidden text-right text-xs text-flamingo-dark/70 tabular-nums sm:block">
-                    {tx.status === "completed" ? formatZAR(tx.amount * (stats?.feeRate ?? 0.015)) : "—"}
+                    {tx.status === "completed" ? formatZAR(tx.amount * (stats?.feeRate ?? 0.029) + (stats?.feeFixed ?? 0.99)) : "—"}
                   </span>
                   <span className="hidden text-right text-xs text-flamingo-dark/60 sm:block">
                     {timeAgo(tx.timestamp)}

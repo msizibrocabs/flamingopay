@@ -34,7 +34,7 @@ export type Merchant = {
   address: string;
   category: string;
   verified: boolean;
-  feeRate: number;      // e.g., 0.025 = 2.5% total all-in
+  feeRate: number;      // e.g., 0.029 = 2.9%
   joinedAt: string;
 };
 
@@ -51,7 +51,7 @@ export const DEMO_MERCHANT: Merchant = {
   address: "12 Protea Street, Diepsloot, Johannesburg",
   category: "Spaza / General Dealer",
   verified: true,
-  feeRate: 0.025,
+  feeRate: 0.029,
   joinedAt: "2026-02-12",
 };
 

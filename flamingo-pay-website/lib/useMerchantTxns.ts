@@ -11,6 +11,7 @@ type TxnStats = {
   refundedValue: number;
   fees: number;
   feeRate: number;
+  feeFixed: number;
 };
 
 type UseTxns = {
