@@ -21,9 +21,9 @@ const redis = new Redis({
 
 export type MerchantStatus = "pending" | "approved" | "rejected" | "suspended";
 
-/** Fee applied to every completed transaction: 1.5% (per Flow of Funds agreement with Ozow). */
-export const FLAMINGO_FEE_RATE = 0.015;
-export const FLAMINGO_FEE_FIXED = 0;
+/** Fee applied to every completed transaction: 2.9% + R0.99 fixed. */
+export const FLAMINGO_FEE_RATE = 0.029;
+export const FLAMINGO_FEE_FIXED = 0.99;
 
 export type KycTier = "simplified" | "standard" | "enhanced";
 

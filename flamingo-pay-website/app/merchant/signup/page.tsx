@@ -683,7 +683,7 @@ export default function SignupPage() {
                   <a href="/legal/privacy" target="_blank" className="font-bold text-flamingo-pink-deep underline-offset-2 hover:underline">
                     privacy policy
                   </a>
-                  . Fees are 1.5% per transaction with no monthly charges.
+                  . Fees are 2.9% + R0.99 per transaction with no monthly charges.
                 </span>
               </label>
             </div>
