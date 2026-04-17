@@ -589,7 +589,7 @@ function DocCard({
           <div className="mt-2 text-xs text-flamingo-dark/70 space-y-0.5">
             {doc.fileName && <p className="font-mono truncate">📎 {doc.fileName}</p>}
             {doc.blobUrl && (
-              <a href={doc.blobUrl} target="_blank" rel="noopener noreferrer"
+              <a href={doc.blobUrl.startsWith("demo://") ? "#" : `/api/documents/view?url=${encodeURIComponent(doc.blobUrl)}`} target="_blank" rel="noopener noreferrer"
                 className="inline-block font-bold text-flamingo-pink-deep underline-offset-2 hover:underline">
                 View uploaded file →
               </a>
