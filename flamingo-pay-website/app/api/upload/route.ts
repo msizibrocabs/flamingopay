@@ -63,7 +63,7 @@ export async function POST(req: NextRequest) {
       const blob = await put(
         `kyc/${merchantId}/${kind}-${Date.now()}.${extFor(file.type)}`,
         file,
-        { access: "public" },
+        { access: "private" },
       );
       blobUrl = blob.url;
     } else {
