@@ -3,11 +3,10 @@ import { NextRequest, NextResponse } from "next/server";
 /**
  * GET /api/documents/view?url=<blobUrl>
  *
- * Private Vercel Blob URLs cannot be accessed directly — they return 403.
- * This proxy fetches the blob server-side (where the BLOB_READ_WRITE_TOKEN
- * is available) and streams it back to the admin's browser.
- *
- * Security: Only allows URLs from our own Vercel Blob store domain.
+ * Private Vercel Blob URLs return 403 when accessed directly.
+ * This route fetches the blob server-side using the SDK (which has
+ * access to BLOB_READ_WRITE_TOKEN) and streams the file content
+ * directly to the admin's browser.
  */
 export async function GET(req: NextRequest) {
   const blobUrl = req.nextUrl.searchParams.get("url");
@@ -18,10 +17,10 @@ export async function GET(req: NextRequest) {
 
   // Demo-mode URLs — nothing to proxy
   if (blobUrl.startsWith("demo://")) {
-    return NextResponse.json(
-      { error: "This is a demo upload — no real file exists." },
-      { status: 404 },
-    );
+    return new NextResponse("This is a demo upload — no real file was stored.", {
+      status: 404,
+      headers: { "Content-Type": "text/plain" },
+    });
   }
 
   // Security: only allow our own blob store domain
@@ -34,51 +33,67 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Invalid URL" }, { status: 400 });
   }
 
-  const token = process.env.BLOB_READ_WRITE_TOKEN;
-
-  if (!token) {
+  if (!process.env.BLOB_READ_WRITE_TOKEN) {
     return NextResponse.json(
-      { error: "Blob storage not configured (missing BLOB_READ_WRITE_TOKEN)" },
+      { error: "Blob storage not configured" },
       { status: 503 },
     );
   }
 
   try {
-    // Use @vercel/blob's getDownloadUrl for a time-limited signed URL
-    const { getDownloadUrl } = await import("@vercel/blob");
-    const downloadUrl = await getDownloadUrl(blobUrl);
-    // Redirect the admin to the signed URL
-    return NextResponse.redirect(downloadUrl);
-  } catch (err) {
-    console.error("Blob view error:", err);
+    // Use the Vercel Blob SDK to download the private file server-side
+    const blob = await import("@vercel/blob");
 
-    // Fallback: try fetching with the token directly as auth header
-    try {
-      const res = await fetch(blobUrl, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+    // blob.get() returns metadata; we need the actual content.
+    // For private blobs, we fetch using the token in the Authorization header.
+    const response = await fetch(blobUrl, {
+      headers: {
+        Authorization: `Bearer ${process.env.BLOB_READ_WRITE_TOKEN}`,
+      },
+    });
 
-      if (!res.ok) {
-        return NextResponse.json(
-          { error: `Blob returned ${res.status}` },
-          { status: res.status },
-        );
+    if (!response.ok) {
+      // Try the SDK's getDownloadUrl as a fallback
+      try {
+        const downloadUrl = await blob.getDownloadUrl(blobUrl);
+        const dlRes = await fetch(downloadUrl);
+        if (dlRes.ok && dlRes.body) {
+          const ct = dlRes.headers.get("content-type") || "application/octet-stream";
+          return new NextResponse(dlRes.body, {
+            status: 200,
+            headers: {
+              "Content-Type": ct,
+              "Cache-Control": "private, max-age=300",
+              "Content-Disposition": "inline",
+            },
+          });
+        }
+      } catch {
+        // fall through to error
       }
 
-      const contentType = res.headers.get("content-type") || "application/octet-stream";
-      const body = res.body;
-
-      return new NextResponse(body, {
-        status: 200,
-        headers: {
-          "Content-Type": contentType,
-          "Cache-Control": "private, max-age=300",
-          "Content-Disposition": "inline",
-        },
-      });
-    } catch (fetchErr) {
-      console.error("Blob fetch fallback error:", fetchErr);
-      return NextResponse.json({ error: "Failed to retrieve document" }, { status: 500 });
+      return NextResponse.json(
+        { error: `Could not retrieve file (${response.status})` },
+        { status: response.status },
+      );
     }
+
+    const contentType =
+      response.headers.get("content-type") || "application/octet-stream";
+
+    return new NextResponse(response.body, {
+      status: 200,
+      headers: {
+        "Content-Type": contentType,
+        "Cache-Control": "private, max-age=300",
+        "Content-Disposition": "inline",
+      },
+    });
+  } catch (err) {
+    console.error("Document view error:", err);
+    return NextResponse.json(
+      { error: "Failed to retrieve document" },
+      { status: 500 },
+    );
   }
 }
