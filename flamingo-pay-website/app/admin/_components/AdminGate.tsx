@@ -2,15 +2,18 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { currentAdmin } from "../../../lib/admin";
+import { currentAdmin, adminSignOut } from "../../../lib/admin";
+import { useSessionTimeout } from "../../../lib/useSessionTimeout";
+import { ErrorBoundary } from "../../../components/ErrorBoundary";
 
-/**
- * Redirects to /admin/login if there's no admin session.
- * Renders children once we've confirmed a session (client-only).
- */
 export function AdminGate({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [ready, setReady] = useState(false);
+
+  useSessionTimeout(() => {
+    adminSignOut();
+    router.replace("/admin/login?reason=timeout");
+  }, 30 * 60 * 1000);
 
   useEffect(() => {
     if (!currentAdmin()) {
@@ -30,5 +33,5 @@ export function AdminGate({ children }: { children: React.ReactNode }) {
       </div>
     );
   }
-  return <>{children}</>;
+  return <ErrorBoundary>{children}</ErrorBoundary>;
 }

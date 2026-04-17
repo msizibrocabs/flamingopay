@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { freezeMerchant, unfreezeMerchant } from "../../../../lib/store";
+import { appendAuditLog } from "../../../../lib/audit";
 
 export const dynamic = "force-dynamic";
 
@@ -15,14 +16,28 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "merchantId is required" }, { status: 400 });
   }
 
+  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
+
   if (body.action === "unfreeze") {
     const m = await unfreezeMerchant(body.merchantId);
     if (!m) return NextResponse.json({ error: "Merchant not found" }, { status: 404 });
+    await appendAuditLog({
+      action: "merchant_unfrozen", role: "compliance",
+      actorId: "compliance", actorName: "Compliance Officer",
+      targetId: body.merchantId, targetType: "merchant",
+      detail: `Merchant ${body.merchantId} unfrozen`, ip,
+    });
     return NextResponse.json({ merchant: m, action: "unfrozen" });
   }
 
   const reason = body.reason || "Frozen by compliance officer";
   const m = await freezeMerchant(body.merchantId, reason);
   if (!m) return NextResponse.json({ error: "Merchant not found" }, { status: 404 });
+  await appendAuditLog({
+    action: "merchant_frozen", role: "compliance",
+    actorId: "compliance", actorName: "Compliance Officer",
+    targetId: body.merchantId, targetType: "merchant",
+    detail: `Merchant ${body.merchantId} frozen: ${reason}`, ip,
+  });
   return NextResponse.json({ merchant: m, action: "frozen" });
 }

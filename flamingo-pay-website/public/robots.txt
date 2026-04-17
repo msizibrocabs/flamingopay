@@ -1,0 +1,11 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /compliance
+Disallow: /api/
+Disallow: /merchant/dashboard
+Disallow: /merchant/transactions
+Disallow: /merchant/settlements
+Disallow: /merchant/profile
+
+Sitemap: https://www.flamingopay.co.za/sitemap.xml

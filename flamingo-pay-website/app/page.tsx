@@ -7,6 +7,23 @@ import { Reveal, RevealGroup, RevealItem } from "../components/motion/Reveal";
 import { AnimatedCounter } from "../components/motion/AnimatedCounter";
 import { SpazaOwner } from "../components/art/SpazaOwner";
 
+const JSONLD = {
+  "@context": "https://schema.org",
+  "@type": "FinancialProduct",
+  name: "Flamingo Pay",
+  description: "South Africa's universal QR payment platform for the informal economy. One QR, every bank, instant settlement.",
+  url: "https://www.flamingopay.co.za",
+  logo: "https://www.flamingopay.co.za/logo-primary.png",
+  provider: {
+    "@type": "Organization",
+    name: "Flamingo Pay (Pty) Ltd",
+    url: "https://www.flamingopay.co.za",
+    address: { "@type": "PostalAddress", addressCountry: "ZA" },
+  },
+  areaServed: { "@type": "Country", name: "South Africa" },
+  feesAndCommissionsSpecification: "2.9% + R0.99 per transaction. No monthly fees.",
+};
+
 export default function Home() {
   const heroRef = useRef<HTMLDivElement>(null);
   const { scrollYProgress } = useScroll({
@@ -19,6 +36,10 @@ export default function Home() {
 
   return (
     <div className="bg-flamingo-cream antialiased w-full overflow-x-hidden">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(JSONLD) }}
+      />
       {/* ─────────────────── NAV ─────────────────── */}
       <motion.header
         initial={{ y: -60, opacity: 0 }}

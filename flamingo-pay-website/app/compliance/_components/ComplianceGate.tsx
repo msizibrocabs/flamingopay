@@ -2,11 +2,18 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { currentComplianceOfficer } from "../../../lib/compliance";
+import { currentComplianceOfficer, complianceSignOut } from "../../../lib/compliance";
+import { useSessionTimeout } from "../../../lib/useSessionTimeout";
+import { ErrorBoundary } from "../../../components/ErrorBoundary";
 
 export function ComplianceGate({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [ready, setReady] = useState(false);
+
+  useSessionTimeout(() => {
+    complianceSignOut();
+    router.replace("/compliance/login?reason=timeout");
+  }, 30 * 60 * 1000);
 
   useEffect(() => {
     if (!currentComplianceOfficer()) {
@@ -26,5 +33,5 @@ export function ComplianceGate({ children }: { children: React.ReactNode }) {
       </div>
     );
   }
-  return <>{children}</>;
+  return <ErrorBoundary>{children}</ErrorBoundary>;
 }

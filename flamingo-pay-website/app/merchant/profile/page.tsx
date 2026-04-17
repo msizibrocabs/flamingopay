@@ -6,7 +6,7 @@ import { MerchantGate } from "../_components/MerchantGate";
 import { TabBar } from "../_components/TabBar";
 import { TopBar } from "../_components/TopBar";
 import { LanguagePicker } from "../_components/LanguagePicker";
-import { signOut } from "../../../lib/merchant";
+import { signOut, currentMerchantId } from "../../../lib/merchant";
 import { useMerchant } from "../../../lib/useMerchant";
 import { LANGUAGES, useI18n } from "../../../lib/i18n";
 
@@ -21,6 +21,7 @@ export default function ProfilePage() {
 function Inner() {
   const router = useRouter();
   const [confirmOut, setConfirmOut] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [showLangPicker, setShowLangPicker] = useState(false);
   const { lang, t } = useI18n();
   const currentLang = LANGUAGES.find(l => l.code === lang) ?? LANGUAGES[0];
@@ -111,6 +112,15 @@ function Inner() {
             onClick={() => window.open("https://wa.me/27825550142?text=Hi%20Flamingo%2C%20I%20need%20to%20change%20my%20payout%20bank%20account.%20Please%20send%20me%20the%20verification%20steps.", "_blank")}
           />
           <ActionRow
+            icon="📊"
+            title="Export transactions (CSV)"
+            subtitle="Download all your sales as a spreadsheet"
+            onClick={() => {
+              const mid = currentMerchantId();
+              if (mid) window.open(`/api/merchants/${mid}/export`, "_blank");
+            }}
+          />
+          <ActionRow
             icon="🧾"
             title="Tax invoices & statements"
             subtitle="Download monthly reports"
@@ -156,6 +166,44 @@ function Inner() {
                   className="rounded-xl border-2 border-flamingo-dark bg-flamingo-pink px-3 py-2.5 text-xs font-extrabold uppercase text-white"
                 >
                   {t("sign_out")} ✓
+                </button>
+              </div>
+            </div>
+          )}
+        </section>
+
+        {/* Delete account — POPIA right to erasure */}
+        <section className="mt-4">
+          {!confirmDelete ? (
+            <button
+              onClick={() => setConfirmDelete(true)}
+              className="w-full rounded-2xl border-2 border-dashed border-flamingo-dark/30 px-4 py-3 text-xs font-semibold text-flamingo-dark/50"
+            >
+              Delete my account
+            </button>
+          ) : (
+            <div className="rounded-2xl border-2 border-red-400 bg-red-50 p-4">
+              <p className="text-sm font-bold text-flamingo-dark">
+                This will permanently delete your Flamingo account, all transaction history, and uploaded documents. This cannot be undone.
+              </p>
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => setConfirmDelete(false)}
+                  className="rounded-xl border-2 border-flamingo-dark bg-white px-3 py-2.5 text-xs font-extrabold uppercase text-flamingo-dark"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={async () => {
+                    const mid = currentMerchantId();
+                    if (!mid) return;
+                    await fetch(`/api/merchants/${mid}/update`, { method: "DELETE" });
+                    signOut();
+                    router.replace("/");
+                  }}
+                  className="rounded-xl border-2 border-red-600 bg-red-600 px-3 py-2.5 text-xs font-extrabold uppercase text-white"
+                >
+                  Delete forever
                 </button>
               </div>
             </div>

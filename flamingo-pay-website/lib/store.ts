@@ -107,6 +107,15 @@ export type MerchantApplication = {
   kycTier: KycTier;
   /** Self-declared expected monthly transaction volume (ZAR). */
   expectedMonthlyVolume: number;
+  /** POPIA consent record. */
+  consent?: {
+    termsVersion: string;
+    privacyVersion: string;
+    consentedAt: string;
+    ip?: string;
+  };
+  /** Last login timestamp. */
+  lastLoginAt?: string;
 };
 
 // ---------------------- Helpers ----------------------
@@ -439,10 +448,30 @@ export async function listTransactions(merchantId: string): Promise<StoredTxn[]>
 export async function createTransaction(
   merchantId: string,
   input: { amount: number; rail: "payshap" | "eft"; buyerBank: string },
-): Promise<StoredTxn | null> {
+): Promise<StoredTxn | { error: string }> {
   const m = await getMerchant(merchantId);
-  if (!m) return null;
-  const list = await listTransactions(merchantId);
+  if (!m) return { error: "Merchant not found" };
+
+  // Enforce KYC tier volume cap — check rolling 30-day volume
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000).toISOString();
+  const allTxns = await listTransactions(merchantId);
+  const monthVolume = allTxns
+    .filter(t => t.timestamp >= thirtyDaysAgo && (t.status === "completed" || t.status === "partial_refund"))
+    .reduce((s, t) => s + t.amount, 0);
+  const tierLimit = m.kycTier === "simplified" ? KYC_THRESHOLDS.simplified
+    : m.kycTier === "standard" ? KYC_THRESHOLDS.standard
+    : Infinity; // enhanced has no hard cap
+  if (monthVolume + input.amount > tierLimit && tierLimit !== Infinity) {
+    return {
+      error: `Transaction would exceed your ${m.kycTier} KYC tier limit of R${tierLimit.toLocaleString("en-ZA")}/month. Please upgrade your KYC tier.`,
+    };
+  }
+
+  // Block suspended merchants
+  if (m.status === "suspended") {
+    return { error: "Merchant account is suspended" };
+  }
+  const list = allTxns;
   const ref = `FP-${Math.floor(Math.random() * 9e5 + 1e5)}`;
   const txn: StoredTxn = {
     id: `tx_${merchantId.slice(0, 6)}_${Date.now().toString(36)}`,

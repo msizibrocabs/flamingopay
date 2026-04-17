@@ -47,9 +47,9 @@ export async function POST(
     ? body.buyerBank.trim()
     : banks[Math.floor(Math.random() * banks.length)];
 
-  const txn = await createTransaction(id, { amount: body.amount, rail, buyerBank });
-  if (!txn) {
-    return NextResponse.json({ error: "Failed to create transaction" }, { status: 500 });
+  const result = await createTransaction(id, { amount: body.amount, rail, buyerBank });
+  if ("error" in result) {
+    return NextResponse.json({ error: result.error }, { status: 403 });
   }
-  return NextResponse.json({ transaction: txn }, { status: 201 });
+  return NextResponse.json({ transaction: result }, { status: 201 });
 }

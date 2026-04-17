@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { refundTransaction } from "../../../../../../../lib/store";
+import { appendAuditLog } from "../../../../../../../lib/audit";
 
 export const dynamic = "force-dynamic";
 
@@ -25,5 +26,17 @@ export async function POST(
     const code = result.error === "Merchant not found" || result.error === "Transaction not found" ? 404 : 409;
     return NextResponse.json({ error: result.error }, { status: code });
   }
+
+  await appendAuditLog({
+    action: "transaction_refunded",
+    role: "admin",
+    actorId: "admin",
+    actorName: "Admin",
+    targetId: txnId,
+    targetType: "transaction",
+    detail: `Refund R${refundAmount ?? result.txn.amount} on txn ${txnId} for merchant ${id}${refundReason ? ` — ${refundReason}` : ""}`,
+    ip: req.headers.get("x-forwarded-for")?.split(",")[0]?.trim(),
+  });
+
   return NextResponse.json(result);
 }

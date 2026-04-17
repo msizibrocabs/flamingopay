@@ -1,0 +1,42 @@
+{
+  "name": "Flamingo Pay",
+  "short_name": "Flamingo",
+  "description": "South Africa's universal QR payment platform for the informal economy",
+  "start_url": "/merchant/dashboard",
+  "display": "standalone",
+  "background_color": "#FFF5F0",
+  "theme_color": "#E8315B",
+  "orientation": "portrait",
+  "scope": "/",
+  "lang": "en-ZA",
+  "categories": ["finance", "business"],
+  "icons": [
+    {
+      "src": "/logo-primary.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/logo-primary.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "screenshots": [],
+  "shortcuts": [
+    {
+      "name": "My QR Code",
+      "short_name": "QR",
+      "url": "/merchant/qr",
+      "icons": [{ "src": "/logo-primary.png", "sizes": "512x512" }]
+    },
+    {
+      "name": "Sales",
+      "short_name": "Sales",
+      "url": "/merchant/transactions",
+      "icons": [{ "src": "/logo-primary.png", "sizes": "512x512" }]
+    }
+  ]
+}

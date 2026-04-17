@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getFlag, updateFlag, type FlagStatus } from "../../../../../lib/store";
+import { appendAuditLog } from "../../../../../lib/audit";
 
 export const dynamic = "force-dynamic";
 
@@ -36,5 +37,18 @@ export async function PATCH(
 
   const flag = await updateFlag(flagId, body);
   if (!flag) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  const actionMap: Record<string, string> = { cleared: "flag_cleared", confirmed: "flag_confirmed" };
+  await appendAuditLog({
+    action: (actionMap[body.status ?? ""] ?? "flag_updated") as import("../../../../../lib/audit").AuditAction,
+    role: "compliance",
+    actorId: body.resolvedBy ?? "officer",
+    actorName: body.resolvedBy ?? "Compliance Officer",
+    targetId: flagId,
+    targetType: "flag",
+    detail: `Flag ${flagId} → ${body.status ?? "updated"}${body.officerNote ? `: ${body.officerNote}` : ""}`,
+    ip: req.headers.get("x-forwarded-for")?.split(",")[0]?.trim(),
+  });
+
   return NextResponse.json({ flag });
 }

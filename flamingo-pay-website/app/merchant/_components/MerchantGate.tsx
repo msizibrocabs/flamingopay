@@ -2,15 +2,23 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { currentMerchantId } from "../../../lib/merchant";
+import { currentMerchantId, signOut } from "../../../lib/merchant";
+import { useSessionTimeout } from "../../../lib/useSessionTimeout";
+import { ErrorBoundary } from "../../../components/ErrorBoundary";
 
 /**
  * Redirects to /merchant/login if no mock session is present.
+ * Auto-logs out after 30 minutes of inactivity.
  * Children render only once we've confirmed a session.
  */
 export function MerchantGate({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [ready, setReady] = useState(false);
+
+  useSessionTimeout(() => {
+    signOut();
+    router.replace("/merchant/login?reason=timeout");
+  }, 30 * 60 * 1000);
 
   useEffect(() => {
     if (!currentMerchantId()) {
@@ -30,5 +38,5 @@ export function MerchantGate({ children }: { children: React.ReactNode }) {
       </div>
     );
   }
-  return <>{children}</>;
+  return <ErrorBoundary>{children}</ErrorBoundary>;
 }

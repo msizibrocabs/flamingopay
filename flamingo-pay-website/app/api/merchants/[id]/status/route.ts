@@ -3,6 +3,7 @@ import {
   updateMerchantStatus,
   type MerchantStatus,
 } from "../../../../../lib/store";
+import { appendAuditLog } from "../../../../../lib/audit";
 
 export const dynamic = "force-dynamic";
 
@@ -35,5 +36,23 @@ export async function PATCH(
   if (!m) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
+
+  const actionMap: Record<string, string> = {
+    approved: "merchant_approved",
+    rejected: "merchant_rejected",
+    suspended: "merchant_suspended",
+    pending: "merchant_unsuspended",
+  };
+  await appendAuditLog({
+    action: (actionMap[body.status] ?? "merchant_profile_updated") as import("../../../../../lib/audit").AuditAction,
+    role: "admin",
+    actorId: "admin",
+    actorName: "Admin",
+    targetId: id,
+    targetType: "merchant",
+    detail: `Merchant status changed to ${body.status}${body.reason ? `: ${body.reason}` : ""}`,
+    ip: req.headers.get("x-forwarded-for")?.split(",")[0]?.trim(),
+  });
+
   return NextResponse.json({ merchant: m });
 }
