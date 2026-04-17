@@ -12,7 +12,12 @@
 import "server-only";
 import { Redis } from "@upstash/redis";
 
-const redis = Redis.fromEnv();
+// Support both Vercel KV var names (KV_REST_API_URL / KV_REST_API_TOKEN)
+// and native Upstash var names (UPSTASH_REDIS_REST_URL / UPSTASH_REDIS_REST_TOKEN)
+const redis = new Redis({
+  url: (process.env.KV_REST_API_URL ?? process.env.UPSTASH_REDIS_REST_URL)!,
+  token: (process.env.KV_REST_API_TOKEN ?? process.env.UPSTASH_REDIS_REST_TOKEN)!,
+});
 
 export type MerchantStatus = "pending" | "approved" | "rejected" | "suspended";
 
