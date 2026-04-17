@@ -63,17 +63,15 @@ export async function POST(req: NextRequest) {
       { access: "public" },
     );
 
-    // Update the merchant document record in Redis
-    const updated = await updateMerchantDocument(merchantId, kind, {
-      status: "submitted",
-      fileName: file.name,
-    });
-
-    if (!updated) {
-      return NextResponse.json(
-        { error: "Merchant not found" },
-        { status: 404 },
-      );
+    // If the merchant already exists in Redis, update their document record.
+    // During signup the merchant doesn't exist yet — that's fine, the docs
+    // get created when createMerchant() runs after signup completes.
+    if (merchantId !== "signup-pending") {
+      await updateMerchantDocument(merchantId, kind, {
+        status: "submitted",
+        fileName: file.name,
+        blobUrl: blob.url,
+      });
     }
 
     return NextResponse.json({
