@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
+import { get } from "@vercel/blob";
 
 /**
  * GET /api/documents/view?url=<blobUrl>
  *
- * Private Vercel Blob URLs return 403 when accessed directly.
- * This route fetches the blob server-side using the SDK (which has
- * access to BLOB_READ_WRITE_TOKEN) and streams the file content
- * directly to the admin's browser.
+ * Private Vercel Blob URLs return 403 when hit directly in the browser.
+ * This route uses the @vercel/blob SDK (which reads BLOB_READ_WRITE_TOKEN
+ * from the environment automatically) to download the file server-side
+ * and stream it to the caller.
  */
 export async function GET(req: NextRequest) {
   const blobUrl = req.nextUrl.searchParams.get("url");
@@ -15,15 +16,14 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Missing url parameter" }, { status: 400 });
   }
 
-  // Demo-mode URLs — nothing to proxy
   if (blobUrl.startsWith("demo://")) {
-    return new NextResponse("This is a demo upload — no real file was stored.", {
+    return new NextResponse("Demo upload — no real file stored.", {
       status: 404,
       headers: { "Content-Type": "text/plain" },
     });
   }
 
-  // Security: only allow our own blob store domain
+  // Only allow our own blob store
   try {
     const parsed = new URL(blobUrl);
     if (!parsed.hostname.endsWith(".blob.vercel-storage.com")) {
@@ -34,54 +34,27 @@ export async function GET(req: NextRequest) {
   }
 
   if (!process.env.BLOB_READ_WRITE_TOKEN) {
-    return NextResponse.json(
-      { error: "Blob storage not configured" },
-      { status: 503 },
-    );
+    return NextResponse.json({ error: "Blob storage not configured" }, { status: 503 });
   }
 
   try {
-    // Use the Vercel Blob SDK to download the private file server-side
-    const blob = await import("@vercel/blob");
-
-    // blob.get() returns metadata; we need the actual content.
-    // For private blobs, we fetch using the token in the Authorization header.
-    const response = await fetch(blobUrl, {
-      headers: {
-        Authorization: `Bearer ${process.env.BLOB_READ_WRITE_TOKEN}`,
-      },
+    // SDK's get() authenticates via BLOB_READ_WRITE_TOKEN env var
+    const blob = await get(blobUrl, {
+      access: "private",
+      token: process.env.BLOB_READ_WRITE_TOKEN,
     });
 
-    if (!response.ok) {
-      // Try the SDK's getDownloadUrl as a fallback
-      try {
-        const downloadUrl = await blob.getDownloadUrl(blobUrl);
-        const dlRes = await fetch(downloadUrl);
-        if (dlRes.ok && dlRes.body) {
-          const ct = dlRes.headers.get("content-type") || "application/octet-stream";
-          return new NextResponse(dlRes.body, {
-            status: 200,
-            headers: {
-              "Content-Type": ct,
-              "Cache-Control": "private, max-age=300",
-              "Content-Disposition": "inline",
-            },
-          });
-        }
-      } catch {
-        // fall through to error
-      }
-
-      return NextResponse.json(
-        { error: `Could not retrieve file (${response.status})` },
-        { status: response.status },
-      );
+    if (!blob || blob.statusCode !== 200) {
+      return NextResponse.json({ error: "File not found in blob store" }, { status: 404 });
     }
 
+    // Stream the file content directly to the browser
     const contentType =
-      response.headers.get("content-type") || "application/octet-stream";
+      blob.headers.get("content-type") ||
+      blob.blob?.contentType ||
+      "application/octet-stream";
 
-    return new NextResponse(response.body, {
+    return new NextResponse(blob.stream, {
       status: 200,
       headers: {
         "Content-Type": contentType,
@@ -91,9 +64,7 @@ export async function GET(req: NextRequest) {
     });
   } catch (err) {
     console.error("Document view error:", err);
-    return NextResponse.json(
-      { error: "Failed to retrieve document" },
-      { status: 500 },
-    );
+    const msg = err instanceof Error ? err.message : "Failed to retrieve document";
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
