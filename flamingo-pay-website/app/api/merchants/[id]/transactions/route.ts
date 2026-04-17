@@ -30,7 +30,7 @@ export async function POST(
     return NextResponse.json({ error: "Merchant not approved" }, { status: 403 });
   }
 
-  let body: { amount?: number; rail?: string; buyerBank?: string } = {};
+  let body: { amount?: number; rail?: string; buyerBank?: string; idempotencyKey?: string } = {};
   try {
     body = await req.json();
   } catch {
@@ -41,13 +41,16 @@ export async function POST(
     return NextResponse.json({ error: "Invalid amount" }, { status: 400 });
   }
 
+  // Idempotency key — use request header or body field
+  const idempotencyKey = req.headers.get("Idempotency-Key") ?? body.idempotencyKey;
+
   const rail = body.rail === "eft" ? "eft" as const : "payshap" as const;
   const banks = ["Capitec", "FNB", "Standard Bank", "Nedbank", "ABSA", "TymeBank", "Discovery Bank"];
   const buyerBank = typeof body.buyerBank === "string" && body.buyerBank.trim()
     ? body.buyerBank.trim()
     : banks[Math.floor(Math.random() * banks.length)];
 
-  const result = await createTransaction(id, { amount: body.amount, rail, buyerBank });
+  const result = await createTransaction(id, { amount: body.amount, rail, buyerBank, idempotencyKey: idempotencyKey ?? undefined });
   if ("error" in result) {
     return NextResponse.json({ error: result.error }, { status: 403 });
   }

@@ -11,6 +11,8 @@
 
 import "server-only";
 import { Redis } from "@upstash/redis";
+import { encryptMerchantPII, decryptMerchantPII } from "./crypto";
+import { checkCTR, CTR_THRESHOLD } from "./fica";
 
 // Support both Vercel KV var names (KV_REST_API_URL / KV_REST_API_TOKEN)
 // and native Upstash var names (UPSTASH_REDIS_REST_URL / UPSTASH_REDIS_REST_TOKEN)
@@ -122,16 +124,29 @@ export type MerchantApplication = {
 
 // ---------------------- PIN Hashing ----------------------
 
-import { createHash } from "crypto";
+import { hashSync, compareSync } from "bcryptjs";
 
-/** Hash a 4-digit PIN with a static salt. In production use bcrypt. */
+const BCRYPT_ROUNDS = 12;
+
+/** Hash a 4-digit PIN with bcrypt (async-safe sync variant for server components). */
 export function hashPin(pin: string): string {
-  return createHash("sha256").update(`flamingo_pin_${pin}`).digest("hex");
+  return hashSync(pin, BCRYPT_ROUNDS);
 }
 
-/** Verify a plaintext PIN against a stored hash. */
+/** Verify a plaintext PIN against a bcrypt hash. Also supports legacy SHA-256 hashes for migration. */
 export function verifyPin(pin: string, hash: string): boolean {
-  return hashPin(pin) === hash;
+  // Legacy SHA-256 hashes are 64-char hex strings; bcrypt hashes start with "$2"
+  if (hash.length === 64 && /^[0-9a-f]+$/.test(hash)) {
+    // Legacy hash — compare with old method, then caller should re-hash
+    const { createHash } = require("crypto");
+    return createHash("sha256").update(`flamingo_pin_${pin}`).digest("hex") === hash;
+  }
+  return compareSync(pin, hash);
+}
+
+/** Check if a hash is the old SHA-256 format and needs upgrading to bcrypt. */
+export function isLegacyPinHash(hash: string): boolean {
+  return hash.length === 64 && /^[0-9a-f]+$/.test(hash);
 }
 
 // ---------------------- Helpers ----------------------
@@ -352,7 +367,7 @@ export async function listMerchants(): Promise<MerchantApplication[]> {
   for (const raw of results) {
     if (!raw) continue;
     const m: MerchantApplication = typeof raw === "string" ? JSON.parse(raw) : raw as MerchantApplication;
-    merchants.push(m);
+    merchants.push(decryptMerchantPII(m));
   }
   return merchants.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
@@ -361,7 +376,8 @@ export async function getMerchant(id: string): Promise<MerchantApplication | und
   await ensureSeeded();
   const raw = await redis.get(`merchant:${id}`);
   if (!raw) return undefined;
-  return typeof raw === "string" ? JSON.parse(raw) : raw as MerchantApplication;
+  const m: MerchantApplication = typeof raw === "string" ? JSON.parse(raw) : raw as MerchantApplication;
+  return decryptMerchantPII(m);
 }
 
 export async function getMerchantByPhone(phone: string): Promise<MerchantApplication | undefined> {
@@ -416,6 +432,11 @@ export async function loginMerchant(phone: string, pin: string): Promise<LoginRe
     };
   }
 
+  // PIN format check
+  if (!/^\d{4}$/.test(pin)) {
+    return { ok: false, error: "PIN must be 4 digits." };
+  }
+
   // Verify PIN
   if (merchant.pinHash) {
     if (!verifyPin(pin, merchant.pinHash)) {
@@ -430,17 +451,20 @@ export async function loginMerchant(phone: string, pin: string): Promise<LoginRe
         attemptsLeft: Math.max(0, MAX_LOGIN_ATTEMPTS - newAttempts),
       };
     }
-  }
-  // If no pinHash set (legacy/seeded merchant), accept any valid 4-digit PIN
-  // but only if PIN format is valid
-  if (!/^\d{4}$/.test(pin)) {
-    return { ok: false, error: "PIN must be 4 digits." };
+
+    // Auto-upgrade legacy SHA-256 hash to bcrypt on successful login
+    if (isLegacyPinHash(merchant.pinHash)) {
+      merchant.pinHash = hashPin(pin);
+    }
+  } else {
+    // No PIN set — reject login (merchants must have a PIN)
+    return { ok: false, error: "Account not set up. Please contact support." };
   }
 
   // Success — clear attempts and update last login
   await redis.del(lockKey);
   merchant.lastLoginAt = new Date().toISOString();
-  await redis.set(`merchant:${merchant.id}`, JSON.stringify(merchant));
+  await redis.set(`merchant:${merchant.id}`, JSON.stringify(encryptMerchantPII(merchant)));
 
   return { ok: true, merchant };
 }
@@ -515,12 +539,12 @@ export async function createMerchant(input: NewMerchantInput): Promise<MerchantA
     }
   }
 
-  // Add to Redis
+  // Add to Redis (encrypt PII before storage)
   const idsRaw = await redis.get("merchant_ids");
   const ids: string[] = typeof idsRaw === "string" ? JSON.parse(idsRaw) : (idsRaw as string[] | null) ?? [];
   ids.push(id);
   await redis.pipeline()
-    .set(`merchant:${id}`, JSON.stringify(merchant))
+    .set(`merchant:${id}`, JSON.stringify(encryptMerchantPII(merchant)))
     .set("merchant_ids", JSON.stringify(ids))
     .exec();
 
@@ -549,7 +573,7 @@ export async function updateMerchantDocument(
     }
     return merged;
   });
-  await redis.set(`merchant:${merchantId}`, JSON.stringify(m));
+  await redis.set(`merchant:${merchantId}`, JSON.stringify(encryptMerchantPII(m)));
   return m;
 }
 
@@ -572,8 +596,19 @@ export async function listTransactions(merchantId: string): Promise<StoredTxn[]>
 
 export async function createTransaction(
   merchantId: string,
-  input: { amount: number; rail: "payshap" | "eft"; buyerBank: string },
+  input: { amount: number; rail: "payshap" | "eft"; buyerBank: string; idempotencyKey?: string },
 ): Promise<StoredTxn | { error: string }> {
+  // Idempotency check — prevent duplicate transactions
+  if (input.idempotencyKey) {
+    const idemKey = `idem:${input.idempotencyKey}`;
+    const existing = await redis.get(idemKey);
+    if (existing) {
+      // Already processed — return the stored transaction
+      const txn: StoredTxn = typeof existing === "string" ? JSON.parse(existing) : existing as StoredTxn;
+      return txn;
+    }
+  }
+
   const m = await getMerchant(merchantId);
   if (!m) return { error: "Merchant not found" };
 
@@ -612,8 +647,24 @@ export async function createTransaction(
   m.grossVolume += input.amount;
   await redis.pipeline()
     .set(`txns:${merchantId}`, JSON.stringify(list))
-    .set(`merchant:${merchantId}`, JSON.stringify(m))
+    .set(`merchant:${merchantId}`, JSON.stringify(encryptMerchantPII(m)))
     .exec();
+
+  // Store idempotency key (24h TTL) to prevent replay
+  if (input.idempotencyKey) {
+    await redis.set(`idem:${input.idempotencyKey}`, JSON.stringify(txn), { ex: 86400 });
+  }
+
+  // FICA: Check if CTR (Currency Transaction Report) is required
+  // Check on every transaction — checkCTR handles threshold logic internally
+  // (detects both single large txns and structuring via rolling 24h total)
+  {
+    const dayAgo = new Date(Date.now() - 24 * 3600000).toISOString();
+    const recent24h = list
+      .filter(t => t.id !== txn.id && t.timestamp >= dayAgo && t.status === "completed")
+      .map(t => t.amount);
+    await checkCTR(merchantId, m.businessName, txn.id, txn.amount, txn.buyerBank, txn.rail, txn.timestamp, recent24h);
+  }
 
   // Run compliance auto-flagging rules
   await evaluateRules(merchantId, txn);
@@ -653,7 +704,7 @@ export async function refundTransaction(
   if (!isPartial) m.txnCount = Math.max(0, m.txnCount - 1);
   await redis.pipeline()
     .set(`txns:${merchantId}`, JSON.stringify(list))
-    .set(`merchant:${merchantId}`, JSON.stringify(m))
+    .set(`merchant:${merchantId}`, JSON.stringify(encryptMerchantPII(m)))
     .exec();
   return { merchant: m, txn: refunded };
 }
@@ -698,7 +749,7 @@ export async function updateMerchantStatus(
     m.rejectionReason = reason;
     m.approvedAt = undefined;
   }
-  await redis.set(`merchant:${id}`, JSON.stringify(m));
+  await redis.set(`merchant:${id}`, JSON.stringify(encryptMerchantPII(m)));
   return m;
 }
 

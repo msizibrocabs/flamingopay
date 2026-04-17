@@ -1,10 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { freezeMerchant, unfreezeMerchant } from "../../../../lib/store";
 import { appendAuditLog } from "../../../../lib/audit";
+import { requireSession } from "../../../../lib/api-auth";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
+  // Only compliance or admin can freeze/unfreeze
+  let session = await requireSession("compliance");
+  if (session instanceof Response) session = await requireSession("admin");
+  if (session instanceof Response) return session;
   let body: { merchantId?: string; action?: "freeze" | "unfreeze"; reason?: string };
   try {
     body = await req.json();

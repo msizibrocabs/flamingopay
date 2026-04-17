@@ -109,13 +109,30 @@ export async function requireSession(role: SessionRole): Promise<ServerSession |
   return session;
 }
 
-// ---- Passcode verification (still demo, but server-side) ----
+// ---- Passcode verification ----
+// Passcodes MUST be set via environment variables in production.
+// If not set, login is blocked entirely (no hardcoded fallbacks).
 
-const PASSCODES: Record<string, string> = {
-  admin: process.env.ADMIN_PASSCODE ?? "flamingo2026",
-  compliance: process.env.COMPLIANCE_PASSCODE ?? "compliance2026",
+import { compareSync, hashSync } from "bcryptjs";
+
+const ENV_PASSCODES: Record<string, string | undefined> = {
+  admin: process.env.ADMIN_PASSCODE,
+  compliance: process.env.COMPLIANCE_PASSCODE,
 };
 
+// Pre-hash env passcodes on startup for constant-time comparison.
+// If env var is missing, the hash stays undefined and login is rejected.
+const PASSCODE_HASHES: Record<string, string | undefined> = {};
+for (const [role, raw] of Object.entries(ENV_PASSCODES)) {
+  PASSCODE_HASHES[role] = raw ? hashSync(raw, 10) : undefined;
+}
+
 export function verifyPasscode(role: "admin" | "compliance", input: string): boolean {
-  return input === PASSCODES[role];
+  const hash = PASSCODE_HASHES[role];
+  if (!hash) {
+    // No passcode configured — block login entirely
+    console.error(`[AUTH] ${role} passcode not configured. Set ${role.toUpperCase()}_PASSCODE env var.`);
+    return false;
+  }
+  return compareSync(input, hash);
 }

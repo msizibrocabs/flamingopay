@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getMerchant } from "../../../../../lib/store";
 import { appendAuditLog } from "../../../../../lib/audit";
+import { getSession } from "../../../../../lib/api-auth";
+import { encryptMerchantPII } from "../../../../../lib/crypto";
 import { Redis } from "@upstash/redis";
 
 const redis = new Redis({
@@ -15,7 +17,20 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  // Require merchant or admin session
+  const merchantSession = await getSession("merchant");
+  const adminSession = await getSession("admin");
+  if (!merchantSession && !adminSession) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const { id } = await params;
+
+  // Merchants can only update their own profile
+  if (merchantSession && merchantSession.id !== id) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
   const m = await getMerchant(id);
   if (!m) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
@@ -44,7 +59,7 @@ export async function PATCH(
     return NextResponse.json({ merchant: m, changed: false });
   }
 
-  await redis.set(`merchant:${id}`, JSON.stringify(m));
+  await redis.set(`merchant:${id}`, JSON.stringify(encryptMerchantPII(m)));
 
   await appendAuditLog({
     action: "merchant_profile_updated",
@@ -65,7 +80,18 @@ export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  // Require merchant session (only the merchant themselves can delete)
+  const merchantSession = await getSession("merchant");
+  if (!merchantSession) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const { id } = await params;
+
+  if (merchantSession.id !== id) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
   const m = await getMerchant(id);
   if (!m) return NextResponse.json({ error: "Not found" }, { status: 404 });
 

@@ -60,13 +60,28 @@ export type AuditEntry = {
 
 const AUDIT_KEY = "audit_log";
 
+/**
+ * FICA requires 5-year retention of all audit records.
+ * Strategy:
+ * - Hot storage: Last 10,000 entries in Redis (fast queries)
+ * - Monthly archives: Older entries moved to Redis keys by month (audit_archive:YYYY-MM)
+ * - Each archive key has a 5-year TTL (1827 days)
+ *
+ * In production, archives should also be streamed to S3/BigQuery for
+ * truly durable long-term storage. The monthly Redis archives are a
+ * pragmatic middle ground.
+ */
+
+const ARCHIVE_TTL_SECONDS = 1827 * 86400; // ~5 years in seconds
+
 /** Append an entry to the audit log. Never fails the parent operation. */
 export async function appendAuditLog(entry: Omit<AuditEntry, "id" | "timestamp">): Promise<void> {
   try {
+    const now = new Date();
     const full: AuditEntry = {
       ...entry,
       id: `aud_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`,
-      timestamp: new Date().toISOString(),
+      timestamp: now.toISOString(),
     };
 
     const raw = await redis.get(AUDIT_KEY);
@@ -76,9 +91,48 @@ export async function appendAuditLog(entry: Omit<AuditEntry, "id" | "timestamp">
 
     log.push(full);
 
-    // Keep last 10,000 entries in Redis (older should be archived)
-    const trimmed = log.length > 10_000 ? log.slice(-10_000) : log;
-    await redis.set(AUDIT_KEY, JSON.stringify(trimmed));
+    // Archive entries beyond 10,000 to monthly archive keys
+    if (log.length > 10_000) {
+      const toArchive = log.slice(0, log.length - 10_000);
+      const kept = log.slice(-10_000);
+
+      // Group archived entries by month
+      const byMonth: Record<string, AuditEntry[]> = {};
+      for (const e of toArchive) {
+        const month = e.timestamp.slice(0, 7); // YYYY-MM
+        byMonth[month] = byMonth[month] || [];
+        byMonth[month].push(e);
+      }
+
+      // Append to monthly archive keys with 5-year TTL
+      const pipe = redis.pipeline();
+      for (const [month, entries] of Object.entries(byMonth)) {
+        const archiveKey = `audit_archive:${month}`;
+        // Get existing archive, append, and save
+        // Using a simpler approach: just set with the entries
+        // In production, use Redis APPEND or a proper time-series
+        pipe.get(archiveKey);
+      }
+      const archiveResults = await pipe.exec();
+
+      const writePipe = redis.pipeline();
+      let i = 0;
+      for (const [month, entries] of Object.entries(byMonth)) {
+        const archiveKey = `audit_archive:${month}`;
+        const existingRaw = archiveResults[i];
+        const existing: AuditEntry[] = existingRaw
+          ? typeof existingRaw === "string" ? JSON.parse(existingRaw) : existingRaw as AuditEntry[]
+          : [];
+        existing.push(...entries);
+        writePipe.set(archiveKey, JSON.stringify(existing));
+        writePipe.expire(archiveKey, ARCHIVE_TTL_SECONDS);
+        i++;
+      }
+      writePipe.set(AUDIT_KEY, JSON.stringify(kept));
+      await writePipe.exec();
+    } else {
+      await redis.set(AUDIT_KEY, JSON.stringify(log));
+    }
   } catch (err) {
     // Audit logging should never break the parent operation
     console.error("Audit log write failed:", err);
@@ -107,4 +161,32 @@ export async function getAuditLog(filters?: {
   log.sort((a, b) => b.timestamp.localeCompare(a.timestamp));
 
   return log.slice(0, filters?.limit ?? 200);
+}
+
+/**
+ * Query archived audit logs by month (FICA 5-year retention).
+ * @param month - Format: YYYY-MM (e.g., "2025-06")
+ */
+export async function getArchivedAuditLog(month: string): Promise<AuditEntry[]> {
+  const raw = await redis.get(`audit_archive:${month}`);
+  if (!raw) return [];
+  const entries: AuditEntry[] = typeof raw === "string" ? JSON.parse(raw) : raw as AuditEntry[];
+  return entries.sort((a, b) => b.timestamp.localeCompare(a.timestamp));
+}
+
+/**
+ * List available audit archive months.
+ * Returns months that have archived entries (up to 5 years back).
+ */
+export async function listAuditArchiveMonths(): Promise<string[]> {
+  const months: string[] = [];
+  const now = new Date();
+  // Check up to 60 months (5 years) back
+  for (let i = 0; i < 60; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const month = d.toISOString().slice(0, 7);
+    const exists = await redis.exists(`audit_archive:${month}`);
+    if (exists) months.push(month);
+  }
+  return months;
 }

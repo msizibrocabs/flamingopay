@@ -4,6 +4,7 @@ import {
   type MerchantStatus,
 } from "../../../../../lib/store";
 import { appendAuditLog } from "../../../../../lib/audit";
+import { requireSession } from "../../../../../lib/api-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -13,6 +14,9 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const session = await requireSession("admin");
+  if (session instanceof Response) return session;
+
   const { id } = await params;
   let body: { status?: MerchantStatus; reason?: string };
   try {

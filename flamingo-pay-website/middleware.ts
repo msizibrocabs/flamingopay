@@ -36,9 +36,9 @@ const UPLOAD_PATHS = ["/api/upload"];
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
-  // Only rate-limit API routes
+  // Non-API routes: add security headers (CSP, HSTS, etc.)
   if (!pathname.startsWith("/api/")) {
-    return NextResponse.next();
+    return addSecurityHeaders(NextResponse.next());
   }
 
   const ip = getIp(req);
@@ -66,16 +66,45 @@ export async function middleware(req: NextRequest) {
     }
   }
 
-  // Add security headers to all API responses
+  // Add security headers
   const res = NextResponse.next();
   res.headers.set("X-Content-Type-Options", "nosniff");
   res.headers.set("X-Frame-Options", "DENY");
   res.headers.set("X-XSS-Protection", "1; mode=block");
   res.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+  res.headers.set("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+
+  return res;
+}
+
+/** CSP + security headers for all page routes. */
+function addSecurityHeaders(res: NextResponse): NextResponse {
+  // Content Security Policy — strict but functional for Next.js
+  const csp = [
+    "default-src 'self'",
+    // Next.js requires 'unsafe-inline' for styles and 'unsafe-eval' in dev
+    `script-src 'self' ${process.env.NODE_ENV === "development" ? "'unsafe-eval'" : ""} 'unsafe-inline'`,
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+    "font-src 'self' https://fonts.gstatic.com",
+    "img-src 'self' data: blob: https://*.vercel-storage.com https://*.public.blob.vercel-storage.com",
+    "connect-src 'self' https://*.upstash.io https://*.vercel-storage.com",
+    "frame-ancestors 'none'",
+    "form-action 'self'",
+    "base-uri 'self'",
+    "object-src 'none'",
+  ].filter(Boolean).join("; ");
+
+  res.headers.set("Content-Security-Policy", csp);
+  res.headers.set("X-Content-Type-Options", "nosniff");
+  res.headers.set("X-Frame-Options", "DENY");
+  res.headers.set("X-XSS-Protection", "1; mode=block");
+  res.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+  res.headers.set("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+  res.headers.set("Strict-Transport-Security", "max-age=63072000; includeSubDomains; preload");
 
   return res;
 }
 
 export const config = {
-  matcher: ["/api/:path*"],
+  matcher: ["/api/:path*", "/((?!_next/static|_next/image|favicon.ico|icons|manifest).*)"],
 };

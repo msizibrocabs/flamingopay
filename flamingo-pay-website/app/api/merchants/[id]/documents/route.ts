@@ -5,6 +5,7 @@ import {
   type DocumentKind,
   type DocumentStatus,
 } from "../../../../../lib/store";
+import { requireSession } from "../../../../../lib/api-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -25,6 +26,10 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  // Document status changes (verify/reject) require admin session
+  const session = await requireSession("admin");
+  if (session instanceof Response) return session;
+
   const { id } = await params;
   let body: {
     kind?: DocumentKind;
