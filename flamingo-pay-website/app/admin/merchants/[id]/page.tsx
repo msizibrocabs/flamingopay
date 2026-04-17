@@ -17,7 +17,7 @@ import type {
   MerchantStatus,
   StoredTxn,
 } from "../../../../lib/store";
-import { getBusinessProfile } from "../../../../lib/store";
+import { getBusinessProfile } from "../../../../lib/business-profiles";
 
 type TxnStats = {
   count: number;

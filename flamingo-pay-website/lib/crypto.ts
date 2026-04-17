@@ -8,7 +8,7 @@
  * Fields NOT encrypted: id, businessName (needed for search), status, timestamps
  */
 
-import "server-only";
+// server-only guard is enforced by store.ts (the sole importer)
 import { createCipheriv, createDecipheriv, randomBytes } from "crypto";
 
 const ALGORITHM = "aes-256-gcm";

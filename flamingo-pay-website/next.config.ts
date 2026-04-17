@@ -18,9 +18,4 @@ export default withSentryConfig(nextConfig, {
   silent: !process.env.CI,
   // Disable source map upload if no auth token (dev/CI without Sentry)
   authToken: process.env.SENTRY_AUTH_TOKEN,
-  // Tree-shake Sentry logger in production
-  disableLogger: true,
-  // Automatically instrument API routes and server components
-  autoInstrumentServerFunctions: true,
-  autoInstrumentMiddleware: true,
 });

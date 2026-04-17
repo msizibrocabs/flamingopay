@@ -13,6 +13,9 @@ import "server-only";
 import { Redis } from "@upstash/redis";
 import { encryptMerchantPII, decryptMerchantPII } from "./crypto";
 import { checkCTR, CTR_THRESHOLD } from "./fica";
+import { getBusinessProfile } from "./business-profiles";
+// Re-export shared types/functions so existing imports keep working
+export { type BusinessProfile, BUSINESS_PROFILES, getBusinessProfile } from "./business-profiles";
 
 // Support both Vercel KV var names (KV_REST_API_URL / KV_REST_API_TOKEN)
 // and native Upstash var names (UPSTASH_REDIS_REST_URL / UPSTASH_REDIS_REST_TOKEN)
@@ -855,122 +858,8 @@ export type FlagRule = {
 // vendors) handle many small transactions — flagging them at 10 txns/15 min
 // would make the system unusable for them.
 
-export type BusinessProfile = {
-  /** Max single transaction before flagging */
-  highAmountThreshold: number;
-  /** Transactions in the velocity window before flagging */
-  velocityMax: number;
-  /** Window in minutes for velocity check */
-  velocityWindowMinutes: number;
-  /** Hour of day when "unusual" starts (e.g. 23 = 23:00) */
-  unusualHourStart: number;
-  /** Hour of day when "unusual" ends (e.g. 5 = 05:00) */
-  unusualHourEnd: number;
-  /** Flag if txn amount ≥ multiplier × merchant avg */
-  anomalyMultiplier: number;
-};
-
-/**
- * Business-type → monitoring profile map.
- * Taxi-rank merchants (spaza, tuckshop, street vendor, fruit & veg)
- * get high velocity limits and later trading hours.
- * Service providers and "Other" get moderate limits.
- * All categories get anomaly detection to catch amounts way above
- * the merchant's own baseline.
- */
-export const BUSINESS_PROFILES: Record<string, BusinessProfile> = {
-  // HIGH-VOLUME / LOW-VALUE — taxi rank economy
-  "Spaza / General Dealer": {
-    highAmountThreshold: 5000,
-    velocityMax: 60,
-    velocityWindowMinutes: 15,
-    unusualHourStart: 0,   // spaza shops: 24-hour trading is normal
-    unusualHourEnd: 4,     // only flag between midnight and 4am
-    anomalyMultiplier: 8,
-  },
-  "Tuckshop": {
-    highAmountThreshold: 3000,
-    velocityMax: 50,
-    velocityWindowMinutes: 15,
-    unusualHourStart: 0,
-    unusualHourEnd: 4,
-    anomalyMultiplier: 8,
-  },
-  "Street vendor": {
-    highAmountThreshold: 3000,
-    velocityMax: 50,
-    velocityWindowMinutes: 15,
-    unusualHourStart: 23,
-    unusualHourEnd: 4,
-    anomalyMultiplier: 8,
-  },
-  "Fruit & veg": {
-    highAmountThreshold: 5000,
-    velocityMax: 40,
-    velocityWindowMinutes: 15,
-    unusualHourStart: 23,
-    unusualHourEnd: 3,    // fruit vendors start early
-    anomalyMultiplier: 6,
-  },
-
-  // MEDIUM-VOLUME
-  "Butchery": {
-    highAmountThreshold: 8000,
-    velocityMax: 25,
-    velocityWindowMinutes: 15,
-    unusualHourStart: 22,
-    unusualHourEnd: 5,
-    anomalyMultiplier: 5,
-  },
-  "Takeaway / Food": {
-    highAmountThreshold: 5000,
-    velocityMax: 35,
-    velocityWindowMinutes: 15,
-    unusualHourStart: 0,   // late-night takeaways are normal
-    unusualHourEnd: 4,
-    anomalyMultiplier: 5,
-  },
-  "Hair salon / Barber": {
-    highAmountThreshold: 5000,
-    velocityMax: 15,
-    velocityWindowMinutes: 15,
-    unusualHourStart: 22,
-    unusualHourEnd: 6,
-    anomalyMultiplier: 4,
-  },
-  "Car wash": {
-    highAmountThreshold: 3000,
-    velocityMax: 20,
-    velocityWindowMinutes: 15,
-    unusualHourStart: 21,
-    unusualHourEnd: 6,
-    anomalyMultiplier: 5,
-  },
-
-  // LOWER-VOLUME / HIGHER-VALUE
-  "Service provider": {
-    highAmountThreshold: 10000,
-    velocityMax: 15,
-    velocityWindowMinutes: 15,
-    unusualHourStart: 22,
-    unusualHourEnd: 6,
-    anomalyMultiplier: 4,
-  },
-};
-
-/** Default profile for "Other" or unrecognised business types. */
-const DEFAULT_PROFILE: BusinessProfile = {
-  highAmountThreshold: 5000,
-  velocityMax: 20,
-  velocityWindowMinutes: 15,
-  unusualHourStart: 23,
-  unusualHourEnd: 5,
-  anomalyMultiplier: 5,
-};
-
-export function getBusinessProfile(businessType: string): BusinessProfile {
-  return BUSINESS_PROFILES[businessType] ?? DEFAULT_PROFILE;
-}
+// BusinessProfile, BUSINESS_PROFILES, and getBusinessProfile are now in
+// ./business-profiles.ts (safe for client imports) and re-exported above.
 
 /** Build rules dynamically for a specific merchant based on their business type. */
 export function rulesForMerchant(businessType: string): FlagRule[] {

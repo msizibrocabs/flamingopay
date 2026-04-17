@@ -11,7 +11,7 @@
  * FICA requires 5-year retention of all records.
  */
 
-import "server-only";
+// server-only guard is enforced by store.ts (the sole importer)
 import { Redis } from "@upstash/redis";
 
 const redis = new Redis({
