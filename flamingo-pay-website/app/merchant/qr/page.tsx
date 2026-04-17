@@ -23,7 +23,7 @@ function Inner() {
   const mid = currentMerchantId() ?? "demo";
   const { merchant: m } = useMerchant();
   const name = m?.businessName ?? "Your Shop";
-  const url = `https://flamingopay.co.za/pay/${mid}`;
+  const url = `https://www.flamingopay.co.za/pay/${mid}`;
   // Use QR code API for dynamic generation — works for any merchant
   const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=340x340&data=${encodeURIComponent(url)}&color=E8315B&bgcolor=FFF5F0`;
 
