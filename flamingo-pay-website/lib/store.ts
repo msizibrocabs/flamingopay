@@ -5,6 +5,7 @@
  *   merchant:{id}       → JSON MerchantApplication
  *   merchant_ids         → JSON string[] (list of all merchant IDs)
  *   txns:{merchantId}   → JSON StoredTxn[]
+ *   flags                → JSON TxnFlag[] (compliance flags)
  *   seeded               → "1" once seed data has been written
  */
 
@@ -387,6 +388,10 @@ export async function createTransaction(
     .set(`txns:${merchantId}`, JSON.stringify(list))
     .set(`merchant:${merchantId}`, JSON.stringify(m))
     .exec();
+
+  // Run compliance auto-flagging rules
+  await evaluateRules(merchantId, txn);
+
   return txn;
 }
 
@@ -524,5 +529,242 @@ export async function stats() {
     suspended: all.filter(m => m.status === "suspended").length,
     lifetimeVolume: all.reduce((s, m) => s + m.grossVolume, 0),
     lifetimeTxns: all.reduce((s, m) => s + m.txnCount, 0),
+  };
+}
+
+// ====================== COMPLIANCE ======================
+
+export type FlagReason =
+  | "high_amount"
+  | "velocity"
+  | "unusual_hours"
+  | "manual";
+
+export type FlagStatus = "open" | "investigating" | "cleared" | "confirmed";
+
+export type TxnFlag = {
+  id: string;
+  txnId: string;
+  merchantId: string;
+  reason: FlagReason;
+  ruleLabel: string;
+  status: FlagStatus;
+  createdAt: string;
+  updatedAt: string;
+  officerNote?: string;
+  resolvedBy?: string;
+  resolvedAt?: string;
+  txnSnapshot: StoredTxn;
+};
+
+export type FlagRule = {
+  id: string;
+  reason: FlagReason;
+  label: string;
+  enabled: boolean;
+  amountThreshold?: number;
+  velocityMax?: number;
+  velocityWindowMinutes?: number;
+  hourStart?: number;
+  hourEnd?: number;
+};
+
+export const DEFAULT_RULES: FlagRule[] = [
+  {
+    id: "rule_high_amount",
+    reason: "high_amount",
+    label: "Single transaction over R5,000",
+    enabled: true,
+    amountThreshold: 5000,
+  },
+  {
+    id: "rule_velocity",
+    reason: "velocity",
+    label: "More than 10 transactions in 15 minutes",
+    enabled: true,
+    velocityMax: 10,
+    velocityWindowMinutes: 15,
+  },
+  {
+    id: "rule_unusual_hours",
+    reason: "unusual_hours",
+    label: "Transaction between 23:00 and 05:00",
+    enabled: true,
+    hourStart: 5,
+    hourEnd: 23,
+  },
+];
+
+async function getAllFlags(): Promise<TxnFlag[]> {
+  const raw = await redis.get("flags");
+  if (!raw) return [];
+  return typeof raw === "string" ? JSON.parse(raw) : raw as TxnFlag[];
+}
+
+async function saveFlags(flags: TxnFlag[]): Promise<void> {
+  await redis.set("flags", JSON.stringify(flags));
+}
+
+export async function evaluateRules(
+  merchantId: string,
+  txn: StoredTxn,
+): Promise<TxnFlag[]> {
+  const rules = DEFAULT_RULES.filter(r => r.enabled);
+  const newFlags: TxnFlag[] = [];
+  const now = new Date().toISOString();
+
+  for (const rule of rules) {
+    let triggered = false;
+
+    if (rule.reason === "high_amount" && rule.amountThreshold) {
+      triggered = txn.amount >= rule.amountThreshold;
+    }
+
+    if (rule.reason === "velocity" && rule.velocityMax && rule.velocityWindowMinutes) {
+      const allTxns = await listTransactions(merchantId);
+      const windowMs = rule.velocityWindowMinutes * 60 * 1000;
+      const txnTime = new Date(txn.timestamp).getTime();
+      const recentCount = allTxns.filter(t => {
+        const tTime = new Date(t.timestamp).getTime();
+        return tTime >= txnTime - windowMs && tTime <= txnTime;
+      }).length;
+      triggered = recentCount >= rule.velocityMax;
+    }
+
+    if (rule.reason === "unusual_hours" && rule.hourStart != null && rule.hourEnd != null) {
+      const hour = new Date(txn.timestamp).getHours();
+      triggered = hour < rule.hourStart || hour >= rule.hourEnd;
+    }
+
+    if (triggered) {
+      newFlags.push({
+        id: `flag_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`,
+        txnId: txn.id,
+        merchantId,
+        reason: rule.reason,
+        ruleLabel: rule.label,
+        status: "open",
+        createdAt: now,
+        updatedAt: now,
+        txnSnapshot: txn,
+      });
+    }
+  }
+
+  if (newFlags.length > 0) {
+    const existing = await getAllFlags();
+    existing.push(...newFlags);
+    await saveFlags(existing);
+  }
+
+  return newFlags;
+}
+
+export async function listFlags(filters?: {
+  status?: FlagStatus;
+  merchantId?: string;
+}): Promise<TxnFlag[]> {
+  let flags = await getAllFlags();
+  if (filters?.status) flags = flags.filter(f => f.status === filters.status);
+  if (filters?.merchantId) flags = flags.filter(f => f.merchantId === filters.merchantId);
+  return flags.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+}
+
+export async function getFlag(flagId: string): Promise<TxnFlag | undefined> {
+  const flags = await getAllFlags();
+  return flags.find(f => f.id === flagId);
+}
+
+export async function createManualFlag(
+  merchantId: string,
+  txnId: string,
+  note: string,
+  officerName: string,
+): Promise<TxnFlag | { error: string }> {
+  const m = await getMerchant(merchantId);
+  if (!m) return { error: "Merchant not found" };
+  const txns = await listTransactions(merchantId);
+  const txn = txns.find(t => t.id === txnId);
+  if (!txn) return { error: "Transaction not found" };
+
+  const now = new Date().toISOString();
+  const flag: TxnFlag = {
+    id: `flag_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`,
+    txnId,
+    merchantId,
+    reason: "manual",
+    ruleLabel: `Manually flagged by ${officerName}`,
+    status: "open",
+    createdAt: now,
+    updatedAt: now,
+    officerNote: note,
+    txnSnapshot: txn,
+  };
+
+  const flags = await getAllFlags();
+  flags.push(flag);
+  await saveFlags(flags);
+  return flag;
+}
+
+export async function updateFlag(
+  flagId: string,
+  patch: {
+    status?: FlagStatus;
+    officerNote?: string;
+    resolvedBy?: string;
+  },
+): Promise<TxnFlag | null> {
+  const flags = await getAllFlags();
+  const idx = flags.findIndex(f => f.id === flagId);
+  if (idx === -1) return null;
+
+  const now = new Date().toISOString();
+  const updated: TxnFlag = { ...flags[idx], ...patch, updatedAt: now };
+  if (patch.status === "cleared" || patch.status === "confirmed") {
+    updated.resolvedAt = now;
+    if (patch.resolvedBy) updated.resolvedBy = patch.resolvedBy;
+  }
+  flags[idx] = updated;
+  await saveFlags(flags);
+  return updated;
+}
+
+export async function freezeMerchant(
+  merchantId: string,
+  reason: string,
+): Promise<MerchantApplication | null> {
+  return updateMerchantStatus(merchantId, "suspended", reason);
+}
+
+export async function unfreezeMerchant(
+  merchantId: string,
+): Promise<MerchantApplication | null> {
+  return updateMerchantStatus(merchantId, "approved");
+}
+
+export async function complianceStats() {
+  const flags = await getAllFlags();
+  const open = flags.filter(f => f.status === "open").length;
+  const investigating = flags.filter(f => f.status === "investigating").length;
+  const cleared = flags.filter(f => f.status === "cleared").length;
+  const confirmed = flags.filter(f => f.status === "confirmed").length;
+
+  const merchantsUnderReview = new Set(
+    flags.filter(f => f.status === "open" || f.status === "investigating").map(f => f.merchantId),
+  ).size;
+
+  const flaggedAmount = flags
+    .filter(f => f.status === "open" || f.status === "investigating")
+    .reduce((s, f) => s + f.txnSnapshot.amount, 0);
+
+  return {
+    total: flags.length,
+    open,
+    investigating,
+    cleared,
+    confirmed,
+    merchantsUnderReview,
+    flaggedAmount,
   };
 }

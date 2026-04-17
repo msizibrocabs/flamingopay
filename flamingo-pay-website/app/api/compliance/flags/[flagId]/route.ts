@@ -1,0 +1,40 @@
+import { NextRequest, NextResponse } from "next/server";
+import { getFlag, updateFlag, type FlagStatus } from "../../../../../lib/store";
+
+export const dynamic = "force-dynamic";
+
+const VALID_STATUSES: FlagStatus[] = ["open", "investigating", "cleared", "confirmed"];
+
+export async function GET(
+  _req: NextRequest,
+  { params }: { params: Promise<{ flagId: string }> },
+) {
+  const { flagId } = await params;
+  const flag = await getFlag(flagId);
+  if (!flag) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  return NextResponse.json({ flag });
+}
+
+export async function PATCH(
+  req: NextRequest,
+  { params }: { params: Promise<{ flagId: string }> },
+) {
+  const { flagId } = await params;
+  let body: { status?: FlagStatus; officerNote?: string; resolvedBy?: string };
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  }
+
+  if (body.status && !VALID_STATUSES.includes(body.status)) {
+    return NextResponse.json(
+      { error: `status must be one of: ${VALID_STATUSES.join(", ")}` },
+      { status: 400 },
+    );
+  }
+
+  const flag = await updateFlag(flagId, body);
+  if (!flag) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  return NextResponse.json({ flag });
+}
