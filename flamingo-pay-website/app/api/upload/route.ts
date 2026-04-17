@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { put } from "@vercel/blob";
 import { updateMerchantDocument, type DocumentKind } from "../../../lib/store";
 
 const ALLOWED_TYPES = new Set([
@@ -56,34 +55,45 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Upload to Vercel Blob
-    const blob = await put(
-      `kyc/${merchantId}/${kind}-${Date.now()}.${extFor(file.type)}`,
-      file,
-      { access: "public" },
-    );
+    let blobUrl: string | undefined;
+
+    // Try Vercel Blob if token is configured
+    if (process.env.BLOB_READ_WRITE_TOKEN) {
+      const { put } = await import("@vercel/blob");
+      const blob = await put(
+        `kyc/${merchantId}/${kind}-${Date.now()}.${extFor(file.type)}`,
+        file,
+        { access: "public" },
+      );
+      blobUrl = blob.url;
+    } else {
+      // No Blob token — accept the upload anyway (demo mode).
+      // In production you MUST set BLOB_READ_WRITE_TOKEN.
+      blobUrl = `demo://kyc/${merchantId}/${kind}-${file.name}`;
+    }
 
     // If the merchant already exists in Redis, update their document record.
-    // During signup the merchant doesn't exist yet — that's fine, the docs
-    // get created when createMerchant() runs after signup completes.
+    // During signup the merchant doesn't exist yet — the docs get created
+    // when createMerchant() runs after signup completes.
     if (merchantId !== "signup-pending") {
       await updateMerchantDocument(merchantId, kind, {
         status: "submitted",
         fileName: file.name,
-        blobUrl: blob.url,
+        blobUrl,
       });
     }
 
     return NextResponse.json({
-      url: blob.url,
+      url: blobUrl,
       kind,
       merchantId,
       fileName: file.name,
     });
   } catch (err) {
-    console.error("Upload error:", err);
+    const message = err instanceof Error ? err.message : "Upload failed";
+    console.error("Upload error:", message, err);
     return NextResponse.json(
-      { error: "Upload failed" },
+      { error: message },
       { status: 500 },
     );
   }
