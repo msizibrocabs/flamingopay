@@ -345,6 +345,12 @@ export async function getMerchantByPhone(phone: string): Promise<MerchantApplica
   return all.find(m => m.phone.replace(/\s/g, "") === clean);
 }
 
+export type UploadedDoc = {
+  kind: DocumentKind;
+  fileName: string;
+  blobUrl: string;
+};
+
 export type NewMerchantInput = {
   phone: string;
   businessName: string;
@@ -356,6 +362,8 @@ export type NewMerchantInput = {
   accountType: "cheque" | "savings";
   /** Expected monthly volume in ZAR — determines KYC tier. */
   expectedMonthlyVolume: number;
+  /** Documents uploaded during signup. */
+  uploadedDocs?: UploadedDoc[];
 };
 
 export async function createMerchant(input: NewMerchantInput): Promise<MerchantApplication> {
@@ -389,6 +397,20 @@ export async function createMerchant(input: NewMerchantInput): Promise<MerchantA
     expectedMonthlyVolume: input.expectedMonthlyVolume,
     documents: defaultDocsFor(tier, input.businessType, "pending", iso),
   };
+
+  // Apply any documents uploaded during signup
+  if (input.uploadedDocs?.length) {
+    const now = new Date().toISOString();
+    for (const uploaded of input.uploadedDocs) {
+      const doc = merchant.documents.find(d => d.kind === uploaded.kind);
+      if (doc) {
+        doc.status = "submitted";
+        doc.submittedAt = now;
+        doc.fileName = uploaded.fileName;
+        doc.blobUrl = uploaded.blobUrl;
+      }
+    }
+  }
 
   // Add to Redis
   const idsRaw = await redis.get("merchant_ids");

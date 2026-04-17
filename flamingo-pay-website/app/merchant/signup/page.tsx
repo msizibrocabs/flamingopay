@@ -113,7 +113,7 @@ export default function SignupPage() {
   const [volumeIdx, setVolumeIdx] = useState<number | null>(null);
 
   // Step 5 — document uploads
-  const [uploads, setUploads] = useState<Record<string, { file: File; uploading: boolean; done: boolean; error?: string }>>({});
+  const [uploads, setUploads] = useState<Record<string, { file: File; uploading: boolean; done: boolean; error?: string; url?: string }>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [activeDocKind, setActiveDocKind] = useState<DocumentKind | null>(null);
 
@@ -208,13 +208,13 @@ export default function SignupPage() {
       form.append("kind", kind);
 
       const res = await fetch("/api/upload", { method: "POST", body: form });
+      const data = await res.json().catch(() => ({}));
 
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
         throw new Error(data.error || "Upload failed");
       }
 
-      setUploads(prev => ({ ...prev, [kind]: { file, uploading: false, done: true } }));
+      setUploads(prev => ({ ...prev, [kind]: { file, uploading: false, done: true, url: data.url } }));
     } catch (err) {
       setUploads(prev => ({
         ...prev,
@@ -251,6 +251,9 @@ export default function SignupPage() {
           accountNumber,
           accountType,
           expectedMonthlyVolume: selectedVolume?.value ?? 5_000,
+          uploadedDocs: Object.entries(uploads)
+            .filter(([, v]) => v.done && v.url)
+            .map(([kind, v]) => ({ kind, fileName: v.file.name, blobUrl: v.url })),
         }),
       });
       const data = await res.json();
