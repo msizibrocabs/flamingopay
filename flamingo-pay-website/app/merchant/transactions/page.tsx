@@ -5,7 +5,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { MerchantGate } from "../_components/MerchantGate";
 import { TabBar } from "../_components/TabBar";
 import { TopBar } from "../_components/TopBar";
-import { currentMerchantId, formatZAR, timeAgo } from "../../../lib/merchant";
+import { calcNetAmount, calcTxnFee, currentMerchantId, formatZAR, timeAgo } from "../../../lib/merchant";
 import { useMerchantTxns } from "../../../lib/useMerchantTxns";
 import type { StoredTxn } from "../../../lib/store";
 
@@ -306,6 +306,18 @@ function Inner() {
                 <Row k="Rail" v={liveSelected.rail === "payshap" ? "PayShap" : "Instant EFT"} />
                 <Row k="Buyer bank" v={liveSelected.buyerBank} />
                 <Row k="Time" v={new Date(liveSelected.timestamp).toLocaleString("en-ZA")} />
+                {(liveSelected.status === "completed" || liveSelected.status === "partial_refund") && (
+                  <>
+                    <div className="flex items-center justify-between py-1.5">
+                      <dt className="text-xs text-flamingo-dark/60">Fee (2.9% + R0.99)</dt>
+                      <dd className="text-sm font-semibold text-flamingo-pink-deep">−{formatZAR(calcTxnFee(liveSelected.amount))}</dd>
+                    </div>
+                    <div className="flex items-center justify-between py-1.5">
+                      <dt className="text-xs font-bold text-flamingo-dark">You receive</dt>
+                      <dd className="text-sm font-extrabold text-flamingo-dark">{formatZAR(calcNetAmount(liveSelected.amount))}</dd>
+                    </div>
+                  </>
+                )}
                 {liveSelected.refundedAt && (
                   <Row k="Refunded at" v={new Date(liveSelected.refundedAt).toLocaleString("en-ZA")} />
                 )}

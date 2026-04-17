@@ -42,7 +42,9 @@ function Inner() {
 
   const pendingNet = pending.reduce((s, x) => s + x.net, 0);
   const settledNet = settled.reduce((s, x) => s + x.net, 0);
-  const totalFees = settlements.reduce((s, x) => s + x.fee, 0);
+  const totalTxnFees = settlements.reduce((s, x) => s + x.txnFees, 0);
+  const totalPayoutFees = settlements.reduce((s, x) => s + x.fee, 0);
+  const totalFees = +(totalTxnFees + totalPayoutFees).toFixed(2);
 
   const nextPayout = new Date();
   nextPayout.setDate(nextPayout.getDate() + 1);
@@ -95,9 +97,9 @@ function Inner() {
             tint="bg-flamingo-mint"
           />
           <StatCard
-            label="Payout fees"
+            label="Total fees"
             value={formatZARCompact(totalFees)}
-            sub="R3 per payout"
+            sub="2.9% + R0.99 + R3/payout"
             tint="bg-flamingo-butter"
           />
         </section>
@@ -134,7 +136,9 @@ function Inner() {
           <p className="mt-2 text-sm text-flamingo-dark/80">
             Every morning at 09:00 we settle yesterday&apos;s sales into your{" "}
             {bankName} account {accountMasked}.
-            Ozow charges a flat <strong>R3 per payout</strong> — no percentage fees, no hidden charges.
+            Flamingo charges <strong>2.9% + R0.99 per transaction</strong>, plus
+            Ozow charges a flat <strong>R3 per payout</strong>. Both are deducted
+            before the money hits your account.
           </p>
         </section>
       </div>
@@ -221,6 +225,10 @@ function SettlementRow({
               <div className="flex items-center justify-between text-xs text-flamingo-dark/70 mb-2">
                 <span>Gross sales</span>
                 <span className="font-bold">{formatZAR(s.amount)}</span>
+              </div>
+              <div className="flex items-center justify-between text-xs text-flamingo-dark/70 mb-1">
+                <span>Transaction fees (2.9% + R0.99)</span>
+                <span className="font-bold text-flamingo-pink-deep">−{formatZAR(s.txnFees)}</span>
               </div>
               <div className="flex items-center justify-between text-xs text-flamingo-dark/70 mb-2">
                 <span>Payout fee (Ozow)</span>

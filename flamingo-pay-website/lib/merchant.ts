@@ -25,6 +25,9 @@ export type SettlementTxn = {
 export type Settlement = {
   id: string;
   amount: number;
+  /** Flamingo transaction fees (2.9% + R0.99 per txn) */
+  txnFees: number;
+  /** Ozow payout fee (flat R3 per settlement) */
   fee: number;
   net: number;
   date: string;
@@ -98,6 +101,19 @@ export function makeMockTransactions(count = 48): Txn[] {
 
 /** Flat R3 payout fee per settlement (Ozow settlement fee). */
 const PAYOUT_FEE = 3;
+/** Flamingo transaction fee: 2.9% + R0.99 per completed transaction. */
+const TXN_FEE_RATE = 0.029;
+const TXN_FEE_FIXED = 0.99;
+
+/** Calculate Flamingo fee for a single transaction amount. */
+export function calcTxnFee(amount: number): number {
+  return +(amount * TXN_FEE_RATE + TXN_FEE_FIXED).toFixed(2);
+}
+
+/** Net amount merchant receives after Flamingo fee. */
+export function calcNetAmount(amount: number): number {
+  return +(amount - calcTxnFee(amount)).toFixed(2);
+}
 
 export function makeMockSettlements(txns: Txn[]): Settlement[] {
   const settled: Settlement[] = [];
@@ -112,14 +128,17 @@ export function makeMockSettlements(txns: Txn[]): Settlement[] {
   Object.entries(byDay).forEach(([day, list], idx) => {
     const completedTxns = list.filter(l => l.status === "completed");
     const gross = completedTxns.reduce((s, l) => s + l.amount, 0);
-    const fee = PAYOUT_FEE;
-    const net = +(gross - fee).toFixed(2);
+    // Flamingo transaction fees (2.9% + R0.99 per txn)
+    const txnFees = +(completedTxns.reduce((s, l) => s + calcTxnFee(l.amount), 0)).toFixed(2);
+    const payoutFee = PAYOUT_FEE;
+    const net = +(gross - txnFees - payoutFee).toFixed(2);
     const dayDate = new Date(day);
     const daysAgo = Math.floor((now.getTime() - dayDate.getTime()) / 86400000);
     settled.push({
       id: `st_${idx}`,
       amount: +gross.toFixed(2),
-      fee,
+      txnFees,
+      fee: payoutFee,
       net: Math.max(0, net),
       date: day,
       txnCount: list.length,
