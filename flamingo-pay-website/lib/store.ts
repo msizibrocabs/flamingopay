@@ -116,7 +116,23 @@ export type MerchantApplication = {
   };
   /** Last login timestamp. */
   lastLoginAt?: string;
+  /** SHA-256 hash of the 4-digit PIN. */
+  pinHash?: string;
 };
+
+// ---------------------- PIN Hashing ----------------------
+
+import { createHash } from "crypto";
+
+/** Hash a 4-digit PIN with a static salt. In production use bcrypt. */
+export function hashPin(pin: string): string {
+  return createHash("sha256").update(`flamingo_pin_${pin}`).digest("hex");
+}
+
+/** Verify a plaintext PIN against a stored hash. */
+export function verifyPin(pin: string, hash: string): boolean {
+  return hashPin(pin) === hash;
+}
 
 // ---------------------- Helpers ----------------------
 
@@ -236,6 +252,9 @@ async function ensureSeeded(): Promise<void> {
   const now = Date.now();
   const iso = (daysAgo: number) => new Date(now - daysAgo * 86400000).toISOString();
 
+  // All demo merchants get PIN "1234"
+  const demoPin = hashPin("1234");
+
   const seedInputs: Array<Omit<MerchantApplication, "documents">> = [
     {
       id: "thandis-spaza", phone: "+27 82 555 0142",
@@ -245,6 +264,7 @@ async function ensureSeeded(): Promise<void> {
       status: "approved", createdAt: iso(62), approvedAt: iso(61),
       txnCount: 842, grossVolume: 48291.5,
       kycTier: "standard", expectedMonthlyVolume: 50_000,
+      pinHash: demoPin,
     },
     {
       id: "bra-mike-braai", phone: "+27 83 555 0891",
@@ -254,6 +274,7 @@ async function ensureSeeded(): Promise<void> {
       status: "approved", createdAt: iso(31), approvedAt: iso(30),
       txnCount: 421, grossVolume: 19447.0,
       kycTier: "simplified", expectedMonthlyVolume: 15_000,
+      pinHash: demoPin,
     },
     {
       id: "mama-joy-fruit", phone: "+27 71 222 3344",
@@ -262,6 +283,7 @@ async function ensureSeeded(): Promise<void> {
       bank: "FNB", accountLast4: "7701", accountType: "cheque",
       status: "pending", createdAt: iso(1), txnCount: 0, grossVolume: 0,
       kycTier: "standard", expectedMonthlyVolume: 30_000,
+      pinHash: demoPin,
     },
     {
       id: "sis-lindiwe-hair", phone: "+27 76 789 1234",
@@ -270,6 +292,7 @@ async function ensureSeeded(): Promise<void> {
       bank: "TymeBank", accountLast4: "0321", accountType: "savings",
       status: "pending", createdAt: iso(0), txnCount: 0, grossVolume: 0,
       kycTier: "simplified", expectedMonthlyVolume: 8_000,
+      pinHash: demoPin,
     },
     {
       id: "uncle-sipho-taxi", phone: "+27 82 333 4455",
@@ -280,6 +303,7 @@ async function ensureSeeded(): Promise<void> {
       rejectionReason: "Phone number could not be verified (RICA mismatch)",
       txnCount: 0, grossVolume: 0,
       kycTier: "enhanced", expectedMonthlyVolume: 120_000,
+      pinHash: demoPin,
     },
     {
       id: "afro-braids-boutique", phone: "+27 84 111 2233",
@@ -289,6 +313,7 @@ async function ensureSeeded(): Promise<void> {
       status: "approved", createdAt: iso(14), approvedAt: iso(13),
       txnCount: 204, grossVolume: 12_880.0,
       kycTier: "simplified", expectedMonthlyVolume: 10_000,
+      pinHash: demoPin,
     },
   ];
 
@@ -345,6 +370,81 @@ export async function getMerchantByPhone(phone: string): Promise<MerchantApplica
   return all.find(m => m.phone.replace(/\s/g, "") === clean);
 }
 
+// ─── Login with PIN + rate limiting ───
+
+const MAX_LOGIN_ATTEMPTS = 3;
+const LOCKOUT_SECONDS = 15 * 60; // 15 minutes
+
+type LoginResult =
+  | { ok: true; merchant: MerchantApplication }
+  | { ok: false; error: string; attemptsLeft?: number; lockedUntil?: string };
+
+export async function loginMerchant(phone: string, pin: string): Promise<LoginResult> {
+  await ensureSeeded();
+  const cleanPhone = phone.replace(/\s/g, "");
+  const lockKey = `login_attempts:${cleanPhone}`;
+
+  // Check if locked out
+  const attemptsRaw = await redis.get(lockKey);
+  const attempts = typeof attemptsRaw === "number" ? attemptsRaw :
+    typeof attemptsRaw === "string" ? parseInt(attemptsRaw, 10) : 0;
+
+  if (attempts >= MAX_LOGIN_ATTEMPTS) {
+    const ttl = await redis.ttl(lockKey);
+    const unlockTime = new Date(Date.now() + ttl * 1000).toISOString();
+    return {
+      ok: false,
+      error: `Too many failed attempts. Try again in ${Math.ceil(ttl / 60)} minutes.`,
+      attemptsLeft: 0,
+      lockedUntil: unlockTime,
+    };
+  }
+
+  // Find merchant by phone
+  const merchant = await getMerchantByPhone(phone);
+  if (!merchant) {
+    // Increment attempts even for unknown phones (prevents enumeration)
+    await redis.pipeline()
+      .incr(lockKey)
+      .expire(lockKey, LOCKOUT_SECONDS)
+      .exec();
+    const newAttempts = attempts + 1;
+    return {
+      ok: false,
+      error: "Incorrect phone number or PIN.",
+      attemptsLeft: Math.max(0, MAX_LOGIN_ATTEMPTS - newAttempts),
+    };
+  }
+
+  // Verify PIN
+  if (merchant.pinHash) {
+    if (!verifyPin(pin, merchant.pinHash)) {
+      await redis.pipeline()
+        .incr(lockKey)
+        .expire(lockKey, LOCKOUT_SECONDS)
+        .exec();
+      const newAttempts = attempts + 1;
+      return {
+        ok: false,
+        error: "Incorrect phone number or PIN.",
+        attemptsLeft: Math.max(0, MAX_LOGIN_ATTEMPTS - newAttempts),
+      };
+    }
+  }
+  // If no pinHash set (legacy/seeded merchant), accept any valid 4-digit PIN
+  // but only if PIN format is valid
+  if (!/^\d{4}$/.test(pin)) {
+    return { ok: false, error: "PIN must be 4 digits." };
+  }
+
+  // Success — clear attempts and update last login
+  await redis.del(lockKey);
+  merchant.lastLoginAt = new Date().toISOString();
+  await redis.set(`merchant:${merchant.id}`, JSON.stringify(merchant));
+
+  return { ok: true, merchant };
+}
+
 export type UploadedDoc = {
   kind: DocumentKind;
   fileName: string;
@@ -364,6 +464,8 @@ export type NewMerchantInput = {
   expectedMonthlyVolume: number;
   /** Documents uploaded during signup. */
   uploadedDocs?: UploadedDoc[];
+  /** 4-digit PIN (plaintext — will be hashed before storing). */
+  pin?: string;
 };
 
 export async function createMerchant(input: NewMerchantInput): Promise<MerchantApplication> {
@@ -396,6 +498,7 @@ export async function createMerchant(input: NewMerchantInput): Promise<MerchantA
     kycTier: tier,
     expectedMonthlyVolume: input.expectedMonthlyVolume,
     documents: defaultDocsFor(tier, input.businessType, "pending", iso),
+    pinHash: input.pin ? hashPin(input.pin) : undefined,
   };
 
   // Apply any documents uploaded during signup

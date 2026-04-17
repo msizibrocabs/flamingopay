@@ -250,6 +250,7 @@ export default function SignupPage() {
           bank,
           accountNumber,
           accountType,
+          pin,
           expectedMonthlyVolume: selectedVolume?.value ?? 5_000,
           uploadedDocs: Object.entries(uploads)
             .filter(([, v]) => v.done && v.url)
