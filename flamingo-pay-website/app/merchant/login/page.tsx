@@ -7,7 +7,7 @@ import { signIn } from "../../../lib/merchant";
 
 export default function LoginPage() {
   const router = useRouter();
-  const [phone, setPhone] = useState("082 555 0142");
+  const [phone, setPhone] = useState("");
   const [pin, setPin] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -37,10 +37,8 @@ export default function LoginPage() {
       );
 
       if (!found) {
-        // No backend record yet — fall back to demo session so existing
-        // demo flows (e.g. Thandi's Spaza) still work.
-        signIn();
-        router.push("/merchant/dashboard");
+        setError("No account found for this phone number. Did you sign up yet?");
+        setLoading(false);
         return;
       }
 
@@ -51,9 +49,9 @@ export default function LoginPage() {
         router.push("/merchant/pending");
       }
     } catch {
-      // On any network hiccup, fall back to the demo session.
-      signIn();
-      router.push("/merchant/dashboard");
+      setError("Something went wrong. Please check your connection and try again.");
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -129,7 +127,7 @@ export default function LoginPage() {
           </button>
 
           <p className="mt-4 text-center text-xs text-flamingo-dark/60">
-            Demo mode — any 4-digit PIN signs you in
+            Enter the phone number you used during signup. Any 4-digit PIN works.
           </p>
         </form>
 

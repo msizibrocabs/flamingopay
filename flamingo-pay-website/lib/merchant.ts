@@ -207,7 +207,7 @@ export function timeAgo(iso: string) {
 }
 
 // ---- Session (localStorage-based for demo) ----
-export function signIn(merchantId: string = DEMO_MERCHANT.id) {
+export function signIn(merchantId: string) {
   if (typeof window === "undefined") return;
   window.localStorage.setItem(MERCHANT_KEY, merchantId);
 }
