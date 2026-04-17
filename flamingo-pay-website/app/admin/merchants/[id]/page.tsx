@@ -17,6 +17,7 @@ import type {
   MerchantStatus,
   StoredTxn,
 } from "../../../../lib/store";
+import { getBusinessProfile } from "../../../../lib/store";
 
 type TxnStats = {
   count: number;
@@ -299,6 +300,7 @@ function Detail({ id }: { id: string }) {
           <Row k="Account" v={`•••• ${m.accountLast4}`} />
           <Row k="Type" v={m.accountType} />
         </InfoCard>
+        <MonitoringCard businessType={m.businessType} />
         <InfoCard title="Lifetime">
           <Row k="Transactions" v={m.txnCount.toLocaleString("en-ZA")} />
           <Row k="Volume" v={formatZAR(m.grossVolume)} />
@@ -697,6 +699,26 @@ function DocCard({
         </div>
       )}
     </motion.div>
+  );
+}
+
+function MonitoringCard({ businessType }: { businessType: string }) {
+  const p = getBusinessProfile(businessType);
+  const pad2 = (h: number) => h.toString().padStart(2, "0");
+  const unusualDisabled = p.unusualHourStart === p.unusualHourEnd;
+  return (
+    <div className="rounded-2xl border-2 border-flamingo-dark bg-flamingo-sky p-4 shadow-[0_6px_0_0_#1A1A2E]">
+      <p className="display-eyebrow text-[10px] text-flamingo-dark/70">
+        Monitoring profile
+      </p>
+      <p className="mt-0.5 text-xs font-bold text-flamingo-dark">{businessType}</p>
+      <dl className="mt-2 space-y-1.5">
+        <Row k="High amount flag" v={`≥ R${p.highAmountThreshold.toLocaleString("en-ZA")}`} />
+        <Row k="Velocity limit" v={`${p.velocityMax} txns / ${p.velocityWindowMinutes} min`} />
+        <Row k="Unusual hours" v={unusualDisabled ? "Disabled" : `${pad2(p.unusualHourStart)}:00–${pad2(p.unusualHourEnd)}:00`} />
+        <Row k="Anomaly trigger" v={`≥ ${p.anomalyMultiplier}× merchant avg`} />
+      </dl>
+    </div>
   );
 }
 

@@ -661,6 +661,7 @@ export type FlagReason =
   | "high_amount"
   | "velocity"
   | "unusual_hours"
+  | "anomaly"
   | "manual";
 
 export type FlagStatus = "open" | "investigating" | "cleared" | "confirmed";
@@ -690,33 +691,179 @@ export type FlagRule = {
   velocityWindowMinutes?: number;
   hourStart?: number;
   hourEnd?: number;
+  /** For anomaly detection: flag if txn is this many × the merchant's avg */
+  anomalyMultiplier?: number;
 };
 
-export const DEFAULT_RULES: FlagRule[] = [
-  {
-    id: "rule_high_amount",
-    reason: "high_amount",
-    label: "Single transaction over R5,000",
-    enabled: true,
-    amountThreshold: 5000,
-  },
-  {
-    id: "rule_velocity",
-    reason: "velocity",
-    label: "More than 10 transactions in 15 minutes",
-    enabled: true,
-    velocityMax: 10,
+// ─── Business-type risk profiles ───
+// Each profile defines thresholds that match real trading patterns.
+// Merchants in high-volume/low-value categories (spazas, tuckshops, street
+// vendors) handle many small transactions — flagging them at 10 txns/15 min
+// would make the system unusable for them.
+
+export type BusinessProfile = {
+  /** Max single transaction before flagging */
+  highAmountThreshold: number;
+  /** Transactions in the velocity window before flagging */
+  velocityMax: number;
+  /** Window in minutes for velocity check */
+  velocityWindowMinutes: number;
+  /** Hour of day when "unusual" starts (e.g. 23 = 23:00) */
+  unusualHourStart: number;
+  /** Hour of day when "unusual" ends (e.g. 5 = 05:00) */
+  unusualHourEnd: number;
+  /** Flag if txn amount ≥ multiplier × merchant avg */
+  anomalyMultiplier: number;
+};
+
+/**
+ * Business-type → monitoring profile map.
+ * Taxi-rank merchants (spaza, tuckshop, street vendor, fruit & veg)
+ * get high velocity limits and later trading hours.
+ * Service providers and "Other" get moderate limits.
+ * All categories get anomaly detection to catch amounts way above
+ * the merchant's own baseline.
+ */
+export const BUSINESS_PROFILES: Record<string, BusinessProfile> = {
+  // HIGH-VOLUME / LOW-VALUE — taxi rank economy
+  "Spaza / General Dealer": {
+    highAmountThreshold: 5000,
+    velocityMax: 60,
     velocityWindowMinutes: 15,
+    unusualHourStart: 0,   // spaza shops: 24-hour trading is normal
+    unusualHourEnd: 4,     // only flag between midnight and 4am
+    anomalyMultiplier: 8,
   },
-  {
-    id: "rule_unusual_hours",
-    reason: "unusual_hours",
-    label: "Transaction between 23:00 and 05:00",
-    enabled: true,
-    hourStart: 5,
-    hourEnd: 23,
+  "Tuckshop": {
+    highAmountThreshold: 3000,
+    velocityMax: 50,
+    velocityWindowMinutes: 15,
+    unusualHourStart: 0,
+    unusualHourEnd: 4,
+    anomalyMultiplier: 8,
   },
-];
+  "Street vendor": {
+    highAmountThreshold: 3000,
+    velocityMax: 50,
+    velocityWindowMinutes: 15,
+    unusualHourStart: 23,
+    unusualHourEnd: 4,
+    anomalyMultiplier: 8,
+  },
+  "Fruit & veg": {
+    highAmountThreshold: 5000,
+    velocityMax: 40,
+    velocityWindowMinutes: 15,
+    unusualHourStart: 23,
+    unusualHourEnd: 3,    // fruit vendors start early
+    anomalyMultiplier: 6,
+  },
+
+  // MEDIUM-VOLUME
+  "Butchery": {
+    highAmountThreshold: 8000,
+    velocityMax: 25,
+    velocityWindowMinutes: 15,
+    unusualHourStart: 22,
+    unusualHourEnd: 5,
+    anomalyMultiplier: 5,
+  },
+  "Takeaway / Food": {
+    highAmountThreshold: 5000,
+    velocityMax: 35,
+    velocityWindowMinutes: 15,
+    unusualHourStart: 0,   // late-night takeaways are normal
+    unusualHourEnd: 4,
+    anomalyMultiplier: 5,
+  },
+  "Hair salon / Barber": {
+    highAmountThreshold: 5000,
+    velocityMax: 15,
+    velocityWindowMinutes: 15,
+    unusualHourStart: 22,
+    unusualHourEnd: 6,
+    anomalyMultiplier: 4,
+  },
+  "Car wash": {
+    highAmountThreshold: 3000,
+    velocityMax: 20,
+    velocityWindowMinutes: 15,
+    unusualHourStart: 21,
+    unusualHourEnd: 6,
+    anomalyMultiplier: 5,
+  },
+
+  // LOWER-VOLUME / HIGHER-VALUE
+  "Service provider": {
+    highAmountThreshold: 10000,
+    velocityMax: 15,
+    velocityWindowMinutes: 15,
+    unusualHourStart: 22,
+    unusualHourEnd: 6,
+    anomalyMultiplier: 4,
+  },
+};
+
+/** Default profile for "Other" or unrecognised business types. */
+const DEFAULT_PROFILE: BusinessProfile = {
+  highAmountThreshold: 5000,
+  velocityMax: 20,
+  velocityWindowMinutes: 15,
+  unusualHourStart: 23,
+  unusualHourEnd: 5,
+  anomalyMultiplier: 5,
+};
+
+export function getBusinessProfile(businessType: string): BusinessProfile {
+  return BUSINESS_PROFILES[businessType] ?? DEFAULT_PROFILE;
+}
+
+/** Build rules dynamically for a specific merchant based on their business type. */
+export function rulesForMerchant(businessType: string): FlagRule[] {
+  const p = getBusinessProfile(businessType);
+  return [
+    {
+      id: "rule_high_amount",
+      reason: "high_amount",
+      label: `Single transaction over ${formatR(p.highAmountThreshold)}`,
+      enabled: true,
+      amountThreshold: p.highAmountThreshold,
+    },
+    {
+      id: "rule_velocity",
+      reason: "velocity",
+      label: `More than ${p.velocityMax} transactions in ${p.velocityWindowMinutes} min`,
+      enabled: true,
+      velocityMax: p.velocityMax,
+      velocityWindowMinutes: p.velocityWindowMinutes,
+    },
+    {
+      id: "rule_unusual_hours",
+      reason: "unusual_hours",
+      label: `Transaction between ${pad(p.unusualHourStart)}:00 and ${pad(p.unusualHourEnd)}:00`,
+      enabled: p.unusualHourStart !== p.unusualHourEnd, // disable if window is 0
+      hourStart: p.unusualHourEnd,   // "safe" hours start after the end
+      hourEnd: p.unusualHourStart,   // "safe" hours end at the start
+    },
+    {
+      id: "rule_anomaly",
+      reason: "anomaly",
+      label: `Amount ≥ ${p.anomalyMultiplier}× merchant average`,
+      enabled: true,
+      anomalyMultiplier: p.anomalyMultiplier,
+    },
+  ];
+}
+
+function formatR(n: number): string {
+  return `R${n.toLocaleString("en-ZA")}`;
+}
+function pad(h: number): string {
+  return h.toString().padStart(2, "0");
+}
+
+/** Legacy export — the old static rules, now based on the default profile. */
+export const DEFAULT_RULES: FlagRule[] = rulesForMerchant("Other");
 
 async function getAllFlags(): Promise<TxnFlag[]> {
   const raw = await redis.get("flags");
@@ -732,7 +879,11 @@ export async function evaluateRules(
   merchantId: string,
   txn: StoredTxn,
 ): Promise<TxnFlag[]> {
-  const rules = DEFAULT_RULES.filter(r => r.enabled);
+  // Look up the merchant's business type to get tailored rules
+  const merchant = await getMerchant(merchantId);
+  const businessType = merchant?.businessType ?? "Other";
+  const rules = rulesForMerchant(businessType).filter(r => r.enabled);
+  const allTxns = await listTransactions(merchantId);
   const newFlags: TxnFlag[] = [];
   const now = new Date().toISOString();
 
@@ -744,7 +895,6 @@ export async function evaluateRules(
     }
 
     if (rule.reason === "velocity" && rule.velocityMax && rule.velocityWindowMinutes) {
-      const allTxns = await listTransactions(merchantId);
       const windowMs = rule.velocityWindowMinutes * 60 * 1000;
       const txnTime = new Date(txn.timestamp).getTime();
       const recentCount = allTxns.filter(t => {
@@ -756,7 +906,25 @@ export async function evaluateRules(
 
     if (rule.reason === "unusual_hours" && rule.hourStart != null && rule.hourEnd != null) {
       const hour = new Date(txn.timestamp).getHours();
-      triggered = hour < rule.hourStart || hour >= rule.hourEnd;
+      // The rule stores "safe" hours: hourStart = when safe begins, hourEnd = when safe ends
+      // So "unusual" is outside that window
+      if (rule.hourEnd > rule.hourStart) {
+        // Normal range (e.g. safe = 05:00–23:00 → unusual = before 5 or after 23)
+        triggered = hour < rule.hourStart || hour >= rule.hourEnd;
+      } else {
+        // Wraps midnight (e.g. safe = 04:00–00:00 → unusual = 00:00–04:00)
+        triggered = hour >= rule.hourEnd && hour < rule.hourStart;
+      }
+    }
+
+    if (rule.reason === "anomaly" && rule.anomalyMultiplier) {
+      // Compare to merchant's own average — only meaningful if they have history
+      const completed = allTxns.filter(t => t.id !== txn.id && t.status === "completed");
+      if (completed.length >= 5) {
+        // Need at least 5 transactions for a meaningful average
+        const avg = completed.reduce((s, t) => s + t.amount, 0) / completed.length;
+        triggered = avg > 0 && txn.amount >= avg * rule.anomalyMultiplier;
+      }
     }
 
     if (triggered) {
@@ -765,7 +933,7 @@ export async function evaluateRules(
         txnId: txn.id,
         merchantId,
         reason: rule.reason,
-        ruleLabel: rule.label,
+        ruleLabel: `[${businessType}] ${rule.label}`,
         status: "open",
         createdAt: now,
         updatedAt: now,
