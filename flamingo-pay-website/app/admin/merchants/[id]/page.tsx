@@ -286,6 +286,13 @@ function Detail({ id }: { id: string }) {
         <InfoCard title="Business">
           <Row k="Type" v={m.businessType} />
           <Row k="Address" v={m.address || "—"} />
+          <Row k="KYC tier" v={
+            m.kycTier === "simplified" ? "Simplified (< R25k)"
+            : m.kycTier === "standard" ? "Standard (R25k–R100k)"
+            : m.kycTier === "enhanced" ? "Enhanced (> R100k)"
+            : "—"
+          } />
+          <Row k="Expected volume" v={m.expectedMonthlyVolume ? formatZAR(m.expectedMonthlyVolume) + "/month" : "—"} />
         </InfoCard>
         <InfoCard title="Payout">
           <Row k="Bank" v={m.bank} />
@@ -540,6 +547,7 @@ const DOC_ICON: Record<DocumentKind, string> = {
   company_reg: "🏢",
   proof_of_address: "📮",
   bank_letter: "🏦",
+  source_of_funds: "💼",
 };
 
 function DocCard({
@@ -580,6 +588,12 @@ function DocCard({
           <DocStatusBadge status={doc.status} />
           <div className="mt-2 text-xs text-flamingo-dark/70 space-y-0.5">
             {doc.fileName && <p className="font-mono truncate">📎 {doc.fileName}</p>}
+            {doc.blobUrl && (
+              <a href={doc.blobUrl} target="_blank" rel="noopener noreferrer"
+                className="inline-block font-bold text-flamingo-pink-deep underline-offset-2 hover:underline">
+                View uploaded file →
+              </a>
+            )}
             {doc.submittedAt && <p>Submitted {timeAgo(doc.submittedAt)}</p>}
             {doc.verifiedAt && <p>Verified {timeAgo(doc.verifiedAt)}</p>}
             {doc.rejectedAt && <p>Rejected {timeAgo(doc.rejectedAt)}</p>}

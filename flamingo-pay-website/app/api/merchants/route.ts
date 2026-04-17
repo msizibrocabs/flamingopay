@@ -44,6 +44,11 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // Default expectedMonthlyVolume if not provided (backward compat)
+  if (!body.expectedMonthlyVolume || typeof body.expectedMonthlyVolume !== "number") {
+    body.expectedMonthlyVolume = 5000;
+  }
+
   const existing = await getMerchantByPhone(body.phone!);
   if (existing) {
     return NextResponse.json(

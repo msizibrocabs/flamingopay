@@ -21,9 +21,11 @@ const redis = new Redis({
 
 export type MerchantStatus = "pending" | "approved" | "rejected" | "suspended";
 
-/** Fee applied to every completed transaction: 2.9% + R0.99 fixed. */
-export const FLAMINGO_FEE_RATE = 0.029;
-export const FLAMINGO_FEE_FIXED = 0.99;
+/** Fee applied to every completed transaction: 1.5% (per Flow of Funds agreement with Ozow). */
+export const FLAMINGO_FEE_RATE = 0.015;
+export const FLAMINGO_FEE_FIXED = 0;
+
+export type KycTier = "simplified" | "standard" | "enhanced";
 
 export type DocumentKind =
   | "id"
@@ -31,7 +33,29 @@ export type DocumentKind =
   | "affidavit"
   | "company_reg"
   | "proof_of_address"
-  | "bank_letter";
+  | "bank_letter"
+  | "source_of_funds";
+
+/** Volume thresholds that determine KYC tier (monthly, in ZAR). */
+export const KYC_THRESHOLDS = {
+  simplified: 25_000,   // < R25k/month
+  standard: 100_000,    // R25k – R100k/month
+  // enhanced: > R100k/month
+} as const;
+
+/** Determine KYC tier from expected monthly volume. */
+export function kycTierForVolume(monthlyVolume: number): KycTier {
+  if (monthlyVolume < KYC_THRESHOLDS.simplified) return "simplified";
+  if (monthlyVolume <= KYC_THRESHOLDS.standard) return "standard";
+  return "enhanced";
+}
+
+/** Human-readable tier labels. */
+export const KYC_TIER_LABELS: Record<KycTier, string> = {
+  simplified: "Simplified (< R25k/month)",
+  standard: "Standard (R25k – R100k/month)",
+  enhanced: "Enhanced (> R100k/month)",
+};
 
 export type DocumentStatus = "required" | "submitted" | "verified" | "rejected";
 
@@ -44,6 +68,8 @@ export type MerchantDocument = {
   rejectedAt?: string;
   note?: string;
   fileName?: string;
+  /** Vercel Blob URL for the uploaded file. */
+  blobUrl?: string;
 };
 
 export type StoredTxn = {
@@ -77,6 +103,10 @@ export type MerchantApplication = {
   txnCount: number;
   grossVolume: number;
   documents: MerchantDocument[];
+  /** KYC tier derived from declared monthly volume. */
+  kycTier: KycTier;
+  /** Self-declared expected monthly transaction volume (ZAR). */
+  expectedMonthlyVolume: number;
 };
 
 // ---------------------- Helpers ----------------------
@@ -88,14 +118,40 @@ const DOC_LABELS: Record<DocumentKind, string> = {
   company_reg: "CIPC company registration",
   proof_of_address: "Proof of address (utility bill)",
   bank_letter: "Bank confirmation letter",
+  source_of_funds: "Source of funds declaration",
 };
 
-function defaultDocsFor(businessType: string, status: MerchantStatus, iso: (d: number) => string): MerchantDocument[] {
+/**
+ * Documents required per KYC tier (cumulative):
+ *   Simplified  (< R25k) : ID, selfie, proof of address              (3 docs)
+ *   Standard (R25k–R100k): + bank letter + affidavit/company_reg      (5 docs)
+ *   Enhanced   (> R100k) : + source of funds                          (6 docs)
+ */
+export function docsForTier(tier: KycTier, businessType: string): DocumentKind[] {
+  // Tier 1 — Simplified
+  const docs: DocumentKind[] = ["id", "selfie", "proof_of_address"];
+
+  if (tier === "simplified") return docs;
+
+  // Tier 2 — Standard: add bank letter + business-type doc
+  docs.push("bank_letter");
   const isCompany = /pty|ltd|cc|company|bakery|studio|boutique|transport/i.test(businessType);
-  const base: DocumentKind[] = ["id", "selfie", "proof_of_address", "bank_letter"];
-  const kinds: DocumentKind[] = isCompany
-    ? [...base, "company_reg"]
-    : [...base, "affidavit"];
+  docs.push(isCompany ? "company_reg" : "affidavit");
+
+  if (tier === "standard") return docs;
+
+  // Tier 3 — Enhanced: add source of funds
+  docs.push("source_of_funds");
+  return docs;
+}
+
+function defaultDocsFor(
+  tier: KycTier,
+  businessType: string,
+  status: MerchantStatus,
+  iso: (d: number) => string,
+): MerchantDocument[] {
+  const kinds = docsForTier(tier, businessType);
 
   return kinds.map((k, i): MerchantDocument => {
     if (status === "approved") {
@@ -179,6 +235,7 @@ async function ensureSeeded(): Promise<void> {
       bank: "Standard Bank", accountLast4: "4428", accountType: "cheque",
       status: "approved", createdAt: iso(62), approvedAt: iso(61),
       txnCount: 842, grossVolume: 48291.5,
+      kycTier: "standard", expectedMonthlyVolume: 50_000,
     },
     {
       id: "bra-mike-braai", phone: "+27 83 555 0891",
@@ -187,6 +244,7 @@ async function ensureSeeded(): Promise<void> {
       bank: "Capitec", accountLast4: "9112", accountType: "savings",
       status: "approved", createdAt: iso(31), approvedAt: iso(30),
       txnCount: 421, grossVolume: 19447.0,
+      kycTier: "simplified", expectedMonthlyVolume: 15_000,
     },
     {
       id: "mama-joy-fruit", phone: "+27 71 222 3344",
@@ -194,6 +252,7 @@ async function ensureSeeded(): Promise<void> {
       ownerName: "Joyce Mokoena", address: "Noord Taxi Rank, Johannesburg CBD",
       bank: "FNB", accountLast4: "7701", accountType: "cheque",
       status: "pending", createdAt: iso(1), txnCount: 0, grossVolume: 0,
+      kycTier: "standard", expectedMonthlyVolume: 30_000,
     },
     {
       id: "sis-lindiwe-hair", phone: "+27 76 789 1234",
@@ -201,6 +260,7 @@ async function ensureSeeded(): Promise<void> {
       ownerName: "Lindiwe Zulu", address: "Umlazi J Section, Durban",
       bank: "TymeBank", accountLast4: "0321", accountType: "savings",
       status: "pending", createdAt: iso(0), txnCount: 0, grossVolume: 0,
+      kycTier: "simplified", expectedMonthlyVolume: 8_000,
     },
     {
       id: "uncle-sipho-taxi", phone: "+27 82 333 4455",
@@ -210,6 +270,7 @@ async function ensureSeeded(): Promise<void> {
       status: "rejected", createdAt: iso(3), rejectedAt: iso(2),
       rejectionReason: "Phone number could not be verified (RICA mismatch)",
       txnCount: 0, grossVolume: 0,
+      kycTier: "enhanced", expectedMonthlyVolume: 120_000,
     },
     {
       id: "afro-braids-boutique", phone: "+27 84 111 2233",
@@ -218,6 +279,7 @@ async function ensureSeeded(): Promise<void> {
       bank: "Discovery Bank", accountLast4: "6677", accountType: "cheque",
       status: "approved", createdAt: iso(14), approvedAt: iso(13),
       txnCount: 204, grossVolume: 12_880.0,
+      kycTier: "simplified", expectedMonthlyVolume: 10_000,
     },
   ];
 
@@ -226,7 +288,7 @@ async function ensureSeeded(): Promise<void> {
   for (const m of seedInputs) {
     const full: MerchantApplication = {
       ...m,
-      documents: defaultDocsFor(m.businessType, m.status, iso),
+      documents: defaultDocsFor(m.kycTier, m.businessType, m.status, iso),
     };
     pipe.set(`merchant:${m.id}`, JSON.stringify(full));
     ids.push(m.id);
@@ -283,6 +345,8 @@ export type NewMerchantInput = {
   bank: string;
   accountNumber: string;
   accountType: "cheque" | "savings";
+  /** Expected monthly volume in ZAR — determines KYC tier. */
+  expectedMonthlyVolume: number;
 };
 
 export async function createMerchant(input: NewMerchantInput): Promise<MerchantApplication> {
@@ -297,6 +361,7 @@ export async function createMerchant(input: NewMerchantInput): Promise<MerchantA
   const accLast4 = input.accountNumber.slice(-4).padStart(4, "•");
   const now = Date.now();
   const iso = (daysAgo: number) => new Date(now - daysAgo * 86400000).toISOString();
+  const tier = kycTierForVolume(input.expectedMonthlyVolume);
   const merchant: MerchantApplication = {
     id,
     phone: input.phone,
@@ -311,7 +376,9 @@ export async function createMerchant(input: NewMerchantInput): Promise<MerchantA
     createdAt: new Date().toISOString(),
     txnCount: 0,
     grossVolume: 0,
-    documents: defaultDocsFor(input.businessType, "pending", iso),
+    kycTier: tier,
+    expectedMonthlyVolume: input.expectedMonthlyVolume,
+    documents: defaultDocsFor(tier, input.businessType, "pending", iso),
   };
 
   // Add to Redis
@@ -331,7 +398,7 @@ export async function createMerchant(input: NewMerchantInput): Promise<MerchantA
 export async function updateMerchantDocument(
   merchantId: string,
   kind: DocumentKind,
-  patch: Partial<Pick<MerchantDocument, "status" | "note" | "fileName">>,
+  patch: Partial<Pick<MerchantDocument, "status" | "note" | "fileName" | "blobUrl">>,
 ): Promise<MerchantApplication | null> {
   const m = await getMerchant(merchantId);
   if (!m) return null;

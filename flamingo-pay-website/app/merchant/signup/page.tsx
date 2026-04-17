@@ -2,10 +2,13 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { signIn } from "../../../lib/merchant";
+import type { DocumentKind, KycTier } from "../../../lib/store";
 
-type Step = 1 | 2 | 3 | 4;
+type Step = 1 | 2 | 3 | 4 | 5 | 6;
+
+const TOTAL_STEPS = 6;
 
 const BUSINESS_TYPES = [
   "Spaza / General Dealer",
@@ -32,25 +35,89 @@ const BANKS = [
   "Bank Zero",
 ];
 
+const VOLUME_OPTIONS: { label: string; sublabel: string; value: number; tier: KycTier }[] = [
+  { label: "Less than R5 000", sublabel: "A few sales a day", value: 5_000, tier: "simplified" },
+  { label: "R5 000 – R15 000", sublabel: "Steady side hustle", value: 15_000, tier: "simplified" },
+  { label: "R15 000 – R25 000", sublabel: "Busy informal trader", value: 25_000, tier: "simplified" },
+  { label: "R25 000 – R50 000", sublabel: "Growing shop", value: 50_000, tier: "standard" },
+  { label: "R50 000 – R100 000", sublabel: "Established business", value: 100_000, tier: "standard" },
+  { label: "More than R100 000", sublabel: "High-volume operation", value: 150_000, tier: "enhanced" },
+];
+
+const DOC_LABELS: Record<DocumentKind, string> = {
+  id: "SA ID document",
+  selfie: "Selfie verification",
+  affidavit: "Sworn affidavit",
+  company_reg: "CIPC company registration",
+  proof_of_address: "Proof of address (utility bill)",
+  bank_letter: "Bank confirmation letter",
+  source_of_funds: "Source of funds declaration",
+};
+
+const DOC_ICONS: Record<DocumentKind, string> = {
+  id: "🪪",
+  selfie: "🤳",
+  affidavit: "📜",
+  company_reg: "🏢",
+  proof_of_address: "📮",
+  bank_letter: "🏦",
+  source_of_funds: "💼",
+};
+
+const DOC_HINTS: Record<DocumentKind, string> = {
+  id: "Photo of your green SA ID book or smart card (front & back)",
+  selfie: "Clear selfie holding your ID next to your face",
+  affidavit: "Sworn affidavit from a commissioner of oaths",
+  company_reg: "CIPC registration certificate (COR 14.3 or COR 39)",
+  proof_of_address: "Utility bill, bank statement, or lease — less than 3 months old",
+  bank_letter: "Bank confirmation letter showing account holder name & number",
+  source_of_funds: "Written declaration of where your business income comes from",
+};
+
+function docsForTier(tier: KycTier, businessType: string): DocumentKind[] {
+  const docs: DocumentKind[] = ["id", "selfie", "proof_of_address"];
+  if (tier === "simplified") return docs;
+  docs.push("bank_letter");
+  const isCompany = /pty|ltd|cc|company|bakery|studio|boutique|transport/i.test(businessType);
+  docs.push(isCompany ? "company_reg" : "affidavit");
+  if (tier === "standard") return docs;
+  docs.push("source_of_funds");
+  return docs;
+}
+
+const TIER_LABELS: Record<KycTier, string> = {
+  simplified: "Simplified",
+  standard: "Standard",
+  enhanced: "Enhanced",
+};
+
 export default function SignupPage() {
   const router = useRouter();
   const [step, setStep] = useState<Step>(1);
 
-  // Step 1
+  // Step 1 — phone
   const [phone, setPhone] = useState("");
 
-  // Step 2
+  // Step 2 — OTP + PIN
   const [otp, setOtp] = useState("");
   const [pin, setPin] = useState("");
   const [pinConfirm, setPinConfirm] = useState("");
 
-  // Step 3
+  // Step 3 — business info
   const [businessName, setBusinessName] = useState("");
   const [businessType, setBusinessType] = useState("");
   const [ownerName, setOwnerName] = useState("");
   const [address, setAddress] = useState("");
 
-  // Step 4
+  // Step 4 — expected volume
+  const [volumeIdx, setVolumeIdx] = useState<number | null>(null);
+
+  // Step 5 — document uploads
+  const [uploads, setUploads] = useState<Record<string, { file: File; uploading: boolean; done: boolean; error?: string }>>({});
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [activeDocKind, setActiveDocKind] = useState<DocumentKind | null>(null);
+
+  // Step 6 — bank details
   const [bank, setBank] = useState("");
   const [accountNumber, setAccountNumber] = useState("");
   const [accountType, setAccountType] = useState<"cheque" | "savings">("cheque");
@@ -59,7 +126,16 @@ export default function SignupPage() {
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  const progress = useMemo(() => (step / 4) * 100, [step]);
+  // Derived
+  const selectedVolume = volumeIdx != null ? VOLUME_OPTIONS[volumeIdx] : null;
+  const tier: KycTier = selectedVolume?.tier ?? "simplified";
+  const requiredDocs = useMemo(
+    () => docsForTier(tier, businessType),
+    [tier, businessType],
+  );
+  const allDocsUploaded = requiredDocs.every(k => uploads[k]?.done);
+
+  const progress = useMemo(() => (step / TOTAL_STEPS) * 100, [step]);
 
   function validateStep(): string | null {
     if (step === 1) {
@@ -77,6 +153,12 @@ export default function SignupPage() {
       if (!businessType) return "Pick a category";
     }
     if (step === 4) {
+      if (volumeIdx == null) return "Select your expected monthly volume";
+    }
+    if (step === 5) {
+      if (!allDocsUploaded) return "Please upload all required documents";
+    }
+    if (step === 6) {
       if (!bank) return "Pick your bank";
       if (accountNumber.length < 7 || !/^\d+$/.test(accountNumber)) return "Enter a valid account number";
       if (!termsAgreed) return "Please agree to the merchant terms to continue";
@@ -91,7 +173,7 @@ export default function SignupPage() {
       setError(err);
       return;
     }
-    if (step < 4) {
+    if (step < TOTAL_STEPS) {
       setStep((step + 1) as Step);
       return;
     }
@@ -104,10 +186,50 @@ export default function SignupPage() {
     else router.push("/#merchants");
   }
 
+  // ---------- File upload ----------
+
+  function triggerUpload(kind: DocumentKind) {
+    setActiveDocKind(kind);
+    // Small delay to let state settle, then click the hidden input
+    setTimeout(() => fileInputRef.current?.click(), 50);
+  }
+
+  async function handleFileSelected(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file || !activeDocKind) return;
+
+    const kind = activeDocKind;
+    setUploads(prev => ({ ...prev, [kind]: { file, uploading: true, done: false } }));
+
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      form.append("merchantId", "signup-pending"); // placeholder, will be linked after creation
+      form.append("kind", kind);
+
+      const res = await fetch("/api/upload", { method: "POST", body: form });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Upload failed");
+      }
+
+      setUploads(prev => ({ ...prev, [kind]: { file, uploading: false, done: true } }));
+    } catch (err) {
+      setUploads(prev => ({
+        ...prev,
+        [kind]: { file, uploading: false, done: false, error: (err as Error).message },
+      }));
+    }
+    // Reset input so the same file can be re-selected
+    e.target.value = "";
+  }
+
+  // ---------- Submit ----------
+
   async function submit() {
     setSubmitting(true);
     setError("");
-    // Normalise phone to "+27 ## ### ####" for the store
     const digits = phone.replace(/\D/g, "");
     const prettyPhone =
       "+27 " +
@@ -128,6 +250,7 @@ export default function SignupPage() {
           bank,
           accountNumber,
           accountType,
+          expectedMonthlyVolume: selectedVolume?.value ?? 5_000,
         }),
       });
       const data = await res.json();
@@ -136,8 +259,6 @@ export default function SignupPage() {
         setSubmitting(false);
         return;
       }
-      // Start a merchant session keyed to the new merchant id, then
-      // hand off to the /merchant/pending screen (which polls for approval).
       signIn(data.merchant.id);
       router.push("/merchant/pending");
     } catch (e) {
@@ -145,6 +266,15 @@ export default function SignupPage() {
       setSubmitting(false);
     }
   }
+
+  const STEP_HEADERS: Record<Step, { title: string; sub: string }> = {
+    1: { title: "Let's turn your phone into a till", sub: "Takes about 3 minutes. Free forever." },
+    2: { title: "Verify & set your PIN", sub: "We sent you an SMS with a 4-digit code" },
+    3: { title: "Tell us about your shop", sub: "This shows up on your QR and receipts" },
+    4: { title: "How much do you expect per month?", sub: "This determines which documents we need from you" },
+    5: { title: "Upload your documents", sub: `${TIER_LABELS[tier]} KYC — ${requiredDocs.length} document${requiredDocs.length > 1 ? "s" : ""} required` },
+    6: { title: "Where should we send your money?", sub: "We settle your sales every morning at 09:00" },
+  };
 
   return (
     <main className="min-h-dvh bg-flamingo-cream">
@@ -169,7 +299,7 @@ export default function SignupPage() {
               />
             </div>
             <div className="mt-1 text-[10px] font-extrabold uppercase tracking-wider text-flamingo-dark/60">
-              Step {step} of 4
+              Step {step} of {TOTAL_STEPS}
             </div>
           </div>
         </div>
@@ -180,24 +310,28 @@ export default function SignupPage() {
             <span className="display text-3xl font-extrabold text-white">F</span>
           </div>
           <h1 className="display mt-4 text-3xl font-extrabold text-flamingo-dark">
-            {step === 1 && "Let's turn your phone into a till"}
-            {step === 2 && "Verify & set your PIN"}
-            {step === 3 && "Tell us about your shop"}
-            {step === 4 && "Where should we send your money?"}
+            {STEP_HEADERS[step].title}
           </h1>
           <p className="mt-1 text-sm text-flamingo-dark/70">
-            {step === 1 && "Takes about 3 minutes. Free forever."}
-            {step === 2 && "We sent you an SMS with a 4-digit code"}
-            {step === 3 && "This shows up on your QR and receipts"}
-            {step === 4 && "We settle your sales every morning at 09:00"}
+            {STEP_HEADERS[step].sub}
           </p>
         </div>
+
+        {/* Hidden file input for document uploads */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp,application/pdf"
+          className="hidden"
+          onChange={handleFileSelected}
+        />
 
         {/* Card with the step form */}
         <form
           onSubmit={e => { e.preventDefault(); next(); }}
           className="mt-6 rounded-3xl border-2 border-flamingo-dark bg-white p-5 shadow-[0_6px_0_0_#1A1A2E]"
         >
+          {/* Step 1 — Phone */}
           {step === 1 && (
             <div className="space-y-4">
               <label className="block">
@@ -224,6 +358,7 @@ export default function SignupPage() {
             </div>
           )}
 
+          {/* Step 2 — OTP + PIN */}
           {step === 2 && (
             <div className="space-y-4">
               <label className="block">
@@ -280,6 +415,7 @@ export default function SignupPage() {
             </div>
           )}
 
+          {/* Step 3 — Business info */}
           {step === 3 && (
             <div className="space-y-4">
               <label className="block">
@@ -349,7 +485,126 @@ export default function SignupPage() {
             </div>
           )}
 
+          {/* Step 4 — Expected monthly volume */}
           {step === 4 && (
+            <div className="space-y-3">
+              <p className="text-xs font-bold uppercase tracking-wide text-flamingo-dark/70">
+                Expected monthly sales volume
+              </p>
+              {VOLUME_OPTIONS.map((opt, i) => {
+                const active = volumeIdx === i;
+                return (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => setVolumeIdx(i)}
+                    className={`flex w-full items-center gap-3 rounded-xl border-2 px-4 py-3 text-left transition ${
+                      active
+                        ? "border-flamingo-dark bg-flamingo-pink text-white shadow-[0_3px_0_0_#1A1A2E]"
+                        : "border-flamingo-dark/30 bg-flamingo-cream text-flamingo-dark hover:border-flamingo-dark"
+                    }`}
+                  >
+                    <div className={`grid h-5 w-5 flex-none place-items-center rounded-full border-2 ${
+                      active ? "border-white" : "border-flamingo-dark/40"
+                    }`}>
+                      {active && <div className="h-2.5 w-2.5 rounded-full bg-white" />}
+                    </div>
+                    <div>
+                      <p className="text-sm font-extrabold">{opt.label}</p>
+                      <p className={`text-xs ${active ? "text-white/80" : "text-flamingo-dark/60"}`}>{opt.sublabel}</p>
+                    </div>
+                  </button>
+                );
+              })}
+
+              {selectedVolume && (
+                <div className={`mt-2 rounded-xl border-2 p-3 ${
+                  tier === "simplified"
+                    ? "border-green-300 bg-green-50"
+                    : tier === "standard"
+                      ? "border-amber-300 bg-amber-50"
+                      : "border-red-300 bg-red-50"
+                }`}>
+                  <p className="text-xs font-extrabold text-flamingo-dark">
+                    {TIER_LABELS[tier]} due diligence
+                  </p>
+                  <p className="mt-0.5 text-[11px] text-flamingo-dark/70">
+                    {tier === "simplified"
+                      ? "Only 3 documents needed — ID, selfie, and proof of address."
+                      : tier === "standard"
+                        ? "5 documents needed — includes bank letter and business registration."
+                        : "6 documents needed — includes source of funds declaration."}
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Step 5 — Document uploads */}
+          {step === 5 && (
+            <div className="space-y-3">
+              {requiredDocs.map(kind => {
+                const upload = uploads[kind];
+                const isDone = upload?.done;
+                const isUploading = upload?.uploading;
+                const hasError = upload?.error;
+
+                return (
+                  <div
+                    key={kind}
+                    className={`rounded-xl border-2 p-3 transition ${
+                      isDone
+                        ? "border-green-400 bg-green-50"
+                        : hasError
+                          ? "border-red-400 bg-red-50"
+                          : "border-flamingo-dark/30 bg-flamingo-cream"
+                    }`}
+                  >
+                    <div className="flex items-start gap-3">
+                      <span className="text-xl">{DOC_ICONS[kind]}</span>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-extrabold text-flamingo-dark">{DOC_LABELS[kind]}</p>
+                        <p className="text-[11px] text-flamingo-dark/60">{DOC_HINTS[kind]}</p>
+
+                        {isDone && upload.file && (
+                          <p className="mt-1 text-[11px] font-bold text-green-700">
+                            Uploaded: {upload.file.name}
+                          </p>
+                        )}
+                        {hasError && (
+                          <p className="mt-1 text-[11px] font-bold text-red-600">{hasError}</p>
+                        )}
+                      </div>
+
+                      <button
+                        type="button"
+                        disabled={isUploading}
+                        onClick={() => triggerUpload(kind)}
+                        className={`flex-none rounded-lg border-2 border-flamingo-dark px-3 py-1.5 text-xs font-extrabold transition ${
+                          isDone
+                            ? "bg-green-100 text-green-800"
+                            : isUploading
+                              ? "bg-flamingo-cream text-flamingo-dark/50"
+                              : "bg-flamingo-pink text-white shadow-[0_2px_0_0_#B42A48]"
+                        }`}
+                      >
+                        {isUploading ? "Uploading…" : isDone ? "Replace" : "Upload"}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+
+              <div className="rounded-xl border-2 border-dashed border-flamingo-dark/20 p-3 text-center">
+                <p className="text-[11px] text-flamingo-dark/50">
+                  Accepted: JPEG, PNG, WebP, PDF — max 5 MB per file
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Step 6 — Bank details */}
+          {step === 6 && (
             <div className="space-y-4">
               <div>
                 <span className="text-xs font-bold uppercase tracking-wide text-flamingo-dark/70">
@@ -428,7 +683,7 @@ export default function SignupPage() {
                   <a href="/legal/privacy" target="_blank" className="font-bold text-flamingo-pink-deep underline-offset-2 hover:underline">
                     privacy policy
                   </a>
-                  . Fees are 2.9% + R0.99 per transaction with no monthly charges.
+                  . Fees are 1.5% per transaction with no monthly charges.
                 </span>
               </label>
             </div>
@@ -447,7 +702,7 @@ export default function SignupPage() {
           >
             {submitting
               ? "Creating your account…"
-              : step === 4
+              : step === TOTAL_STEPS
                 ? "Create my Flamingo account"
                 : "Continue →"}
           </button>
