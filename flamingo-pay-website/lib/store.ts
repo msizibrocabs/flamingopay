@@ -384,9 +384,14 @@ export async function getMerchant(id: string): Promise<MerchantApplication | und
 }
 
 export async function getMerchantByPhone(phone: string): Promise<MerchantApplication | undefined> {
-  const clean = phone.replace(/\s/g, "");
+  // Extract the last 9 digits for comparison (handles +27, 027, 27 prefixes)
+  const digits = phone.replace(/\D/g, "");
+  const last9 = digits.slice(-9);
   const all = await listMerchants();
-  return all.find(m => m.phone.replace(/\s/g, "") === clean);
+  return all.find(m => {
+    const mDigits = m.phone.replace(/\D/g, "");
+    return mDigits.slice(-9) === last9;
+  });
 }
 
 // ─── PIN Update ───

@@ -317,12 +317,7 @@ export default function SignupPage() {
   async function submit() {
     setSubmitting(true);
     setError("");
-    const digits = phone.replace(/\D/g, "");
-    const prettyPhone =
-      "+27 " +
-      (digits.length === 9
-        ? `${digits.slice(0, 2)} ${digits.slice(2, 5)} ${digits.slice(5)}`
-        : digits);
+    const prettyPhone = normalisePhone(phone);
 
     try {
       const res = await fetch("/api/merchants", {
