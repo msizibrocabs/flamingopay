@@ -1,13 +1,13 @@
 /**
  * GET  /api/complaints?merchantId=...&status=...&category=...  — List complaints
- * POST /api/complaints  — Create a new complaint (merchant-facing)
+ * POST /api/complaints  — Create a new complaint
  *
- * Both merchant auth and admin auth are accepted for GET.
- * POST requires merchant auth OR admin auth.
+ * Accepts either admin session auth OR merchantId param (matching existing merchant API pattern).
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "../../../lib/api-auth";
+import { getMerchant } from "../../../lib/store";
 import {
   createComplaint,
   listComplaints,
@@ -19,23 +19,19 @@ import {
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
-  // Accept either admin or merchant session
-  const adminSession = await getSession("admin");
-  const merchantSession = await getSession("merchant");
-
-  if (!adminSession && !merchantSession) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
   const url = new URL(req.url);
   const merchantId = url.searchParams.get("merchantId") || undefined;
   const status = url.searchParams.get("status") as ComplaintStatus | undefined;
   const category = url.searchParams.get("category") as ComplaintCategory | undefined;
 
-  // Merchants can only see their own complaints
-  const effectiveMerchantId = merchantSession && !adminSession
-    ? merchantSession.id
-    : merchantId;
+  // Admin can list all; merchant-scoped requests must provide merchantId
+  const adminSession = await getSession("admin");
+  const effectiveMerchantId = adminSession ? merchantId : merchantId;
+
+  // If no admin session and no merchantId, reject
+  if (!adminSession && !merchantId) {
+    return NextResponse.json({ error: "Provide merchantId" }, { status: 400 });
+  }
 
   const complaints = await listComplaints({
     merchantId: effectiveMerchantId,
@@ -47,16 +43,9 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const adminSession = await getSession("admin");
-  const merchantSession = await getSession("merchant");
-
-  if (!adminSession && !merchantSession) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
   try {
     const body = await req.json();
-    const { merchantId, merchantName, complainantName, complainantEmail, complainantPhone, category, subject, description, relatedTxnId } = body;
+    const { merchantId, complainantName, complainantEmail, complainantPhone, category, subject, description, relatedTxnId } = body;
 
     if (!subject || !description || !category) {
       return NextResponse.json(
@@ -69,20 +58,22 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid category" }, { status: 400 });
     }
 
-    // If merchant session, use their info
-    const effectiveMerchantId = merchantSession ? merchantSession.id : merchantId;
-    const effectiveMerchantName = merchantSession ? (merchantSession.name || merchantId) : merchantName;
-
-    if (!effectiveMerchantId) {
+    if (!merchantId) {
       return NextResponse.json({ error: "merchantId is required" }, { status: 400 });
     }
 
+    // Look up merchant to get the business name
+    const merchant = await getMerchant(merchantId);
+    if (!merchant) {
+      return NextResponse.json({ error: "Merchant not found" }, { status: 404 });
+    }
+
     const complaint = await createComplaint({
-      merchantId: effectiveMerchantId,
-      merchantName: effectiveMerchantName || effectiveMerchantId,
-      complainantName: complainantName || merchantSession?.name || "Merchant",
-      complainantEmail,
-      complainantPhone,
+      merchantId,
+      merchantName: merchant.businessName,
+      complainantName: complainantName || merchant.ownerName,
+      complainantEmail: complainantEmail || undefined,
+      complainantPhone: complainantPhone || merchant.phone,
       category,
       subject,
       description,

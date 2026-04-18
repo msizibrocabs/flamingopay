@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { MerchantGate } from "../_components/MerchantGate";
 import { TabBar } from "../_components/TabBar";
+import { useMerchant } from "../../../lib/useMerchant";
 import Link from "next/link";
 
 type Complaint = {
@@ -64,6 +65,8 @@ export default function MerchantComplaintsPage() {
 }
 
 function Inner() {
+  const { merchant } = useMerchant();
+  const merchantId = merchant?.id;
   const [complaints, setComplaints] = useState<Complaint[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -77,8 +80,9 @@ function Inner() {
   const [submitted, setSubmitted] = useState(false);
 
   async function fetchComplaints() {
+    if (!merchantId) return;
     try {
-      const res = await fetch("/api/complaints");
+      const res = await fetch(`/api/complaints?merchantId=${merchantId}`);
       if (res.ok) {
         const data = await res.json();
         setComplaints(data.complaints ?? []);
@@ -87,17 +91,17 @@ function Inner() {
     setLoading(false);
   }
 
-  useEffect(() => { fetchComplaints(); }, []);
+  useEffect(() => { fetchComplaints(); }, [merchantId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!subject.trim() || !description.trim()) return;
+    if (!subject.trim() || !description.trim() || !merchantId) return;
     setSubmitting(true);
     try {
       const res = await fetch("/api/complaints", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ category, subject, description }),
+        body: JSON.stringify({ merchantId, category, subject, description }),
       });
       if (res.ok) {
         setSubmitted(true);
