@@ -92,13 +92,16 @@ export async function sendOTP(
         ? `Your Flamingo PIN reset code is: ${code}. It expires in 5 minutes. Do not share this code.`
         : `Your Flamingo verification code is: ${code}. It expires in 5 minutes.`;
 
-      // Format phone for E.164 (SA numbers: 0xx → 27xx)
+      // Format phone for MyMobileAPI (expects 27xxxxxxxxx without +)
       let destination = cleanPhone;
+      if (destination.startsWith("+")) {
+        destination = destination.slice(1); // remove leading +
+      }
       if (destination.startsWith("0")) {
         destination = "27" + destination.slice(1);
       }
-      if (!destination.startsWith("+")) {
-        destination = "+" + destination;
+      if (!destination.startsWith("27")) {
+        destination = "27" + destination;
       }
 
       // MyMobileAPI REST: Basic Auth with Client ID & Secret
@@ -122,7 +125,9 @@ export async function sendOTP(
 
       if (!res.ok) {
         const body = await res.text();
-        console.error("[OTP] SMS send failed:", res.status, body);
+        console.error("[OTP] SMS send failed:", res.status, body, "destination:", destination);
+      } else {
+        console.log("[OTP] SMS sent to", destination);
       }
     } catch (err) {
       console.error("[OTP] SMS send error:", err);
@@ -130,12 +135,12 @@ export async function sendOTP(
     }
   }
 
-  // In dev (no SMS provider configured), return the OTP for testing
-  const isDev = !clientId || process.env.NODE_ENV === "development";
+  // Only show OTP in response when SMS provider is NOT configured (local dev)
+  const showDevOTP = !clientId;
   return {
     ok: true,
     expiresIn: OTP_TTL,
-    devOTP: isDev ? code : undefined,
+    devOTP: showDevOTP ? code : undefined,
   };
 }
 
