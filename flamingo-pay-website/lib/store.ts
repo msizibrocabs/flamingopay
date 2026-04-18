@@ -14,6 +14,7 @@ import { Redis } from "@upstash/redis";
 import { encryptMerchantPII, decryptMerchantPII } from "./crypto";
 import { checkCTR, CTR_THRESHOLD } from "./fica";
 import { getBusinessProfile } from "./business-profiles";
+import { screenMerchant, createSanctionsFlag } from "./sanctions";
 // Re-export shared types/functions so existing imports keep working
 export { type BusinessProfile, BUSINESS_PROFILES, getBusinessProfile } from "./business-profiles";
 
@@ -585,6 +586,37 @@ export async function createMerchant(input: NewMerchantInput): Promise<MerchantA
     .set(`merchant:${id}`, JSON.stringify(encryptMerchantPII(merchant)))
     .set("merchant_ids", JSON.stringify(ids))
     .exec();
+
+  // ── Sanctions screening on signup ──
+  // Non-blocking: run in background so the signup response isn't delayed
+  screenMerchant(id, input.businessName, input.ownerName)
+    .then(async (result) => {
+      if (result.flagged) {
+        const allMatches = [
+          ...result.businessNameResult.entries,
+          ...result.ownerNameResult.entries,
+        ];
+        // Deduplicate matches
+        const seen = new Set<string>();
+        const unique = allMatches.filter(e => {
+          if (seen.has(e.id)) return false;
+          seen.add(e.id);
+          return true;
+        });
+        await createSanctionsFlag({
+          merchantId: id,
+          merchantName: input.businessName,
+          ownerName: input.ownerName,
+          flaggedAt: new Date().toISOString(),
+          status: "pending",
+          matches: unique,
+        });
+        console.log(`[sanctions] Merchant ${id} flagged on signup — score ${result.highestScore}`);
+      }
+    })
+    .catch((err) => {
+      console.error(`[sanctions] Screening failed for ${id}:`, err);
+    });
 
   return merchant;
 }

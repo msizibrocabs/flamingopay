@@ -23,9 +23,12 @@ export function AdminNav() {
 
   const isOwner = admin?.role === "owner";
 
+  const isOwnerOrManager = admin?.role === "owner" || admin?.role === "manager";
+
   const links = [
     { href: "/admin", label: "Overview" },
     { href: "/admin/merchants", label: "Merchants" },
+    ...(isOwnerOrManager ? [{ href: "/admin/sanctions", label: "Sanctions" }] : []),
     ...(isOwner ? [{ href: "/admin/staff", label: "Staff" }] : []),
   ];
 
