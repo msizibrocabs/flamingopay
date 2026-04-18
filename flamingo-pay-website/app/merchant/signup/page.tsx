@@ -100,6 +100,8 @@ export default function SignupPage() {
 
   // Step 2 — OTP + PIN
   const [otp, setOtp] = useState("");
+  const [otpVerified, setOtpVerified] = useState(false);
+  const [devOTP, setDevOTP] = useState<string | null>(null);
   const [pin, setPin] = useState("");
   const [pinConfirm, setPinConfirm] = useState("");
 
@@ -126,6 +128,23 @@ export default function SignupPage() {
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
+  /** Normalise phone to +27 xx xxx xxxx format for the API. */
+  function normalisePhone(raw: string): string {
+    const digits = raw.replace(/\D/g, "");
+    if (digits.startsWith("27") && digits.length === 11) {
+      const local = digits.slice(2);
+      return `+27 ${local.slice(0, 2)} ${local.slice(2, 5)} ${local.slice(5)}`;
+    }
+    if (digits.startsWith("0") && digits.length === 10) {
+      const local = digits.slice(1);
+      return `+27 ${local.slice(0, 2)} ${local.slice(2, 5)} ${local.slice(5)}`;
+    }
+    if (digits.length === 9) {
+      return `+27 ${digits.slice(0, 2)} ${digits.slice(2, 5)} ${digits.slice(5)}`;
+    }
+    return `+27 ${digits}`;
+  }
+
   // Derived
   const selectedVolume = volumeIdx != null ? VOLUME_OPTIONS[volumeIdx] : null;
   const tier: KycTier = selectedVolume?.tier ?? "simplified";
@@ -143,7 +162,7 @@ export default function SignupPage() {
       if (clean.length < 9 || !/^\d+$/.test(clean)) return "Enter a valid SA phone number";
     }
     if (step === 2) {
-      if (otp.length !== 4) return "Enter the 4-digit code we sent you";
+      if (otp.length !== 6) return "Enter the 6-digit code we sent you";
       if (pin.length !== 4) return "Your PIN must be 4 digits";
       if (pin !== pinConfirm) return "PINs don't match";
     }
@@ -174,31 +193,71 @@ export default function SignupPage() {
       return;
     }
 
-    // Check for duplicate phone before moving to step 2
+    // Step 1 → 2: Check for duplicate phone, then send OTP
     if (step === 1) {
       setSubmitting(true);
       try {
-        const digits = phone.replace(/\D/g, "");
-        let prettyPhone: string;
-        if (digits.length === 9) {
-          prettyPhone = `+27 ${digits.slice(0, 2)} ${digits.slice(2, 5)} ${digits.slice(5)}`;
-        } else if (digits.startsWith("0") && digits.length === 10) {
-          const local = digits.slice(1);
-          prettyPhone = `+27 ${local.slice(0, 2)} ${local.slice(2, 5)} ${local.slice(5)}`;
-        } else {
-          prettyPhone = `+27 ${digits}`;
-        }
-        const res = await fetch(`/api/merchants/check-phone?phone=${encodeURIComponent(prettyPhone)}`);
-        const data = await res.json();
-        if (data.exists) {
+        const prettyPhone = normalisePhone(phone);
+
+        // Check duplicate
+        const checkRes = await fetch(`/api/merchants/check-phone?phone=${encodeURIComponent(prettyPhone)}`);
+        const checkData = await checkRes.json();
+        if (checkData.exists) {
           setError("A merchant with this phone is already registered. Try signing in instead.");
           setSubmitting(false);
           return;
         }
+
+        // Send OTP via SMS
+        const otpRes = await fetch("/api/auth/otp", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ phone: prettyPhone, purpose: "signup", action: "send" }),
+        });
+        const otpData = await otpRes.json();
+        if (!otpRes.ok) {
+          setError(otpData.error || "Could not send verification code. Try again.");
+          setSubmitting(false);
+          return;
+        }
+        if (otpData.devOTP) setDevOTP(otpData.devOTP);
+        setOtpVerified(false);
       } catch {
-        // If check fails, let them continue — the final submit will catch it
+        // If OTP send fails, let them continue — we'll retry
+        setError("Could not send SMS. Check your number and try again.");
+        setSubmitting(false);
+        return;
       }
       setSubmitting(false);
+      setStep(2);
+      return;
+    }
+
+    // Step 2 → 3: Verify OTP first, then advance
+    if (step === 2) {
+      setSubmitting(true);
+      try {
+        const prettyPhone = normalisePhone(phone);
+        const verifyRes = await fetch("/api/auth/otp", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ phone: prettyPhone, purpose: "signup", action: "verify", code: otp }),
+        });
+        const verifyData = await verifyRes.json();
+        if (!verifyRes.ok) {
+          setError(verifyData.error || "Invalid code. Try again.");
+          setSubmitting(false);
+          return;
+        }
+        setOtpVerified(true);
+      } catch {
+        setError("Network error. Check your connection.");
+        setSubmitting(false);
+        return;
+      }
+      setSubmitting(false);
+      setStep(3);
+      return;
     }
 
     if (step < TOTAL_STEPS) {
@@ -301,7 +360,7 @@ export default function SignupPage() {
 
   const STEP_HEADERS: Record<Step, { title: string; sub: string }> = {
     1: { title: "Let's turn your phone into a till", sub: "Takes about 3 minutes. Free forever." },
-    2: { title: "Verify & set your PIN", sub: "We sent you an SMS with a 4-digit code" },
+    2: { title: "Verify & set your PIN", sub: "We sent a 6-digit code to your phone via SMS" },
     3: { title: "Tell us about your shop", sub: "This shows up on your QR and receipts" },
     4: { title: "How much do you expect per month?", sub: "This determines which documents we need from you" },
     5: { title: "Upload your documents", sub: `${TIER_LABELS[tier]} KYC — ${requiredDocs.length} document${requiredDocs.length > 1 ? "s" : ""} required` },
@@ -395,23 +454,47 @@ export default function SignupPage() {
             <div className="space-y-4">
               <label className="block">
                 <span className="text-xs font-bold uppercase tracking-wide text-flamingo-dark/70">
-                  SMS verification code
+                  6-digit SMS verification code
                 </span>
                 <input
                   type="text"
                   inputMode="numeric"
                   autoComplete="one-time-code"
-                  maxLength={4}
+                  maxLength={6}
                   value={otp}
-                  onChange={e => setOtp(e.target.value.replace(/\D/g, "").slice(0, 4))}
-                  placeholder="• • • •"
-                  className="mt-1 block w-full rounded-xl border-2 border-flamingo-dark bg-flamingo-cream px-3 py-3 text-2xl font-bold tracking-[0.6em] text-flamingo-dark outline-none placeholder:tracking-normal placeholder:text-flamingo-dark/40 placeholder:text-base"
+                  onChange={e => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                  placeholder="• • • • • •"
+                  className="mt-1 block w-full rounded-xl border-2 border-flamingo-dark bg-flamingo-cream px-3 py-3 text-2xl font-bold tracking-[0.5em] text-flamingo-dark outline-none placeholder:tracking-normal placeholder:text-flamingo-dark/40 placeholder:text-base"
                   required
                 />
-                <p className="mt-1 text-[11px] text-flamingo-dark/60">
-                  Demo: any 4 digits will accept
-                </p>
+                {devOTP && (
+                  <p className="mt-1 text-[11px] text-flamingo-dark/60">
+                    Dev mode — your code is: <span className="font-bold">{devOTP}</span>
+                  </p>
+                )}
               </label>
+              <button
+                type="button"
+                onClick={async () => {
+                  setOtp("");
+                  setError("");
+                  setSubmitting(true);
+                  try {
+                    const res = await fetch("/api/auth/otp", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ phone: normalisePhone(phone), purpose: "signup", action: "send" }),
+                    });
+                    const data = await res.json();
+                    if (!res.ok) setError(data.error || "Could not resend. Try again.");
+                    else if (data.devOTP) setDevOTP(data.devOTP);
+                  } catch { setError("Network error."); }
+                  setSubmitting(false);
+                }}
+                className="text-xs font-semibold text-flamingo-pink-deep underline-offset-2 hover:underline"
+              >
+                Didn&apos;t get the SMS? Send again
+              </button>
 
               <label className="block">
                 <span className="text-xs font-bold uppercase tracking-wide text-flamingo-dark/70">

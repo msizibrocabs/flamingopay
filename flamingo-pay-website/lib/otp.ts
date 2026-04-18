@@ -25,7 +25,7 @@ const OTP_TTL = 5 * 60;          // 5 minutes
 const OTP_MAX_ATTEMPTS = 3;       // Max verification attempts
 const OTP_COOLDOWN = 60;          // Minimum seconds between OTP requests
 
-export type OTPPurpose = "login_2fa" | "pin_reset";
+export type OTPPurpose = "login_2fa" | "pin_reset" | "signup";
 
 type StoredOTP = {
   code: string;
@@ -92,6 +92,8 @@ export async function sendOTP(
     try {
       const message = purpose === "pin_reset"
         ? `Your Flamingo PIN reset code is: ${code}. It expires in 5 minutes. Do not share this code.`
+        : purpose === "signup"
+        ? `Your Flamingo signup code is: ${code}. It expires in 5 minutes.`
         : `Your Flamingo verification code is: ${code}. It expires in 5 minutes.`;
 
       // Format phone for MyMobileAPI (expects 27xxxxxxxxx without +)

@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  if (!["login_2fa", "pin_reset"].includes(purpose)) {
+  if (!["login_2fa", "pin_reset", "signup"].includes(purpose)) {
     return NextResponse.json({ error: "Invalid purpose" }, { status: 400 });
   }
 
