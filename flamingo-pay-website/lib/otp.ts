@@ -2,15 +2,13 @@
  * OTP (One-Time Password) system for 2FA and PIN reset.
  *
  * Generates 6-digit OTPs stored in Redis with 5-minute TTL.
- * Supports SMS delivery via configurable provider.
+ * SMS delivery via SMS South Africa (MyMobileAPI REST API).
  *
- * In production, integrate an SMS provider:
- * - Africa's Talking (popular in SA)
- * - Twilio
- * - BulkSMS
- * - Clickatell
+ * Required env vars:
+ *   SMS_SA_CLIENT_ID  — REST API Client ID (Username)
+ *   SMS_SA_SECRET     — REST API Secret (Password)
  *
- * Set SMS_PROVIDER_API_KEY and SMS_PROVIDER_URL env vars.
+ * API docs: https://mymobileapi.readme.io/docs/rest
  */
 
 import "server-only";
@@ -84,36 +82,56 @@ export async function sendOTP(
   await redis.set(otpKey(cleanPhone, purpose), JSON.stringify(stored), { ex: OTP_TTL });
   await redis.set(cooldownKey(cleanPhone, purpose), "1", { ex: OTP_COOLDOWN });
 
-  // Send SMS
-  const smsApiKey = process.env.SMS_PROVIDER_API_KEY;
-  const smsUrl = process.env.SMS_PROVIDER_URL;
+  // Send SMS via SMS South Africa (MyMobileAPI)
+  const clientId = process.env.SMS_SA_CLIENT_ID;
+  const secret = process.env.SMS_SA_SECRET;
 
-  if (smsApiKey && smsUrl) {
-    // Production: send via SMS provider
+  if (clientId && secret) {
     try {
       const message = purpose === "pin_reset"
         ? `Your Flamingo PIN reset code is: ${code}. It expires in 5 minutes. Do not share this code.`
         : `Your Flamingo verification code is: ${code}. It expires in 5 minutes.`;
 
-      await fetch(smsUrl, {
+      // Format phone for E.164 (SA numbers: 0xx → 27xx)
+      let destination = cleanPhone;
+      if (destination.startsWith("0")) {
+        destination = "27" + destination.slice(1);
+      }
+      if (!destination.startsWith("+")) {
+        destination = "+" + destination;
+      }
+
+      // MyMobileAPI REST: Basic Auth with Client ID & Secret
+      const credentials = Buffer.from(`${clientId}:${secret}`).toString("base64");
+
+      const res = await fetch("https://rest.mymobileapi.com/v1/bulkmessages", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${smsApiKey}`,
+          "Authorization": `Basic ${credentials}`,
         },
         body: JSON.stringify({
-          to: cleanPhone,
-          message,
+          Messages: [
+            {
+              Content: message,
+              Destination: destination,
+            },
+          ],
         }),
       });
+
+      if (!res.ok) {
+        const body = await res.text();
+        console.error("[OTP] SMS send failed:", res.status, body);
+      }
     } catch (err) {
-      console.error("[OTP] SMS send failed:", err);
-      // Don't fail the OTP generation — store it and return
+      console.error("[OTP] SMS send error:", err);
+      // Don't fail the OTP generation — code is stored in Redis regardless
     }
   }
 
-  // In dev (no SMS provider), return the OTP for testing
-  const isDev = !smsApiKey || process.env.NODE_ENV === "development";
+  // In dev (no SMS provider configured), return the OTP for testing
+  const isDev = !clientId || process.env.NODE_ENV === "development";
   return {
     ok: true,
     expiresIn: OTP_TTL,
