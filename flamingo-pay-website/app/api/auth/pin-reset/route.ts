@@ -70,8 +70,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ reset: true });
   } catch (err) {
     console.error("[pin-reset] Unhandled error:", err);
+    const msg = err instanceof Error ? err.message : String(err);
     return NextResponse.json(
-      { error: "Something went wrong resetting your PIN. Please try again." },
+      { error: `PIN reset failed: ${msg}` },
       { status: 500 },
     );
   }
