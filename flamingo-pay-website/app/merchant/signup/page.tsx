@@ -346,7 +346,12 @@ export default function SignupPage() {
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error || "Something went wrong. Please try again.");
+        const msg = data.error || "Something went wrong. Please try again.";
+        // If duplicate phone, send user back to step 1
+        if (msg.toLowerCase().includes("already registered")) {
+          setStep(1);
+        }
+        setError(msg);
         setSubmitting(false);
         return;
       }
