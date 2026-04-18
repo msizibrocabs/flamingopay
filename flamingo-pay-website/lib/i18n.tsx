@@ -70,6 +70,11 @@ const D: Record<string, Dict> = {
     st: "QR", nso: "QR", tn: "QR", ts: "QR",
     ss: "QR", ve: "QR", nr: "QR",
   },
+  nav_statements: {
+    en: "Statements", af: "State", zu: "Izitatimende", xh: "Izitatimende",
+    st: "Litatamente", nso: "Ditatamente", tn: "Ditatamente", ts: "Xitatimende",
+    ss: "Titatimende", ve: "Tsitatimende", nr: "Izitatimende",
+  },
   nav_payouts: {
     en: "Payouts", af: "Uitbetalings", zu: "Imali", xh: "Iintlawulo",
     st: "Ditefo", nso: "Ditefo", tn: "Ditefo", ts: "Tihakelo",
