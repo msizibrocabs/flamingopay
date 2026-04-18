@@ -23,6 +23,7 @@ function Inner() {
   const { loading, txns, stats, refund } = useMerchantTxns(currentMerchantId());
   const [filter, setFilter] = useState<Filter>("all");
   const [query, setQuery] = useState("");
+  const [dateFilter, setDateFilter] = useState("");
   const [selected, setSelected] = useState<StoredTxn | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
@@ -50,6 +51,10 @@ function Inner() {
         !t.reference.toLowerCase().includes(q) &&
         !t.buyerBank.toLowerCase().includes(q)
       ) return false;
+    }
+    if (dateFilter) {
+      const txnDate = new Date(t.timestamp).toISOString().slice(0, 10);
+      if (txnDate !== dateFilter) return false;
     }
     return true;
   });
@@ -117,6 +122,30 @@ function Inner() {
               className="min-w-0 flex-1 bg-transparent text-sm text-flamingo-dark outline-none placeholder:text-flamingo-dark/40"
             />
           </label>
+
+          {/* Date picker */}
+          <div className="mt-2 flex items-center gap-2">
+            <label className="flex items-center gap-1.5 rounded-2xl border-2 border-flamingo-dark bg-white px-3 py-1.5">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" className="text-flamingo-dark/60">
+                <rect x="3" y="4" width="18" height="18" rx="2" />
+                <path d="M16 2v4M8 2v4M3 10h18" strokeLinecap="round" />
+              </svg>
+              <input
+                type="date"
+                value={dateFilter}
+                onChange={e => setDateFilter(e.target.value)}
+                className="bg-transparent text-xs font-bold text-flamingo-dark outline-none [color-scheme:light]"
+              />
+            </label>
+            {dateFilter && (
+              <button
+                onClick={() => setDateFilter("")}
+                className="rounded-full border-2 border-flamingo-dark/30 bg-white px-2.5 py-1.5 text-[10px] font-extrabold uppercase text-flamingo-dark/70 hover:bg-flamingo-cream"
+              >
+                Clear date
+              </button>
+            )}
+          </div>
 
           <div className="mt-2 flex items-center gap-2">
             <div className="flex flex-1 gap-2 overflow-x-auto pb-1 [-ms-overflow-style:'none'] [scrollbar-width:'none'] [&::-webkit-scrollbar]:hidden">

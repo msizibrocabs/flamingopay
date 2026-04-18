@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { use, useCallback, useEffect, useState } from "react";
+import { use, useCallback, useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { AdminGate } from "../../_components/AdminGate";
 import { AdminNav } from "../../_components/AdminNav";
@@ -55,6 +55,8 @@ function Detail({ id }: { id: string }) {
   const [txns, setTxns] = useState<StoredTxn[]>([]);
   const [stats, setStats] = useState<TxnStats | null>(null);
   const [showAllTxns, setShowAllTxns] = useState(false);
+  const [txnQuery, setTxnQuery] = useState("");
+  const [txnDate, setTxnDate] = useState("");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -340,7 +342,7 @@ function Detail({ id }: { id: string }) {
           >
             Transactions.
           </h2>
-          {txns.length > 8 && (
+          {txns.length > 8 && !txnQuery && !txnDate && (
             <button
               onClick={() => setShowAllTxns(v => !v)}
               className="text-sm font-bold text-flamingo-pink-deep underline-offset-2 hover:underline"
@@ -349,54 +351,119 @@ function Detail({ id }: { id: string }) {
             </button>
           )}
         </div>
-        {txns.length === 0 ? (
-          <div className="rounded-2xl border-2 border-dashed border-flamingo-dark/40 bg-white p-8 text-center text-sm text-flamingo-dark/60">
-            No transactions yet. Once this merchant starts taking pings, they&rsquo;ll land here.
-          </div>
-        ) : (
-          <div className="overflow-hidden rounded-2xl border-2 border-flamingo-dark bg-white shadow-[0_6px_0_0_#1A1A2E]">
-            <div className="hidden grid-cols-[90px_120px_1fr_120px_120px_110px] gap-3 bg-flamingo-cream px-4 py-2 text-[10px] font-extrabold uppercase tracking-widest text-flamingo-dark/60 sm:grid">
-              <span>Rail</span>
-              <span>Reference</span>
-              <span>Buyer bank</span>
-              <span className="text-right">Amount</span>
-              <span className="text-right">Fee</span>
-              <span className="text-right">When</span>
-            </div>
-            <ul className="divide-y divide-flamingo-dark/10">
-              {(showAllTxns ? txns : txns.slice(0, 8)).map(tx => (
-                <li key={tx.id} className="grid grid-cols-[auto_1fr_auto] items-center gap-3 px-4 py-3 sm:grid-cols-[90px_120px_1fr_120px_120px_110px]">
-                  <span className={`w-fit rounded-full border-2 border-flamingo-dark px-2 py-0.5 text-[10px] font-extrabold uppercase ${tx.rail === "payshap" ? "bg-flamingo-mint" : "bg-flamingo-sky"}`}>
-                    {tx.rail === "payshap" ? "PayShap" : "EFT"}
-                  </span>
-                  <span className="hidden truncate font-mono text-xs text-flamingo-dark/70 sm:block">{tx.reference}</span>
-                  <span className="min-w-0 truncate text-sm font-semibold text-flamingo-dark">
-                    <span className="sm:hidden text-xs text-flamingo-dark/60 mr-1">{tx.reference} ·</span>
-                    {tx.buyerBank}
-                  </span>
-                  <span className={`text-right text-sm font-extrabold tabular-nums ${tx.status === "refunded" ? "text-flamingo-dark/40 line-through" : "text-flamingo-dark"}`}>
-                    {formatZAR(tx.amount)}
-                  </span>
-                  <span className="hidden text-right text-xs text-flamingo-dark/70 tabular-nums sm:block">
-                    {tx.status === "completed" || tx.status === "partial_refund" ? formatZAR(tx.amount * (stats?.feeRate ?? 0.029) + (stats?.feeFixed ?? 0.99)) : "—"}
-                  </span>
-                  <span className="hidden text-right text-xs text-flamingo-dark/60 sm:block">
-                    {timeAgo(tx.timestamp)}
-                    {tx.status === "refunded" && (
-                      <span className="ml-1 rounded-full bg-flamingo-pink-soft px-1.5 py-0.5 text-[9px] font-extrabold uppercase text-flamingo-pink-deep">R</span>
-                    )}
-                    {tx.status === "partial_refund" && (
-                      <span className="ml-1 rounded-full bg-flamingo-butter px-1.5 py-0.5 text-[9px] font-extrabold uppercase text-flamingo-dark">P</span>
-                    )}
-                    {tx.status === "pending" && (
-                      <span className="ml-1 rounded-full bg-flamingo-cream px-1.5 py-0.5 text-[9px] font-extrabold uppercase text-flamingo-dark/50">⏳</span>
-                    )}
-                  </span>
-                </li>
-              ))}
-            </ul>
+
+        {/* Transaction search + date filter */}
+        {txns.length > 0 && (
+          <div className="mb-3 flex flex-col gap-2 sm:flex-row">
+            <input
+              type="search"
+              value={txnQuery}
+              onChange={e => setTxnQuery(e.target.value)}
+              placeholder="Search reference or bank…"
+              className="flex-1 rounded-xl border-2 border-flamingo-dark bg-white px-3 py-2 text-sm font-semibold text-flamingo-dark shadow-[0_3px_0_0_#1A1A2E] outline-none placeholder:text-flamingo-dark/40"
+            />
+            <label className="flex items-center gap-2 rounded-xl border-2 border-flamingo-dark bg-white px-3 py-2 shadow-[0_3px_0_0_#1A1A2E]">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" className="text-flamingo-dark/60">
+                <rect x="3" y="4" width="18" height="18" rx="2" />
+                <path d="M16 2v4M8 2v4M3 10h18" strokeLinecap="round" />
+              </svg>
+              <input
+                type="date"
+                value={txnDate}
+                onChange={e => setTxnDate(e.target.value)}
+                className="bg-transparent text-sm font-bold text-flamingo-dark outline-none [color-scheme:light]"
+              />
+              {txnDate && (
+                <button
+                  onClick={() => setTxnDate("")}
+                  className="ml-1 text-xs font-bold text-flamingo-pink-deep hover:underline"
+                >
+                  ✕
+                </button>
+              )}
+            </label>
           </div>
         )}
+
+        {(() => {
+          const filteredTxns = txns.filter(tx => {
+            if (txnDate) {
+              const d = new Date(tx.timestamp).toISOString().slice(0, 10);
+              if (d !== txnDate) return false;
+            }
+            if (txnQuery) {
+              const q = txnQuery.toLowerCase();
+              if (
+                !tx.reference.toLowerCase().includes(q) &&
+                !tx.buyerBank.toLowerCase().includes(q)
+              ) return false;
+            }
+            return true;
+          });
+          const displayTxns = (txnQuery || txnDate)
+            ? filteredTxns
+            : (showAllTxns ? filteredTxns : filteredTxns.slice(0, 8));
+
+          return txns.length === 0 ? (
+            <div className="rounded-2xl border-2 border-dashed border-flamingo-dark/40 bg-white p-8 text-center text-sm text-flamingo-dark/60">
+              No transactions yet. Once this merchant starts taking pings, they&rsquo;ll land here.
+            </div>
+          ) : filteredTxns.length === 0 ? (
+            <div className="rounded-2xl border-2 border-dashed border-flamingo-dark/40 bg-white p-8 text-center text-sm text-flamingo-dark/60">
+              No transactions match that filter.
+            </div>
+          ) : (
+            <>
+              {(txnQuery || txnDate) && (
+                <p className="mb-2 text-xs font-bold text-flamingo-dark/60">
+                  {filteredTxns.length} of {txns.length} transactions
+                </p>
+              )}
+              <div className="overflow-hidden rounded-2xl border-2 border-flamingo-dark bg-white shadow-[0_6px_0_0_#1A1A2E]">
+                <div className="hidden grid-cols-[90px_120px_1fr_120px_120px_110px] gap-3 bg-flamingo-cream px-4 py-2 text-[10px] font-extrabold uppercase tracking-widest text-flamingo-dark/60 sm:grid">
+                  <span>Rail</span>
+                  <span>Reference</span>
+                  <span>Buyer bank</span>
+                  <span className="text-right">Amount</span>
+                  <span className="text-right">Fee</span>
+                  <span className="text-right">When</span>
+                </div>
+                <ul className="divide-y divide-flamingo-dark/10">
+                  {displayTxns.map(tx => (
+                    <li key={tx.id} className="grid grid-cols-[auto_1fr_auto] items-center gap-3 px-4 py-3 sm:grid-cols-[90px_120px_1fr_120px_120px_110px]">
+                      <span className={`w-fit rounded-full border-2 border-flamingo-dark px-2 py-0.5 text-[10px] font-extrabold uppercase ${tx.rail === "payshap" ? "bg-flamingo-mint" : "bg-flamingo-sky"}`}>
+                        {tx.rail === "payshap" ? "PayShap" : "EFT"}
+                      </span>
+                      <span className="hidden truncate font-mono text-xs text-flamingo-dark/70 sm:block">{tx.reference}</span>
+                      <span className="min-w-0 truncate text-sm font-semibold text-flamingo-dark">
+                        <span className="sm:hidden text-xs text-flamingo-dark/60 mr-1">{tx.reference} ·</span>
+                        {tx.buyerBank}
+                      </span>
+                      <span className={`text-right text-sm font-extrabold tabular-nums ${tx.status === "refunded" ? "text-flamingo-dark/40 line-through" : "text-flamingo-dark"}`}>
+                        {formatZAR(tx.amount)}
+                      </span>
+                      <span className="hidden text-right text-xs text-flamingo-dark/70 tabular-nums sm:block">
+                        {tx.status === "completed" || tx.status === "partial_refund" ? formatZAR(tx.amount * (stats?.feeRate ?? 0.029) + (stats?.feeFixed ?? 0.99)) : "—"}
+                      </span>
+                      <span className="hidden text-right text-xs text-flamingo-dark/60 sm:block">
+                        {timeAgo(tx.timestamp)}
+                        {tx.status === "refunded" && (
+                          <span className="ml-1 rounded-full bg-flamingo-pink-soft px-1.5 py-0.5 text-[9px] font-extrabold uppercase text-flamingo-pink-deep">R</span>
+                        )}
+                        {tx.status === "partial_refund" && (
+                          <span className="ml-1 rounded-full bg-flamingo-butter px-1.5 py-0.5 text-[9px] font-extrabold uppercase text-flamingo-dark">P</span>
+                        )}
+                        {tx.status === "pending" && (
+                          <span className="ml-1 rounded-full bg-flamingo-cream px-1.5 py-0.5 text-[9px] font-extrabold uppercase text-flamingo-dark/50">⏳</span>
+                        )}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </>
+          );
+        })()}
       </section>
       </Reveal>
 

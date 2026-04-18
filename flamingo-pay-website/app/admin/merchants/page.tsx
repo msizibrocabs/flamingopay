@@ -37,6 +37,7 @@ function MerchantsList() {
   const [merchants, setMerchants] = useState<MerchantApplication[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState("");
+  const [dateFilter, setDateFilter] = useState("");
   const [filter, setFilter] = useState<"all" | MerchantStatus>(urlStatus);
 
   useEffect(() => {
@@ -66,6 +67,10 @@ function MerchantsList() {
     const needle = q.trim().toLowerCase();
     return list.filter(m => {
       if (filter !== "all" && m.status !== filter) return false;
+      if (dateFilter) {
+        const createdDate = new Date(m.createdAt).toISOString().slice(0, 10);
+        if (createdDate !== dateFilter) return false;
+      }
       if (!needle) return true;
       return (
         m.businessName.toLowerCase().includes(needle) ||
@@ -74,7 +79,7 @@ function MerchantsList() {
         m.id.toLowerCase().includes(needle)
       );
     });
-  }, [merchants, q, filter]);
+  }, [merchants, q, filter, dateFilter]);
 
   return (
     <main className="mx-auto max-w-6xl px-5 py-8">
@@ -105,6 +110,26 @@ function MerchantsList() {
             className="w-full rounded-xl border-2 border-flamingo-dark bg-white px-4 py-3 text-sm font-semibold text-flamingo-dark shadow-[0_3px_0_0_#1A1A2E] outline-none placeholder:text-flamingo-dark/40"
           />
         </div>
+        <label className="flex items-center gap-2 rounded-xl border-2 border-flamingo-dark bg-white px-3 py-2 shadow-[0_3px_0_0_#1A1A2E]">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" className="text-flamingo-dark/60">
+            <rect x="3" y="4" width="18" height="18" rx="2" />
+            <path d="M16 2v4M8 2v4M3 10h18" strokeLinecap="round" />
+          </svg>
+          <input
+            type="date"
+            value={dateFilter}
+            onChange={e => setDateFilter(e.target.value)}
+            className="bg-transparent text-sm font-bold text-flamingo-dark outline-none [color-scheme:light]"
+          />
+          {dateFilter && (
+            <button
+              onClick={() => setDateFilter("")}
+              className="ml-1 text-xs font-bold text-flamingo-pink-deep hover:underline"
+            >
+              ✕
+            </button>
+          )}
+        </label>
         <div className="flex gap-1 overflow-x-auto">
           {FILTERS.map(f => (
             <button
