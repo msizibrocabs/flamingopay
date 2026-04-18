@@ -201,13 +201,12 @@ export default function LoginPage() {
         </form>
 
         <div className="mt-6 flex flex-col items-center gap-2 text-sm">
-          <button
-            type="button"
+          <Link
+            href="/merchant/forgot-pin"
             className="font-semibold text-flamingo-pink-deep underline-offset-2 hover:underline"
-            onClick={() => window.open("https://wa.me/27639477208?text=Hi%20Flamingo%2C%20I%20forgot%20my%20PIN%20and%20need%20help%20resetting%20it.", "_blank")}
           >
             Forgot PIN?
-          </button>
+          </Link>
           <div className="text-flamingo-dark/70">
             New to Flamingo?{" "}
             <Link href="/merchant/signup" className="font-bold text-flamingo-pink-deep underline-offset-2 hover:underline">

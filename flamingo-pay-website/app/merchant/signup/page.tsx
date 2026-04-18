@@ -166,13 +166,41 @@ export default function SignupPage() {
     return null;
   }
 
-  function next() {
+  async function next() {
     setError("");
     const err = validateStep();
     if (err) {
       setError(err);
       return;
     }
+
+    // Check for duplicate phone before moving to step 2
+    if (step === 1) {
+      setSubmitting(true);
+      try {
+        const digits = phone.replace(/\D/g, "");
+        let prettyPhone: string;
+        if (digits.length === 9) {
+          prettyPhone = `+27 ${digits.slice(0, 2)} ${digits.slice(2, 5)} ${digits.slice(5)}`;
+        } else if (digits.startsWith("0") && digits.length === 10) {
+          const local = digits.slice(1);
+          prettyPhone = `+27 ${local.slice(0, 2)} ${local.slice(2, 5)} ${local.slice(5)}`;
+        } else {
+          prettyPhone = `+27 ${digits}`;
+        }
+        const res = await fetch(`/api/merchants/check-phone?phone=${encodeURIComponent(prettyPhone)}`);
+        const data = await res.json();
+        if (data.exists) {
+          setError("A merchant with this phone is already registered. Try signing in instead.");
+          setSubmitting(false);
+          return;
+        }
+      } catch {
+        // If check fails, let them continue — the final submit will catch it
+      }
+      setSubmitting(false);
+    }
+
     if (step < TOTAL_STEPS) {
       setStep((step + 1) as Step);
       return;
