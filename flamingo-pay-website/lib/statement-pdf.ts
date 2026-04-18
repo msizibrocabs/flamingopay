@@ -522,7 +522,7 @@ export function generateStatementPDF(input: StatementInput): Buffer {
     doc.setFontSize(6);
     setText([180, 180, 200]);
     doc.text(
-      "Reg: 2025/XXXXXX/07  ·  SARB PSP Licence: Pending  ·  PASA Member: Pending  ·  www.flamingopay.co.za",
+      "Reg: 2025/XXXXXX/07  ·  www.flamingopay.co.za",
       marginL,
       footerY + 7,
     );
