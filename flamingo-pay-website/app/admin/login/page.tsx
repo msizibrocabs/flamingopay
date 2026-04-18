@@ -91,13 +91,10 @@ export default function AdminLoginPage() {
             {loading ? "Signing in…" : "Enter console"}
           </button>
 
-          <p className="mt-4 text-center text-xs text-flamingo-dark/60">
-            Demo passcode: <span className="font-mono font-bold">{DEMO_ADMIN_PASSCODE}</span>
-          </p>
         </form>
 
         <p className="mt-4 text-center text-[11px] text-flamingo-dark/50">
-          Replace with SSO before inviting anyone outside Flamingo core staff.
+          Admin access only. Contact your Flamingo team lead for credentials.
         </p>
       </div>
     </main>

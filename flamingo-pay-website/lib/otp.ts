@@ -86,8 +86,6 @@ export async function sendOTP(
   const clientId = process.env.SMS_SA_CLIENT_ID;
   const secret = process.env.SMS_SA_SECRET;
 
-  console.log("[OTP] SMS config check — clientId exists:", !!clientId, "secret exists:", !!secret, "NODE_ENV:", process.env.NODE_ENV);
-
   if (clientId && secret) {
     try {
       const message = purpose === "pin_reset"
@@ -129,9 +127,9 @@ export async function sendOTP(
 
       if (!res.ok) {
         const body = await res.text();
-        console.error("[OTP] SMS send failed:", res.status, body, "destination:", destination);
+        console.error("[OTP] SMS send failed:", res.status);
       } else {
-        console.log("[OTP] SMS sent to", destination);
+        // SMS sent successfully
       }
     } catch (err) {
       console.error("[OTP] SMS send error:", err);
