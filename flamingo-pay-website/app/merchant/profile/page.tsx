@@ -133,6 +133,12 @@ function Inner() {
             onClick={() => window.open("https://wa.me/27825550142", "_blank")}
           />
           <ActionRow
+            icon="📋"
+            title="Complaints"
+            subtitle="Lodge or track a formal complaint"
+            onClick={() => router.push("/merchant/complaints")}
+          />
+          <ActionRow
             icon="📄"
             title="Terms & privacy"
             subtitle="Read the merchant agreement"
