@@ -11,60 +11,68 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { getMerchantByPhone, hashPin, updateMerchantPin } from "../../../../lib/store";
+import { getMerchantByPhone, updateMerchantPin } from "../../../../lib/store";
 import { appendAuditLog } from "../../../../lib/audit";
 
 export async function POST(req: NextRequest) {
-  let body: { phone?: string; newPin?: string; otpCode?: string };
   try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
-  }
+    let body: { phone?: string; newPin?: string; otpCode?: string };
+    try {
+      body = await req.json();
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+    }
 
-  const { phone, newPin, otpCode } = body;
+    const { phone, newPin, otpCode } = body;
 
-  if (!phone || !newPin) {
-    return NextResponse.json({ error: "phone and newPin are required" }, { status: 400 });
-  }
+    if (!phone || !newPin) {
+      return NextResponse.json({ error: "phone and newPin are required" }, { status: 400 });
+    }
 
-  if (!/^\d{4}$/.test(newPin)) {
-    return NextResponse.json({ error: "PIN must be exactly 4 digits" }, { status: 400 });
-  }
+    if (!/^\d{4}$/.test(newPin)) {
+      return NextResponse.json({ error: "PIN must be exactly 4 digits" }, { status: 400 });
+    }
 
-  // Verify that OTP was completed for this phone
-  // The OTP verification flow should set a short-lived token
-  const cleanPhone = phone.replace(/\s/g, "");
+    // For security, we require the OTP code to be sent again with the reset request
+    if (!otpCode) {
+      return NextResponse.json(
+        { error: "OTP verification code is required. Complete the OTP step first." },
+        { status: 400 },
+      );
+    }
 
-  // For security, we require the OTP code to be sent again with the reset request
-  // This ensures the same session that verified the OTP is making the reset
-  if (!otpCode) {
+    // Find merchant
+    const merchant = await getMerchantByPhone(phone);
+    if (!merchant) {
+      // Don't reveal whether the phone exists
+      return NextResponse.json({ error: "If this number is registered, the PIN has been reset." });
+    }
+
+    // Update PIN via store (handles encryption properly)
+    await updateMerchantPin(merchant.id, newPin);
+
+    try {
+      await appendAuditLog({
+        action: "merchant_profile_updated",
+        role: "merchant",
+        actorId: merchant.id,
+        actorName: merchant.businessName,
+        targetId: merchant.id,
+        targetType: "merchant",
+        detail: "PIN reset via OTP verification",
+        ip: req.headers.get("x-forwarded-for")?.split(",")[0]?.trim(),
+      });
+    } catch (auditErr) {
+      // Don't fail the PIN reset if audit logging fails
+      console.error("[pin-reset] Audit log failed:", auditErr);
+    }
+
+    return NextResponse.json({ reset: true });
+  } catch (err) {
+    console.error("[pin-reset] Unhandled error:", err);
     return NextResponse.json(
-      { error: "OTP verification code is required. Complete the OTP step first." },
-      { status: 400 },
+      { error: "Something went wrong resetting your PIN. Please try again." },
+      { status: 500 },
     );
   }
-
-  // Find merchant
-  const merchant = await getMerchantByPhone(phone);
-  if (!merchant) {
-    // Don't reveal whether the phone exists
-    return NextResponse.json({ error: "If this number is registered, the PIN has been reset." });
-  }
-
-  // Update PIN via store (handles encryption properly)
-  await updateMerchantPin(merchant.id, newPin);
-
-  await appendAuditLog({
-    action: "merchant_profile_updated",
-    role: "merchant",
-    actorId: merchant.id,
-    actorName: merchant.businessName,
-    targetId: merchant.id,
-    targetType: "merchant",
-    detail: "PIN reset via OTP verification",
-    ip: req.headers.get("x-forwarded-for")?.split(",")[0]?.trim(),
-  });
-
-  return NextResponse.json({ reset: true });
 }

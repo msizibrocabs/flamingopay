@@ -369,8 +369,12 @@ export async function listMerchants(): Promise<MerchantApplication[]> {
   const merchants: MerchantApplication[] = [];
   for (const raw of results) {
     if (!raw) continue;
-    const m: MerchantApplication = typeof raw === "string" ? JSON.parse(raw) : raw as MerchantApplication;
-    merchants.push(decryptMerchantPII(m));
+    try {
+      const m: MerchantApplication = typeof raw === "string" ? JSON.parse(raw) : raw as MerchantApplication;
+      merchants.push(decryptMerchantPII(m));
+    } catch (err) {
+      console.error("[store] Failed to parse/decrypt merchant record, skipping:", err);
+    }
   }
   return merchants.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
@@ -387,8 +391,10 @@ export async function getMerchantByPhone(phone: string): Promise<MerchantApplica
   // Extract the last 9 digits for comparison (handles +27, 027, 27 prefixes)
   const digits = phone.replace(/\D/g, "");
   const last9 = digits.slice(-9);
+  if (last9.length < 9) return undefined;
   const all = await listMerchants();
   return all.find(m => {
+    if (!m.phone) return false;
     const mDigits = m.phone.replace(/\D/g, "");
     return mDigits.slice(-9) === last9;
   });

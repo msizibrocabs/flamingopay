@@ -123,14 +123,20 @@ export default function ForgotPinPage() {
           otpCode: otp,
         }),
       });
-      const data = await res.json();
+      let data;
+      try {
+        data = await res.json();
+      } catch {
+        setError("Server error. Please try again in a moment.");
+        return;
+      }
       if (!res.ok) {
         setError(data.error || "Could not reset PIN. Try again.");
         return;
       }
       setSuccess(true);
-    } catch {
-      setError("Network error. Check your connection.");
+    } catch (err) {
+      setError(`Something went wrong: ${(err as Error).message || "Unknown error"}`);
     } finally {
       setLoading(false);
     }
