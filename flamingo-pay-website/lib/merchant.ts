@@ -54,7 +54,7 @@ export type Merchant = {
 const MERCHANT_KEY = "flamingo_merchant_session";
 
 export const DEMO_MERCHANT: Merchant = {
-  id: "thandis-spaza",
+  id: "FP-TH4ND1",
   name: "Thandi's Spaza",
   owner: "Thandi Nkosi",
   phone: "+27 82 555 0142",

@@ -227,6 +227,16 @@ function slugify(s: string): string {
   );
 }
 
+/** Generate a formal merchant ID like FP-A7X3B2. */
+function generateMerchantId(): string {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no 0/O/1/I to avoid confusion
+  let code = "";
+  for (let i = 0; i < 6; i++) {
+    code += chars[Math.floor(Math.random() * chars.length)];
+  }
+  return `FP-${code}`;
+}
+
 // ---------------------- Seeding ----------------------
 
 function seededRand(seed: number) {
@@ -275,7 +285,7 @@ async function ensureSeeded(): Promise<void> {
 
   const seedInputs: Array<Omit<MerchantApplication, "documents">> = [
     {
-      id: "thandis-spaza", phone: "+27 82 555 0142",
+      id: "FP-TH4ND1", phone: "+27 82 555 0142",
       businessName: "Thandi's Spaza", businessType: "Spaza / General Dealer",
       ownerName: "Thandi Nkosi", address: "12 Protea Street, Diepsloot, Johannesburg",
       bank: "Standard Bank", accountLast4: "4428", accountType: "cheque",
@@ -285,7 +295,7 @@ async function ensureSeeded(): Promise<void> {
       pinHash: demoPin,
     },
     {
-      id: "bra-mike-braai", phone: "+27 83 555 0891",
+      id: "FP-M1K3BR", phone: "+27 83 555 0891",
       businessName: "Bra Mike's Braai", businessType: "Takeaway / Food",
       ownerName: "Mike Dlamini", address: "Corner Soweto Hwy & Chris Hani Rd, Soweto",
       bank: "Capitec", accountLast4: "9112", accountType: "savings",
@@ -295,7 +305,7 @@ async function ensureSeeded(): Promise<void> {
       pinHash: demoPin,
     },
     {
-      id: "mama-joy-fruit", phone: "+27 71 222 3344",
+      id: "FP-J0YFR2", phone: "+27 71 222 3344",
       businessName: "Mama Joy Fruit & Veg", businessType: "Fruit & veg",
       ownerName: "Joyce Mokoena", address: "Noord Taxi Rank, Johannesburg CBD",
       bank: "FNB", accountLast4: "7701", accountType: "cheque",
@@ -304,7 +314,7 @@ async function ensureSeeded(): Promise<void> {
       pinHash: demoPin,
     },
     {
-      id: "sis-lindiwe-hair", phone: "+27 76 789 1234",
+      id: "FP-L1ND1W", phone: "+27 76 789 1234",
       businessName: "Sis Lindi Hair Studio", businessType: "Hair salon / Barber",
       ownerName: "Lindiwe Zulu", address: "Umlazi J Section, Durban",
       bank: "TymeBank", accountLast4: "0321", accountType: "savings",
@@ -313,7 +323,7 @@ async function ensureSeeded(): Promise<void> {
       pinHash: demoPin,
     },
     {
-      id: "uncle-sipho-taxi", phone: "+27 82 333 4455",
+      id: "FP-S1PH0T", phone: "+27 82 333 4455",
       businessName: "Uncle Sipho Transport", businessType: "Service provider",
       ownerName: "Sipho Ndlovu", address: "Ga-Rankuwa, Pretoria",
       bank: "Nedbank", accountLast4: "8855", accountType: "cheque",
@@ -324,7 +334,7 @@ async function ensureSeeded(): Promise<void> {
       pinHash: demoPin,
     },
     {
-      id: "afro-braids-boutique", phone: "+27 84 111 2233",
+      id: "FP-AFR0BR", phone: "+27 84 111 2233",
       businessName: "Afro Braids Boutique", businessType: "Hair salon / Barber",
       ownerName: "Nomsa Khumalo", address: "Vanderbijlpark, Gauteng",
       bank: "Discovery Bank", accountLast4: "6677", accountType: "cheque",
@@ -524,12 +534,10 @@ export type NewMerchantInput = {
 
 export async function createMerchant(input: NewMerchantInput): Promise<MerchantApplication> {
   await ensureSeeded();
-  const baseId = slugify(input.businessName);
-  let id = baseId;
-  let suffix = 0;
+  let id = generateMerchantId();
+  // Ensure uniqueness (extremely unlikely to collide, but safe)
   while (await redis.exists(`merchant:${id}`)) {
-    suffix += 1;
-    id = `${baseId}-${suffix}`;
+    id = generateMerchantId();
   }
   const accLast4 = input.accountNumber.slice(-4).padStart(4, "•");
   const now = Date.now();

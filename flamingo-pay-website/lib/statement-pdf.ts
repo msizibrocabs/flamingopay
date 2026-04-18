@@ -50,7 +50,7 @@ export type StatementInput = {
   periodLabel: string;        // e.g. "March 2026" or "1 Mar – 15 Mar 2026"
   periodFrom: string;         // ISO date
   periodTo: string;           // ISO date
-  statementNumber: string;    // e.g. "FP-2026-03-thandis-spaza"
+  statementNumber: string;    // e.g. "FP-2026-03-FP-TH4ND1"
 };
 
 export type StatementSummary = {
