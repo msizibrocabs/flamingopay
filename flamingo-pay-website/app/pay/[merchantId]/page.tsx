@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import { AnimatedCounter } from "../../../components/motion/AnimatedCounter";
 import { flamingoConfetti } from "../../../components/motion/Confetti";
+import { SUCCESS_QUOTES, FAIL_QUOTES, PROCESSING_QUIPS, pickRandom, type ViralQuote } from "../../../lib/jokes";
 
 /* ──────────────────────────────────────────────
    Merchant type fetched from API
@@ -50,101 +51,7 @@ const METHODS: Record<PaymentMethod, MethodInfo> = {
 
 const PRESETS = [10, 20, 50, 100, 200, 500];
 
-/* ──────────────────────────────────────────────
-   Viral witty screens — random each transaction
-   ────────────────────────────────────────────── */
-type ViralQuote = { emoji: string; headline: string; sub: string };
-
-const SUCCESS_QUOTES: ViralQuote[] = [
-  { emoji: "🦩", headline: "Your money just did the splits", sub: "Right out of your account, into theirs. Didn't even stretch first." },
-  { emoji: "🔥", headline: "Hotter than a braai with no tongs", sub: "You just grabbed that payment with your bare hands. Respect." },
-  { emoji: "⚡", headline: "Eskom could never", sub: "Your payment arrived in 2 seconds. Your electricity? See you in 4 hours." },
-  { emoji: "💅", headline: "Money left and didn't even slam the door", sub: "Peaceful exit. No drama. Unlike your last relationship." },
-  { emoji: "🚕", headline: "Your rands just caught a quantum taxi", sub: "No waiting at the rank. No arguing about change. Just poof. Gone." },
-  { emoji: "👑", headline: "Someone call the Reserve Bank", sub: "There's been a devastating act of supporting local business." },
-  { emoji: "🦩", headline: "You just out-flamingoed a flamingo", sub: "Standing on one leg, looking pink, absolutely unbothered." },
-  { emoji: "😤", headline: "Your bank account accepted its fate", sub: "It fought briefly. Then it saw the QR code. Then it surrendered." },
-  { emoji: "🎵", headline: "This payment has log drum energy", sub: "Amapiano bassline. No skips. Your bank is doing the backspin." },
-  { emoji: "🧘", headline: "You have achieved financial nirvana", sub: "No card machine. No 'tap again.' No 'try inserting.' Just peace." },
-  { emoji: "🏎️", headline: "Faster than your ex's rebound", sub: "The money moved on before you even blinked. Emotional damage." },
-  { emoji: "🤝", headline: "Ancestors called. They're impressed.", sub: "Gogo said 'in my day we used cash.' Then she downloaded the app." },
-  { emoji: "🪩", headline: "Your wallet just did the Kilimanjaro", sub: "Everybody's happy. The DJ is playing. The rands are vibing." },
-  { emoji: "🧾", headline: "Screenshot this. Frame it. Hang it up.", sub: "This is proof you're a functioning adult. Don't waste this moment." },
-  { emoji: "🦩", headline: "Cash is dead. You attended the funeral.", sub: "Cards sent flowers. QR codes delivered the eulogy." },
-  { emoji: "💸", headline: "Your money ghosted you", sub: "No goodbye. No explanation. Just left. At least it went to a good place." },
-  { emoji: "🫡", headline: "You absolute legend of a human", sub: "Some people talk about supporting local. You actually did it. With a phone." },
-  { emoji: "🎯", headline: "Bullseye. First try. No notes.", sub: "If paying people was an Olympic sport, you'd be on the podium crying." },
-  { emoji: "🍕", headline: "Easier than splitting a bill", sub: "And nobody had to do that awkward 'I'll get you back' thing." },
-  { emoji: "🦩", headline: "One scan and the deed is done", sub: "That's it. That's the whole thing. We refuse to make this complicated." },
-  { emoji: "😎", headline: "Accountant energy. CEO execution.", sub: "You just paid someone using a bird app. The future is unhinged." },
-  { emoji: "🌍", headline: "One small scan for man, one giant flex for SA", sub: "Neil Armstrong walked on the moon. You paid a spaza with a QR code. Same energy." },
-  { emoji: "🎤", headline: "Mic dropped. Payment cleared. Crowd roaring.", sub: "Standing ovation from your bank. Slow clap from your wallet." },
-  { emoji: "🐐", headline: "Absolute GOAT behaviour detected", sub: "You chose QR over fumbling for R4.50 in coins. Society thanks you." },
-  { emoji: "🦩", headline: "You're now certified flamingo", sub: "Side effects include: never wanting to use cash again." },
-  { emoji: "🧃", headline: "Sipping on that cashless juice", sub: "No coins jingling in your pocket like a toddler's toy. Just elegance." },
-  { emoji: "🏆", headline: "Winner winner, 7 colours dinner", sub: "You paid. They smiled. Dumpling did a little dance." },
-  { emoji: "🤯", headline: "Your bank is still processing what just happened", sub: "The money arrived before the notification. That's not even legal." },
-  { emoji: "🦩", headline: "Welcome to the pink side", sub: "We have QR codes, instant payments, and absolutely zero card machines." },
-  { emoji: "💫", headline: "Manifestation works, apparently", sub: "You visualised paying. You scanned. Money left. The universe delivered." },
-  { emoji: "🫠", headline: "That was suspiciously easy", sub: "No queue. No PIN. No 'card declined' embarrassment. What is this sorcery." },
-  { emoji: "🧠", headline: "200 IQ payment right there", sub: "While people are still counting coins, you're living in 2035." },
-  { emoji: "🦩", headline: "Flam. Ingo. Done.", sub: "Three syllables. One payment. Zero regrets. That's the tweet." },
-  { emoji: "🫶", headline: "Your money found a loving home", sub: "It's with a local business now. It's happy. Please don't call." },
-  { emoji: "🍗", headline: "Smoother than a Nando's extra mild", sub: "Except this actually had flavour. And speed. And no queue." },
-  { emoji: "🧊", headline: "Ice cold execution", sub: "You walked in. Scanned. Paid. Walked out. They're still shook." },
-  { emoji: "🦩", headline: "The QR code feared you", sub: "It knew what was coming. It accepted its fate. It processed. GG." },
-  { emoji: "🎪", headline: "And for my next trick", sub: "I will make your money disappear... into a local business. *applause*" },
-  { emoji: "🫣", headline: "Your bank account when it sees this", sub: "'Ah here we go again.' Too late. It's done. No refunds on vibes." },
-  { emoji: "🦩", headline: "You just made capitalism cute", sub: "A flamingo helped you pay a human. The economy is healing." },
-];
-
-const FAIL_QUOTES: ViralQuote[] = [
-  { emoji: "😭", headline: "Your payment is having a gap year", sub: "It'll find itself eventually. Just not right now. Try again." },
-  { emoji: "🦩", headline: "The flamingo face-planted", sub: "Beak first into the ground. Dignity? Gone. But we're getting up." },
-  { emoji: "💀", headline: "Transaction said 'I'm deceased'", sub: "We're sending thoughts and prayers. And also a retry button." },
-  { emoji: "🤡", headline: "You've been clowned by technology", sub: "Somewhere, a card machine is laughing. Don't give it the satisfaction." },
-  { emoji: "😤", headline: "Your bank left you on read", sub: "Seen 12:04. No reply. Classic. The audacity of these financial institutions." },
-  { emoji: "🧊", headline: "Payment frozen. Blame stage 6.", sub: "Eskom didn't do this. But it's easier to blame them. Try again." },
-  { emoji: "🦩", headline: "Flamingo fell off the wifi", sub: "One leg? Fine. No signal? Even flamingos have limits." },
-  { emoji: "📡", headline: "Telkom woke up and chose violence", sub: "We can't prove it was them. But we can't prove it wasn't." },
-  { emoji: "🙃", headline: "Cool cool cool. No payment.", sub: "This is fine. The room is on fire. But your money is safe. So there's that." },
-  { emoji: "🫠", headline: "Payment melted like a Cornetto in December", sub: "Durban heat. No survivors. Try again before your battery also dies." },
-  { emoji: "🤔", headline: "Your bank needs a moment", sub: "'I need to speak to my manager' energy. Give it a sec and retry." },
-  { emoji: "🏚️", headline: "The internet took a lunch break", sub: "South African lunch break. So like 2 hours. But try again now." },
-  { emoji: "🦩", headline: "Even pink birds have bad days", sub: "But unlike your ex, we're willing to try again. Hit retry." },
-  { emoji: "🫣", headline: "Well this is embarrassing", sub: "For us, not you. You did everything right. We just... flopped." },
-  { emoji: "🔌", headline: "Someone tripped over the cable", sub: "Was it loadshedding? Was it Dave from IT? The investigation continues." },
-  { emoji: "🥲", headline: "Payment ghosted harder than Hinge", sub: "It was right there. We made eye contact. Then poof. Gone. Like everyone on dating apps." },
-  { emoji: "🦩", headline: "Plot twist nobody asked for", sub: "In the movie of your life, this is the part where the hero retries and succeeds." },
-  { emoji: "🧠", headline: "Error 404: payment not found", sub: "Your money is safe. The payment just went to get milk and never came back." },
-  { emoji: "🦩", headline: "Technical difficulties feat. bad vibes", sub: "The vibes were off. Mercury is in retrograde. Also, try again." },
-  { emoji: "🐌", headline: "That payment is moving at SAPO speed", sub: "It'll arrive in 3-5 business forevers. Or just retry now." },
-];
-
-function pickRandom<T>(arr: T[]): T {
-  return arr[Math.floor(Math.random() * arr.length)];
-}
-
-/* ──────────────────────────────────────────────
-   Processing quips — rotates while waiting
-   ────────────────────────────────────────────── */
-const PROCESSING_QUIPS = [
-  "Explaining to your bank why this is a good idea...",
-  "Your rands are putting on their running shoes...",
-  "Whispering 'it's going to be okay' to your wallet...",
-  "Loading... unlike Eskom, we actually finish things.",
-  "Teaching your money to do parkour across banks...",
-  "Calculating how many vetkoeks that is...",
-  "Your bank is Googling 'what is a flamingo'...",
-  "Negotiating with the payment gods. They drive a hard bargain.",
-  "Your money just said 'goodbye cruel wallet'...",
-  "Buffering at the speed of South African wifi...",
-  "Drafting a motivational speech for your rands...",
-  "Asking your bank nicely. Very nicely. Please.",
-  "Your payment is in the uber. 3 min away. Probably.",
-  "Converting your money into flamingo energy...",
-  "Almost done. We're not Telkom. We promise.",
-];
+/* Jokes imported from lib/jokes.ts */
 
 const stepVariants = {
   initial: { opacity: 0, x: 20 },
