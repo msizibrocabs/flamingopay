@@ -109,7 +109,7 @@ export default function PayPage() {
     setProcessingQuip(Math.floor(Math.random() * PROCESSING_QUIPS.length));
     const interval = setInterval(() => {
       setProcessingQuip(q => (q + 1) % PROCESSING_QUIPS.length);
-    }, 1800);
+    }, 4000);
     return () => clearInterval(interval);
   }, [step]);
 
