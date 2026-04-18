@@ -389,6 +389,22 @@ export async function getMerchantByPhone(phone: string): Promise<MerchantApplica
   return all.find(m => m.phone.replace(/\s/g, "") === clean);
 }
 
+// ─── PIN Update ───
+
+/** Update a merchant's PIN and clear any login lockout. */
+export async function updateMerchantPin(merchantId: string, newPin: string): Promise<boolean> {
+  const raw = await redis.get(`merchant:${merchantId}`);
+  if (!raw) return false;
+  const m: MerchantApplication = typeof raw === "string" ? JSON.parse(raw) : raw as MerchantApplication;
+  const decrypted = decryptMerchantPII(m);
+  decrypted.pinHash = hashPin(newPin);
+  await redis.set(`merchant:${merchantId}`, JSON.stringify(encryptMerchantPII(decrypted)));
+  // Clear login lockout
+  const cleanPhone = decrypted.phone.replace(/\s/g, "");
+  await redis.del(`login_attempts:${cleanPhone}`);
+  return true;
+}
+
 // ─── Login with PIN + rate limiting ───
 
 const MAX_LOGIN_ATTEMPTS = 3;

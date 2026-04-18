@@ -11,14 +11,8 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { getMerchantByPhone, hashPin } from "../../../../lib/store";
+import { getMerchantByPhone, hashPin, updateMerchantPin } from "../../../../lib/store";
 import { appendAuditLog } from "../../../../lib/audit";
-import { Redis } from "@upstash/redis";
-
-const redis = new Redis({
-  url: (process.env.KV_REST_API_URL ?? process.env.UPSTASH_REDIS_REST_URL)!,
-  token: (process.env.KV_REST_API_TOKEN ?? process.env.UPSTASH_REDIS_REST_TOKEN)!,
-});
 
 export async function POST(req: NextRequest) {
   let body: { phone?: string; newPin?: string; otpCode?: string };
@@ -58,12 +52,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "If this number is registered, the PIN has been reset." });
   }
 
-  // Update PIN
-  merchant.pinHash = hashPin(newPin);
-  await redis.set(`merchant:${merchant.id}`, JSON.stringify(merchant));
-
-  // Clear any login lockout
-  await redis.del(`login_attempts:${cleanPhone}`);
+  // Update PIN via store (handles encryption properly)
+  await updateMerchantPin(merchant.id, newPin);
 
   await appendAuditLog({
     action: "merchant_profile_updated",
