@@ -2,31 +2,51 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { adminSignIn, DEMO_ADMIN_PASSCODE } from "../../../lib/admin";
+import { adminSignIn } from "../../../lib/admin";
 
 export default function AdminLoginPage() {
   const router = useRouter();
-  const [name, setName] = useState("");
-  const [code, setCode] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
-    if (!name.trim()) {
-      setError("Please enter your name.");
+
+    if (!email.trim()) {
+      setError("Please enter your email.");
       return;
     }
-    if (code !== DEMO_ADMIN_PASSCODE) {
-      setError("Incorrect staff passcode.");
+    if (!password) {
+      setError("Please enter your password.");
       return;
     }
+
     setLoading(true);
-    setTimeout(() => {
-      adminSignIn(name.trim());
+    try {
+      const res = await fetch("/api/admin/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim(), password }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.error || "Login failed.");
+        return;
+      }
+
+      // Store session info for UI display
+      adminSignIn(data.staff);
       router.push("/admin");
-    }, 400);
+    } catch {
+      setError("Network error. Check your connection.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -50,27 +70,28 @@ export default function AdminLoginPage() {
         >
           <label className="block">
             <span className="text-xs font-bold uppercase tracking-wide text-flamingo-dark/70">
-              Your name
+              Email
             </span>
             <input
-              type="text"
-              value={name}
-              onChange={e => setName(e.target.value)}
+              type="email"
+              autoComplete="email"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
               className="mt-1 block w-full rounded-xl border-2 border-flamingo-dark bg-flamingo-cream px-3 py-3 text-base font-semibold text-flamingo-dark outline-none"
-              placeholder="e.g. Msizi Mtolo"
+              placeholder="you@flamingopay.co.za"
               required
             />
           </label>
 
           <label className="mt-4 block">
             <span className="text-xs font-bold uppercase tracking-wide text-flamingo-dark/70">
-              Staff passcode
+              Password
             </span>
             <input
               type="password"
               autoComplete="current-password"
-              value={code}
-              onChange={e => setCode(e.target.value)}
+              value={password}
+              onChange={e => setPassword(e.target.value)}
               className="mt-1 block w-full rounded-xl border-2 border-flamingo-dark bg-flamingo-cream px-3 py-3 text-base font-semibold tracking-widest text-flamingo-dark outline-none"
               placeholder="••••••••"
               required
@@ -88,9 +109,8 @@ export default function AdminLoginPage() {
             disabled={loading}
             className="btn-pink mt-5 w-full rounded-2xl border-2 border-flamingo-dark px-4 py-3.5 text-base font-extrabold uppercase tracking-wide disabled:opacity-70"
           >
-            {loading ? "Signing in…" : "Enter console"}
+            {loading ? "Signing in…" : "Sign in"}
           </button>
-
         </form>
 
         <p className="mt-4 text-center text-[11px] text-flamingo-dark/50">

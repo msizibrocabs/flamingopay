@@ -2,11 +2,17 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { currentAdmin, adminSignOut } from "../../../lib/admin";
+import { adminSignIn, adminSignOut, currentAdmin } from "../../../lib/admin";
 import { useSessionTimeout } from "../../../lib/useSessionTimeout";
 import { ErrorBoundary } from "../../../components/ErrorBoundary";
 
-export function AdminGate({ children }: { children: React.ReactNode }) {
+type Props = {
+  children: React.ReactNode;
+  /** Optional: minimum permission required to view this page. */
+  requirePermission?: string;
+};
+
+export function AdminGate({ children, requirePermission }: Props) {
   const router = useRouter();
   const [ready, setReady] = useState(false);
 
@@ -16,12 +22,48 @@ export function AdminGate({ children }: { children: React.ReactNode }) {
   }, 30 * 60 * 1000);
 
   useEffect(() => {
-    if (!currentAdmin()) {
-      router.replace("/admin/login");
-    } else {
-      setReady(true);
-    }
-  }, [router]);
+    // Verify server session is still valid
+    fetch("/api/admin/session")
+      .then(async res => {
+        if (!res.ok) {
+          // Server session expired — clear client state and redirect
+          adminSignOut();
+          router.replace("/admin/login?reason=expired");
+          return;
+        }
+        const data = await res.json();
+        // Sync client-side session with server state
+        adminSignIn(data.staff);
+
+        // Check permission if required
+        if (requirePermission) {
+          const perms: Record<string, string[]> = {
+            owner: [
+              "view_dashboard", "view_merchants", "approve_merchants",
+              "view_transactions", "view_compliance", "handle_compliance", "manage_staff",
+            ],
+            manager: [
+              "view_dashboard", "view_merchants", "approve_merchants",
+              "view_transactions", "view_compliance", "handle_compliance",
+            ],
+            staff: [
+              "view_dashboard", "view_merchants", "view_transactions", "view_compliance",
+            ],
+          };
+          const role = data.staff.role || "staff";
+          if (!perms[role]?.includes(requirePermission)) {
+            router.replace("/admin?error=forbidden");
+            return;
+          }
+        }
+
+        setReady(true);
+      })
+      .catch(() => {
+        adminSignOut();
+        router.replace("/admin/login");
+      });
+  }, [router, requirePermission]);
 
   if (!ready) {
     return (

@@ -3,23 +3,31 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { adminSignOut, currentAdmin } from "../../../lib/admin";
+import { adminSignOut, currentAdmin, type AdminSession } from "../../../lib/admin";
 import { GlobalSearch } from "./GlobalSearch";
 
-const LINKS = [
-  { href: "/admin", label: "Overview" },
-  { href: "/admin/merchants", label: "Merchants" },
-];
+const ROLE_BADGE: Record<string, string> = {
+  owner: "bg-flamingo-pink text-white",
+  manager: "bg-flamingo-butter text-flamingo-dark",
+  staff: "bg-flamingo-cream text-flamingo-dark",
+};
 
 export function AdminNav() {
   const pathname = usePathname();
   const router = useRouter();
-  const [name, setName] = useState<string>("");
+  const [admin, setAdmin] = useState<AdminSession | null>(null);
 
   useEffect(() => {
-    const a = currentAdmin();
-    if (a) setName(a.name);
+    setAdmin(currentAdmin());
   }, []);
+
+  const isOwner = admin?.role === "owner";
+
+  const links = [
+    { href: "/admin", label: "Overview" },
+    { href: "/admin/merchants", label: "Merchants" },
+    ...(isOwner ? [{ href: "/admin/staff", label: "Staff" }] : []),
+  ];
 
   function handleSignOut() {
     adminSignOut();
@@ -44,7 +52,7 @@ export function AdminNav() {
         </Link>
 
         <nav className="ml-4 hidden items-center gap-1 md:flex">
-          {LINKS.map(l => {
+          {links.map(l => {
             const active =
               pathname === l.href ||
               (l.href !== "/admin" && pathname.startsWith(l.href));
@@ -70,10 +78,15 @@ export function AdminNav() {
         </div>
 
         <div className="ml-auto flex items-center gap-3 md:ml-3">
-          {name && (
-            <span className="hidden text-sm font-semibold text-flamingo-dark/70 lg:inline">
-              {name}
-            </span>
+          {admin && (
+            <div className="hidden items-center gap-2 lg:flex">
+              <span className="text-sm font-semibold text-flamingo-dark/70">
+                {admin.name}
+              </span>
+              <span className={`rounded-lg px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wider ${ROLE_BADGE[admin.role] ?? ROLE_BADGE.staff}`}>
+                {admin.role}
+              </span>
+            </div>
           )}
           <button
             onClick={handleSignOut}
@@ -91,7 +104,7 @@ export function AdminNav() {
 
       {/* Mobile secondary nav */}
       <nav className="flex gap-1 overflow-x-auto border-t border-flamingo-dark/10 bg-flamingo-cream px-5 py-2 md:hidden">
-        {LINKS.map(l => {
+        {links.map(l => {
           const active =
             pathname === l.href ||
             (l.href !== "/admin" && pathname.startsWith(l.href));

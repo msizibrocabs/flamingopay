@@ -21,12 +21,18 @@ const SESSION_TTL = 30 * 60;
 
 export type SessionRole = "merchant" | "admin" | "compliance";
 
+export type AdminRole = "owner" | "manager" | "staff";
+
 export type ServerSession = {
   role: SessionRole;
-  id: string;           // merchantId for merchants, name for admin/compliance
+  id: string;           // merchantId for merchants, staffId for admin/compliance
   name: string;
   createdAt: string;
   lastActiveAt: string;
+  /** Admin role (owner/manager/staff). Only set for admin sessions. */
+  adminRole?: AdminRole;
+  /** Staff email. Only set for admin sessions. */
+  email?: string;
 };
 
 const COOKIE_NAMES: Record<SessionRole, string> = {
@@ -44,6 +50,7 @@ export async function createSession(
   role: SessionRole,
   id: string,
   name: string,
+  extra?: { adminRole?: AdminRole; email?: string },
 ): Promise<string> {
   const token = crypto.randomBytes(32).toString("hex");
   const session: ServerSession = {
@@ -52,6 +59,8 @@ export async function createSession(
     name,
     createdAt: new Date().toISOString(),
     lastActiveAt: new Date().toISOString(),
+    ...(extra?.adminRole ? { adminRole: extra.adminRole } : {}),
+    ...(extra?.email ? { email: extra.email } : {}),
   };
 
   await redis.set(redisKey(token), JSON.stringify(session), { ex: SESSION_TTL });
@@ -103,6 +112,29 @@ export async function requireSession(role: SessionRole): Promise<ServerSession |
   if (!session) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), {
       status: 401,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+  return session;
+}
+
+/** Require admin session with a minimum role level. */
+export async function requireAdminRole(
+  minRole: AdminRole,
+): Promise<ServerSession | Response> {
+  const session = await getSession("admin");
+  if (!session) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+  const hierarchy: AdminRole[] = ["owner", "manager", "staff"];
+  const sessionLevel = hierarchy.indexOf(session.adminRole ?? "staff");
+  const requiredLevel = hierarchy.indexOf(minRole);
+  if (sessionLevel > requiredLevel) {
+    return new Response(JSON.stringify({ error: "Insufficient permissions" }), {
+      status: 403,
       headers: { "Content-Type": "application/json" },
     });
   }
