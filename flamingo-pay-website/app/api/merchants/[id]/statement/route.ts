@@ -67,7 +67,7 @@ export async function GET(
   });
 
   // Generate statement number
-  const stmtNum = `FP-${fromDate.slice(0, 7)}-${id.slice(0, 16)}`.toUpperCase();
+  const stmtNum = `FP-${fromDate.slice(0, 7)}-${id}`.toUpperCase();
 
   const pdfBuffer = generateStatementPDF({
     merchant,
