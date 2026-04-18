@@ -56,7 +56,8 @@ function Detail({ id }: { id: string }) {
   const [stats, setStats] = useState<TxnStats | null>(null);
   const [showAllTxns, setShowAllTxns] = useState(false);
   const [txnQuery, setTxnQuery] = useState("");
-  const [txnDate, setTxnDate] = useState("");
+  const [txnDateFrom, setTxnDateFrom] = useState("");
+  const [txnDateTo, setTxnDateTo] = useState("");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -342,7 +343,7 @@ function Detail({ id }: { id: string }) {
           >
             Transactions.
           </h2>
-          {txns.length > 8 && !txnQuery && !txnDate && (
+          {txns.length > 8 && !txnQuery && !txnDateFrom && !txnDateTo && (
             <button
               onClick={() => setShowAllTxns(v => !v)}
               className="text-sm font-bold text-flamingo-pink-deep underline-offset-2 hover:underline"
@@ -352,9 +353,9 @@ function Detail({ id }: { id: string }) {
           )}
         </div>
 
-        {/* Transaction search + date filter */}
+        {/* Transaction search + date range filter */}
         {txns.length > 0 && (
-          <div className="mb-3 flex flex-col gap-2 sm:flex-row">
+          <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
             <input
               type="search"
               value={txnQuery}
@@ -362,34 +363,45 @@ function Detail({ id }: { id: string }) {
               placeholder="Search reference or bank…"
               className="flex-1 rounded-xl border-2 border-flamingo-dark bg-white px-3 py-2 text-sm font-semibold text-flamingo-dark shadow-[0_3px_0_0_#1A1A2E] outline-none placeholder:text-flamingo-dark/40"
             />
-            <label className="flex items-center gap-2 rounded-xl border-2 border-flamingo-dark bg-white px-3 py-2 shadow-[0_3px_0_0_#1A1A2E]">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" className="text-flamingo-dark/60">
-                <rect x="3" y="4" width="18" height="18" rx="2" />
-                <path d="M16 2v4M8 2v4M3 10h18" strokeLinecap="round" />
-              </svg>
-              <input
-                type="date"
-                value={txnDate}
-                onChange={e => setTxnDate(e.target.value)}
-                className="bg-transparent text-sm font-bold text-flamingo-dark outline-none [color-scheme:light]"
-              />
-              {txnDate && (
+            <div className="flex items-center gap-2">
+              <label className="flex items-center gap-1.5 rounded-xl border-2 border-flamingo-dark bg-white px-3 py-2 shadow-[0_3px_0_0_#1A1A2E]">
+                <span className="text-[10px] font-extrabold uppercase tracking-wide text-flamingo-dark/50">From</span>
+                <input
+                  type="date"
+                  value={txnDateFrom}
+                  onChange={e => setTxnDateFrom(e.target.value)}
+                  max={txnDateTo || undefined}
+                  className="bg-transparent text-sm font-bold text-flamingo-dark outline-none [color-scheme:light]"
+                />
+              </label>
+              <label className="flex items-center gap-1.5 rounded-xl border-2 border-flamingo-dark bg-white px-3 py-2 shadow-[0_3px_0_0_#1A1A2E]">
+                <span className="text-[10px] font-extrabold uppercase tracking-wide text-flamingo-dark/50">To</span>
+                <input
+                  type="date"
+                  value={txnDateTo}
+                  onChange={e => setTxnDateTo(e.target.value)}
+                  min={txnDateFrom || undefined}
+                  className="bg-transparent text-sm font-bold text-flamingo-dark outline-none [color-scheme:light]"
+                />
+              </label>
+              {(txnDateFrom || txnDateTo) && (
                 <button
-                  onClick={() => setTxnDate("")}
-                  className="ml-1 text-xs font-bold text-flamingo-pink-deep hover:underline"
+                  onClick={() => { setTxnDateFrom(""); setTxnDateTo(""); }}
+                  className="text-xs font-bold text-flamingo-pink-deep hover:underline"
                 >
                   ✕
                 </button>
               )}
-            </label>
+            </div>
           </div>
         )}
 
         {(() => {
           const filteredTxns = txns.filter(tx => {
-            if (txnDate) {
+            if (txnDateFrom || txnDateTo) {
               const d = new Date(tx.timestamp).toISOString().slice(0, 10);
-              if (d !== txnDate) return false;
+              if (txnDateFrom && d < txnDateFrom) return false;
+              if (txnDateTo && d > txnDateTo) return false;
             }
             if (txnQuery) {
               const q = txnQuery.toLowerCase();
@@ -400,7 +412,8 @@ function Detail({ id }: { id: string }) {
             }
             return true;
           });
-          const displayTxns = (txnQuery || txnDate)
+          const hasFilters = !!(txnQuery || txnDateFrom || txnDateTo);
+          const displayTxns = hasFilters
             ? filteredTxns
             : (showAllTxns ? filteredTxns : filteredTxns.slice(0, 8));
 
@@ -414,7 +427,7 @@ function Detail({ id }: { id: string }) {
             </div>
           ) : (
             <>
-              {(txnQuery || txnDate) && (
+              {hasFilters && (
                 <p className="mb-2 text-xs font-bold text-flamingo-dark/60">
                   {filteredTxns.length} of {txns.length} transactions
                 </p>

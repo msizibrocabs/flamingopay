@@ -23,7 +23,8 @@ function Inner() {
   const { loading, txns, stats, refund } = useMerchantTxns(currentMerchantId());
   const [filter, setFilter] = useState<Filter>("all");
   const [query, setQuery] = useState("");
-  const [dateFilter, setDateFilter] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
   const [selected, setSelected] = useState<StoredTxn | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
@@ -52,9 +53,10 @@ function Inner() {
         !t.buyerBank.toLowerCase().includes(q)
       ) return false;
     }
-    if (dateFilter) {
+    if (dateFrom || dateTo) {
       const txnDate = new Date(t.timestamp).toISOString().slice(0, 10);
-      if (txnDate !== dateFilter) return false;
+      if (dateFrom && txnDate < dateFrom) return false;
+      if (dateTo && txnDate > dateTo) return false;
     }
     return true;
   });
@@ -123,26 +125,34 @@ function Inner() {
             />
           </label>
 
-          {/* Date picker */}
-          <div className="mt-2 flex items-center gap-2">
+          {/* Date range picker */}
+          <div className="mt-2 flex flex-wrap items-center gap-2">
             <label className="flex items-center gap-1.5 rounded-2xl border-2 border-flamingo-dark bg-white px-3 py-1.5">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" className="text-flamingo-dark/60">
-                <rect x="3" y="4" width="18" height="18" rx="2" />
-                <path d="M16 2v4M8 2v4M3 10h18" strokeLinecap="round" />
-              </svg>
+              <span className="text-[10px] font-extrabold uppercase tracking-wide text-flamingo-dark/50">From</span>
               <input
                 type="date"
-                value={dateFilter}
-                onChange={e => setDateFilter(e.target.value)}
+                value={dateFrom}
+                onChange={e => setDateFrom(e.target.value)}
+                max={dateTo || undefined}
                 className="bg-transparent text-xs font-bold text-flamingo-dark outline-none [color-scheme:light]"
               />
             </label>
-            {dateFilter && (
+            <label className="flex items-center gap-1.5 rounded-2xl border-2 border-flamingo-dark bg-white px-3 py-1.5">
+              <span className="text-[10px] font-extrabold uppercase tracking-wide text-flamingo-dark/50">To</span>
+              <input
+                type="date"
+                value={dateTo}
+                onChange={e => setDateTo(e.target.value)}
+                min={dateFrom || undefined}
+                className="bg-transparent text-xs font-bold text-flamingo-dark outline-none [color-scheme:light]"
+              />
+            </label>
+            {(dateFrom || dateTo) && (
               <button
-                onClick={() => setDateFilter("")}
+                onClick={() => { setDateFrom(""); setDateTo(""); }}
                 className="rounded-full border-2 border-flamingo-dark/30 bg-white px-2.5 py-1.5 text-[10px] font-extrabold uppercase text-flamingo-dark/70 hover:bg-flamingo-cream"
               >
-                Clear date
+                Clear dates
               </button>
             )}
           </div>
