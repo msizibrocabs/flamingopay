@@ -16,6 +16,7 @@ import { checkCTR, CTR_THRESHOLD } from "./fica";
 import { getBusinessProfile } from "./business-profiles";
 import { screenMerchant, createSanctionsFlag } from "./sanctions";
 import { sendPaymentNotification } from "./notifications";
+import { sendPaymentPush } from "./push";
 // Re-export shared types/functions so existing imports keep working
 export { type BusinessProfile, BUSINESS_PROFILES, getBusinessProfile } from "./business-profiles";
 
@@ -741,8 +742,21 @@ export async function createTransaction(
   // Run compliance auto-flagging rules
   await evaluateRules(merchantId, txn);
 
-  // Instant notification to merchant (WhatsApp → SMS fallback)
-  // Must await — Vercel kills the function after response is sent
+  // Push notification (free, instant, works when phone is locked)
+  try {
+    const pushResult = await sendPaymentPush({
+      merchantId,
+      merchantName: m.businessName,
+      amount: txn.amount,
+      reference: txn.reference,
+      buyerBank: txn.buyerBank,
+    });
+    console.log(`[push] ${merchantId}: ${pushResult.sent}/${pushResult.total} devices notified`);
+  } catch (err) {
+    console.error("[push] Unexpected error:", err);
+  }
+
+  // WhatsApp → SMS fallback (only if configured — costs per message)
   try {
     const notif = await sendPaymentNotification({
       phone: m.phone,

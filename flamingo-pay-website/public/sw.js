@@ -1,6 +1,6 @@
-// Flamingo Pay Service Worker — offline shell + cache-first for static assets
+// Flamingo Pay Service Worker — offline shell + cache-first + push notifications
 
-const CACHE_NAME = "flamingo-v1";
+const CACHE_NAME = "flamingo-v2";
 const OFFLINE_URL = "/offline.html";
 
 const PRECACHE = [
@@ -8,6 +8,7 @@ const PRECACHE = [
   "/offline.html",
   "/logo-primary.png",
   "/logo-primary.svg",
+  "/kaching.wav",
 ];
 
 // Install: cache the shell
@@ -48,7 +49,7 @@ self.addEventListener("fetch", (event) => {
 
   // Static assets: cache first
   if (
-    request.url.match(/\.(png|svg|jpg|jpeg|webp|ico|woff2?|css|js)$/)
+    request.url.match(/\.(png|svg|jpg|jpeg|webp|ico|woff2?|css|js|wav)$/)
   ) {
     event.respondWith(
       caches.match(request).then(
@@ -63,4 +64,62 @@ self.addEventListener("fetch", (event) => {
     );
     return;
   }
+});
+
+// ─── Push notifications ──────────────────────────────────────────────
+
+self.addEventListener("push", (event) => {
+  if (!event.data) return;
+
+  let payload;
+  try {
+    payload = event.data.json();
+  } catch {
+    payload = {
+      title: "Flamingo Pay",
+      body: event.data.text(),
+    };
+  }
+
+  const options = {
+    body: payload.body || "",
+    icon: payload.icon || "/logo-primary.png",
+    badge: payload.badge || "/logo-primary.png",
+    tag: payload.tag || "flamingo-payment",
+    renotify: true, // vibrate even if same tag
+    vibrate: [200, 100, 200, 100, 200], // ka-ching rhythm
+    data: payload.data || {},
+    actions: [
+      { action: "view", title: "View Dashboard" },
+      { action: "dismiss", title: "Dismiss" },
+    ],
+  };
+
+  event.waitUntil(
+    self.registration.showNotification(payload.title || "Payment received!", options)
+  );
+});
+
+// Handle notification click — open the merchant dashboard
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+
+  if (event.action === "dismiss") return;
+
+  const urlPath = event.notification.data?.url || "/merchant/dashboard";
+
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
+      // If a Flamingo tab is already open, focus it and navigate
+      for (const client of clientList) {
+        if (client.url.includes("/merchant") && "focus" in client) {
+          client.focus();
+          client.navigate(urlPath);
+          return;
+        }
+      }
+      // Otherwise open a new tab
+      return self.clients.openWindow(urlPath);
+    })
+  );
 });

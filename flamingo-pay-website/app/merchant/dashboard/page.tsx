@@ -21,6 +21,7 @@ import {
 import { useMerchantTxns } from "../../../lib/useMerchantTxns";
 import { useMerchant } from "../../../lib/useMerchant";
 import { useI18n } from "../../../lib/i18n";
+import { PushPrompt } from "../../../components/PushPrompt";
 
 export default function DashboardPage() {
   return (
@@ -85,6 +86,11 @@ function Inner() {
       />
 
       <div className="mx-auto max-w-md px-4">
+        {/* Push notification prompt */}
+        <div className="mt-4">
+          <PushPrompt merchantId={mid} />
+        </div>
+
         {/* Today's earnings hero */}
         <Reveal className="mt-4">
           <section className="relative overflow-hidden rounded-3xl border-2 border-flamingo-dark bg-gradient-flamingo p-5 text-white shadow-[0_10px_0_0_#1A1A2E]">
