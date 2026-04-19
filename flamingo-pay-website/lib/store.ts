@@ -17,6 +17,7 @@ import { getBusinessProfile } from "./business-profiles";
 import { screenMerchant, createSanctionsFlag } from "./sanctions";
 import { sendPaymentNotification } from "./notifications";
 import { sendPaymentPush } from "./push";
+import type { KycStatus, KycVerificationRecord } from "./verifynow";
 // Re-export shared types/functions so existing imports keep working
 export { type BusinessProfile, BUSINESS_PROFILES, getBusinessProfile } from "./business-profiles";
 
@@ -141,6 +142,14 @@ export type MerchantApplication = {
   holdReason?: string;
   holdSetBy?: string;
   holdSetAt?: string;
+  /** VerifyNow KYC verification status. */
+  kycVerificationStatus?: KycStatus;
+  /** SA ID number (masked — first 6 digits only). */
+  idNumberMasked?: string;
+  /** Whether the merchant owner is a PEP. */
+  isPep?: boolean;
+  /** CIPC registration number (for registered businesses). */
+  cipcRegistrationNumber?: string;
 };
 
 export type VelocityLimits = {
@@ -557,6 +566,14 @@ export type NewMerchantInput = {
   uploadedDocs?: UploadedDoc[];
   /** 4-digit PIN (plaintext — will be hashed before storing). */
   pin?: string;
+  /** 13-digit SA ID number — triggers VerifyNow KYC during signup. */
+  idNumber?: string;
+  /** Base64-encoded selfie photo for biometric verification. */
+  selfieBase64?: string;
+  /** CIPC registration number for registered businesses. */
+  cipcRegistrationNumber?: string;
+  /** Date of birth (YYYY-MM-DD) — extracted from ID if not provided. */
+  dateOfBirth?: string;
 };
 
 export async function createMerchant(input: NewMerchantInput): Promise<MerchantApplication> {
@@ -612,6 +629,53 @@ export async function createMerchant(input: NewMerchantInput): Promise<MerchantA
     .set(`merchant:${id}`, JSON.stringify(encryptMerchantPII(merchant)))
     .set("merchant_ids", JSON.stringify(ids))
     .exec();
+
+  // ── VerifyNow KYC verification on signup ──
+  // Non-blocking: run in background so the signup response isn't delayed
+  if (input.idNumber) {
+    import("./verifynow").then(({ runFullKycVerification }) => {
+      runFullKycVerification({
+        merchantId: id,
+        idNumber: input.idNumber!,
+        fullName: input.ownerName,
+        selfieBase64: input.selfieBase64,
+        bankName: input.bank,
+        accountNumber: input.accountNumber,
+        accountType: input.accountType,
+        cipcRegistrationNumber: input.cipcRegistrationNumber,
+        businessName: input.businessName,
+        dateOfBirth: input.dateOfBirth,
+      })
+        .then(async (kycResult) => {
+          // Update merchant record with KYC status
+          const m = await getMerchant(id);
+          if (m) {
+            m.kycVerificationStatus = kycResult.status;
+            m.idNumberMasked = kycResult.idNumberMasked;
+            m.isPep = kycResult.isPep;
+            if (input.cipcRegistrationNumber) {
+              m.cipcRegistrationNumber = input.cipcRegistrationNumber;
+            }
+            // Auto-approve if fully verified and no sanctions flags
+            if (kycResult.status === "verified") {
+              m.status = "approved";
+              m.approvedAt = new Date().toISOString();
+              console.log(`[kyc] ${id}: Auto-approved — all checks passed`);
+            }
+            await redis.set(
+              `merchant:${id}`,
+              JSON.stringify(encryptMerchantPII(m)),
+            );
+          }
+          console.log(
+            `[kyc] ${id}: KYC complete — ${kycResult.status} (${kycResult.totalCredits} credits)`,
+          );
+        })
+        .catch((err) => {
+          console.error(`[kyc] Verification failed for ${id}:`, err);
+        });
+    });
+  }
 
   // ── Sanctions screening on signup ──
   // Non-blocking: run in background so the signup response isn't delayed

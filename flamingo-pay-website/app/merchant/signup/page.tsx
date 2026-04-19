@@ -110,6 +110,8 @@ export default function SignupPage() {
   const [businessType, setBusinessType] = useState("");
   const [ownerName, setOwnerName] = useState("");
   const [address, setAddress] = useState("");
+  const [idNumber, setIdNumber] = useState("");
+  const [cipcRegNumber, setCipcRegNumber] = useState("");
 
   // Step 4 — expected volume
   const [volumeIdx, setVolumeIdx] = useState<number | null>(null);
@@ -170,6 +172,7 @@ export default function SignupPage() {
       if (!businessName.trim()) return "What's your shop called?";
       if (!ownerName.trim()) return "We need your full name";
       if (!businessType) return "Pick a category";
+      if (!idNumber.trim() || !/^\d{13}$/.test(idNumber.trim())) return "Enter your 13-digit SA ID number";
     }
     if (step === 4) {
       if (volumeIdx == null) return "Select your expected monthly volume";
@@ -334,6 +337,8 @@ export default function SignupPage() {
           accountType,
           pin,
           expectedMonthlyVolume: selectedVolume?.value ?? 5_000,
+          idNumber: idNumber.trim(),
+          cipcRegistrationNumber: cipcRegNumber.trim() || undefined,
           uploadedDocs: Object.entries(uploads)
             .filter(([, v]) => v.done && v.url)
             .map(([kind, v]) => ({ kind, fileName: v.file.name, blobUrl: v.url })),
@@ -587,6 +592,25 @@ export default function SignupPage() {
 
               <label className="block">
                 <span className="text-xs font-bold uppercase tracking-wide text-flamingo-dark/70">
+                  SA ID number
+                </span>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={13}
+                  value={idNumber}
+                  onChange={e => setIdNumber(e.target.value.replace(/\D/g, "").slice(0, 13))}
+                  placeholder="8801015800088"
+                  className="mt-1 block w-full rounded-xl border-2 border-flamingo-dark bg-flamingo-cream px-3 py-3 text-base font-semibold text-flamingo-dark outline-none placeholder:text-flamingo-dark/40 tracking-widest"
+                  required
+                />
+                <span className="mt-1 block text-xs text-flamingo-dark/50">
+                  We verify this against Home Affairs — instant, secure, required by law (FICA)
+                </span>
+              </label>
+
+              <label className="block">
+                <span className="text-xs font-bold uppercase tracking-wide text-flamingo-dark/70">
                   Address <span className="normal-case text-flamingo-dark/50">(optional)</span>
                 </span>
                 <input
@@ -597,6 +621,25 @@ export default function SignupPage() {
                   className="mt-1 block w-full rounded-xl border-2 border-flamingo-dark bg-flamingo-cream px-3 py-3 text-base font-semibold text-flamingo-dark outline-none placeholder:text-flamingo-dark/40"
                 />
               </label>
+
+              {/* Show CIPC field for registered businesses */}
+              {/pty|ltd|cc|company/i.test(businessType) && (
+                <label className="block">
+                  <span className="text-xs font-bold uppercase tracking-wide text-flamingo-dark/70">
+                    CIPC registration number <span className="normal-case text-flamingo-dark/50">(if registered)</span>
+                  </span>
+                  <input
+                    type="text"
+                    value={cipcRegNumber}
+                    onChange={e => setCipcRegNumber(e.target.value)}
+                    placeholder="2024/123456/07"
+                    className="mt-1 block w-full rounded-xl border-2 border-flamingo-dark bg-flamingo-cream px-3 py-3 text-base font-semibold text-flamingo-dark outline-none placeholder:text-flamingo-dark/40"
+                  />
+                  <span className="mt-1 block text-xs text-flamingo-dark/50">
+                    We'll verify your company with CIPC automatically
+                  </span>
+                </label>
+              )}
             </div>
           )}
 
