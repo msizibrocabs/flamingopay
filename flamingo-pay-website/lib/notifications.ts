@@ -152,19 +152,24 @@ export async function sendPaymentNotification(opts: {
     return { delivered: false, channel: "none", error: "No phone number" };
   }
 
+  const destination = normaliseSAPhone(phone);
+  console.log(`[notifications] Sending to ${destination} for ${merchantName} (${formatZAR(amount)})`);
+
   const amountStr = formatZAR(amount);
   const message =
-    `💰 Payment received!\n\n` +
+    `Payment received!\n\n` +
     `${amountStr} from ${buyerBank}\n` +
     `Ref: ${reference}\n` +
     `Business: ${merchantName}\n\n` +
-    `— Flamingo Pay`;
+    `-- Flamingo Pay`;
 
   // 1. Try WhatsApp
   const waResult = await sendWhatsApp(phone, message);
   if (waResult.ok) {
+    console.log(`[notifications] WhatsApp delivered to ${destination}`);
     return { delivered: true, channel: "whatsapp" };
   }
+  console.log(`[notifications] WhatsApp failed: ${waResult.error}, trying SMS…`);
 
   // 2. Fall back to SMS (shorter message for 160-char limit)
   const smsMessage =
@@ -173,12 +178,13 @@ export async function sendPaymentNotification(opts: {
 
   const smsResult = await sendSMS(phone, smsMessage);
   if (smsResult.ok) {
+    console.log(`[notifications] SMS delivered to ${destination}`);
     return { delivered: true, channel: "sms" };
   }
 
   // Both failed
   console.error(
-    `[notifications] Failed to notify ${merchantName}: WA=${waResult.error}, SMS=${smsResult.error}`,
+    `[notifications] Failed to notify ${merchantName} (${destination}): WA=${waResult.error}, SMS=${smsResult.error}`,
   );
   return {
     delivered: false,

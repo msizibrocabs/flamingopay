@@ -741,14 +741,20 @@ export async function createTransaction(
   // Run compliance auto-flagging rules
   await evaluateRules(merchantId, txn);
 
-  // Instant notification to merchant (WhatsApp → SMS fallback, fire-and-forget)
-  sendPaymentNotification({
-    phone: m.phone,
-    merchantName: m.businessName,
-    amount: txn.amount,
-    reference: txn.reference,
-    buyerBank: txn.buyerBank,
-  }).catch(() => {}); // non-blocking — never delay the transaction response
+  // Instant notification to merchant (WhatsApp → SMS fallback)
+  // Must await — Vercel kills the function after response is sent
+  try {
+    const notif = await sendPaymentNotification({
+      phone: m.phone,
+      merchantName: m.businessName,
+      amount: txn.amount,
+      reference: txn.reference,
+      buyerBank: txn.buyerBank,
+    });
+    console.log(`[notifications] ${merchantId}: ${notif.channel} — delivered=${notif.delivered}${notif.error ? ` error=${notif.error}` : ""}`);
+  } catch (err) {
+    console.error("[notifications] Unexpected error:", err);
+  }
 
   return txn;
 }
