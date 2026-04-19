@@ -9,8 +9,8 @@ import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { PaymentNotification } from "../lib/usePaymentNotifications";
 
-function formatZAR(cents: number): string {
-  return `R ${(cents / 100).toFixed(2)}`;
+function formatZAR(amount: number): string {
+  return `R ${amount.toLocaleString("en-ZA", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 export function PaymentToast({

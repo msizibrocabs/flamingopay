@@ -94,9 +94,9 @@ async function loadSubscriptions(merchantId: string): Promise<PushSub[]> {
 
 /* ─── Send push notification ──────────────────────────────────────── */
 
-/** Format cents to ZAR string, e.g. 1500 → "R15.00" */
-function formatZAR(cents: number): string {
-  return `R${(cents / 100).toFixed(2)}`;
+/** Format rands to ZAR string, e.g. 20 → "R20.00" */
+function formatZAR(amount: number): string {
+  return `R${amount.toLocaleString("en-ZA", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 export type PushPayload = {

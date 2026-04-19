@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
     const result = await sendPaymentNotification({
       phone,
       merchantName,
-      amount: 5000, // R50.00 test
+      amount: 50, // R50.00 test
       reference: "FP-TEST",
       buyerBank: "Test Bank",
     });
