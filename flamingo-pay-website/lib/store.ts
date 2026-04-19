@@ -610,8 +610,9 @@ export async function createMerchant(input: NewMerchantInput): Promise<MerchantA
           flaggedAt: new Date().toISOString(),
           status: "pending",
           matches: unique,
+          flagType: result.flagType,
         });
-        console.log(`[sanctions] Merchant ${id} flagged on signup — score ${result.highestScore}`);
+        console.log(`[sanctions] Merchant ${id} flagged on signup — ${result.flagType} — score ${result.highestScore}`);
       }
     })
     .catch((err) => {

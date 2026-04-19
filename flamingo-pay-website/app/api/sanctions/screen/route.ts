@@ -1,12 +1,12 @@
 /**
- * POST /api/sanctions/screen — Screen a name against the sanctions list.
+ * POST /api/sanctions/screen — Screen a name against sanctions + PEP lists.
  * Body: { name: string } or { businessName: string, ownerName: string, merchantId?: string }
  * Admin-only.
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "../../../../lib/api-auth";
-import { screenName, screenMerchant } from "../../../../lib/sanctions";
+import { screenName, screenNamePep, screenMerchant } from "../../../../lib/sanctions";
 
 export const dynamic = "force-dynamic";
 
@@ -19,7 +19,7 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
 
-    // If businessName + ownerName provided, do a full merchant screen
+    // If businessName + ownerName provided, do a full merchant screen (sanctions + PEP)
     if (body.businessName && body.ownerName) {
       const result = await screenMerchant(
         body.merchantId || "manual-check",
@@ -29,10 +29,29 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(result);
     }
 
-    // Single name check
+    // Single name check — run both sanctions and PEP
     if (body.name) {
-      const result = await screenName(body.name);
-      return NextResponse.json(result);
+      const [sanctionsResult, pepResult] = await Promise.all([
+        screenName(body.name),
+        screenNamePep(body.name),
+      ]);
+
+      // Merge results
+      const entries = [...sanctionsResult.entries, ...pepResult.entries]
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 10);
+
+      const highestScore = Math.max(sanctionsResult.score, pepResult.score);
+
+      return NextResponse.json({
+        matched: sanctionsResult.matched || pepResult.matched,
+        score: highestScore,
+        matchType: highestScore >= 95 ? "exact" : highestScore >= 70 ? "fuzzy" : highestScore >= 50 ? "partial" : "none",
+        matchedName: body.name,
+        entries,
+        sanctionsMatched: sanctionsResult.matched,
+        pepMatched: pepResult.matched,
+      });
     }
 
     return NextResponse.json(

@@ -14,7 +14,12 @@ type MatchEntry = {
   score: number;
   country?: string;
   programmes?: string[];
+  source?: "sanctions" | "pep";
+  pepPosition?: string;
+  pepTier?: "senior" | "family" | "associate";
 };
+
+type FlagType = "sanctions" | "pep" | "both";
 
 type SanctionsFlag = {
   merchantId: string;
@@ -26,6 +31,7 @@ type SanctionsFlag = {
   resolvedBy?: string;
   note?: string;
   matches: MatchEntry[];
+  flagType?: FlagType;
 };
 
 type SanctionsMeta = {
@@ -35,12 +41,23 @@ type SanctionsMeta = {
   refreshDurationMs: number;
 };
 
+type PepMeta = {
+  lastRefresh: string;
+  totalEntries: number;
+  sources: string[];
+  refreshDurationMs: number;
+  saCuratedCount: number;
+  openSanctionsCount: number;
+};
+
 type ScreenResult = {
   matched: boolean;
   score: number;
   matchType: string;
   matchedName: string;
   entries: MatchEntry[];
+  sanctionsMatched?: boolean;
+  pepMatched?: boolean;
 };
 
 export default function SanctionsPage() {
@@ -55,12 +72,14 @@ export default function SanctionsPage() {
 function Inner() {
   const [flags, setFlags] = useState<SanctionsFlag[]>([]);
   const [meta, setMeta] = useState<SanctionsMeta | null>(null);
+  const [pepMeta, setPepMeta] = useState<PepMeta | null>(null);
+  const [pepProvider, setPepProvider] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [batching, setBatching] = useState(false);
   const [expandedFlag, setExpandedFlag] = useState<string | null>(null);
   const [resolveNote, setResolveNote] = useState("");
-  const [filter, setFilter] = useState<"all" | "pending" | "cleared" | "blocked">("all");
+  const [filter, setFilter] = useState<"all" | "pending" | "cleared" | "blocked" | "pep" | "sanctions">("all");
 
   // Manual screen state
   const [screenName, setScreenName] = useState("");
@@ -74,6 +93,8 @@ function Inner() {
         const data = await res.json();
         setFlags(data.flags ?? []);
         setMeta(data.meta ?? null);
+        setPepMeta(data.pepMeta ?? null);
+        setPepProvider(data.pepProvider ?? "");
       }
     } catch { /* ignore */ }
     setLoading(false);
@@ -88,6 +109,7 @@ function Inner() {
       if (res.ok) {
         const data = await res.json();
         setMeta(data.meta);
+        setPepMeta(data.pepMeta ?? null);
       }
     } catch { /* ignore */ }
     setRefreshing(false);
@@ -137,11 +159,16 @@ function Inner() {
 
   const filtered = filter === "all"
     ? flags
+    : filter === "pep"
+    ? flags.filter(f => f.flagType === "pep" || f.flagType === "both")
+    : filter === "sanctions"
+    ? flags.filter(f => !f.flagType || f.flagType === "sanctions" || f.flagType === "both")
     : flags.filter(f => f.status === filter);
 
   const pendingCount = flags.filter(f => f.status === "pending").length;
   const blockedCount = flags.filter(f => f.status === "blocked").length;
   const clearedCount = flags.filter(f => f.status === "cleared").length;
+  const pepFlagCount = flags.filter(f => f.flagType === "pep" || f.flagType === "both").length;
 
   if (loading) {
     return (
@@ -160,10 +187,10 @@ function Inner() {
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <h1 className="display text-2xl font-extrabold text-flamingo-dark">
-              Sanctions Screening
+              Sanctions &amp; PEP Screening
             </h1>
             <p className="mt-1 text-sm text-flamingo-dark/60">
-              UN · OFAC · EU · SA FIC — FICA compliance screening
+              UN · OFAC · EU · SA FIC · PEP — FICA compliance screening
             </p>
           </div>
           <div className="flex gap-2">
@@ -189,24 +216,37 @@ function Inner() {
         </div>
 
         {/* Stats bar */}
-        <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <StatCard label="List Entries" value={meta?.totalEntries?.toLocaleString() ?? "—"} />
+        <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-5">
+          <StatCard label="Sanctions Entries" value={meta?.totalEntries?.toLocaleString() ?? "—"} />
+          <StatCard label="PEP Entries" value={pepMeta?.totalEntries?.toLocaleString() ?? "—"} />
           <StatCard label="Pending Flags" value={String(pendingCount)} alert={pendingCount > 0} />
+          <StatCard label="PEP Flags" value={String(pepFlagCount)} alert={pepFlagCount > 0} />
           <StatCard label="Blocked" value={String(blockedCount)} />
-          <StatCard label="Cleared" value={String(clearedCount)} />
         </div>
 
         {/* Last refresh info */}
-        {meta && (
-          <p className="mt-3 text-xs text-flamingo-dark/50">
-            Lists last refreshed: {new Date(meta.lastRefresh).toLocaleString("en-ZA")} ·{" "}
-            {meta.sources.join(", ")} · {meta.totalEntries.toLocaleString()} entries ·{" "}
-            took {(meta.refreshDurationMs / 1000).toFixed(1)}s
-          </p>
+        {(meta || pepMeta) && (
+          <div className="mt-3 space-y-1">
+            {meta && (
+              <p className="text-xs text-flamingo-dark/50">
+                Sanctions: {meta.totalEntries.toLocaleString()} entries · {meta.sources.join(", ")} · refreshed {new Date(meta.lastRefresh).toLocaleString("en-ZA")}
+              </p>
+            )}
+            {pepMeta && (
+              <p className="text-xs text-flamingo-dark/50">
+                PEP: {pepMeta.totalEntries.toLocaleString()} entries ({pepMeta.saCuratedCount} SA curated + {pepMeta.openSanctionsCount.toLocaleString()} OpenSanctions) · refreshed {new Date(pepMeta.lastRefresh).toLocaleString("en-ZA")}
+              </p>
+            )}
+            {pepProvider && (
+              <p className="text-xs text-flamingo-dark/40">
+                PEP provider: {pepProvider}
+              </p>
+            )}
+          </div>
         )}
-        {!meta && (
+        {!meta && !pepMeta && (
           <p className="mt-3 text-xs text-flamingo-pink font-bold">
-            No sanctions lists loaded yet — click &quot;Refresh Lists&quot; to download from OpenSanctions.
+            No lists loaded yet — click &quot;Refresh Lists&quot; to download sanctions + PEP data from OpenSanctions.
           </p>
         )}
 
@@ -258,9 +298,15 @@ function Inner() {
                             </span>
                           </div>
                           <p className="mt-1 text-flamingo-dark/60">
-                            {e.type} · {e.lists.join(", ")}
+                            {e.source === "pep" ? "PEP" : e.type} · {e.lists.join(", ")}
                             {e.country ? ` · ${e.country}` : ""}
+                            {e.pepPosition ? ` · ${e.pepPosition}` : ""}
                           </p>
+                          {e.source === "pep" && (
+                            <span className="mt-1 inline-block rounded-md bg-purple-100 px-1.5 py-0.5 text-[10px] font-bold text-purple-700">
+                              PEP{e.pepTier ? ` — ${e.pepTier}` : ""}
+                            </span>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -278,21 +324,31 @@ function Inner() {
         </div>
 
         {/* Filter pills */}
-        <div className="mt-8 flex gap-2">
-          {(["all", "pending", "cleared", "blocked"] as const).map(f => (
-            <button
-              key={f}
-              onClick={() => setFilter(f)}
-              className={
-                "rounded-xl border-2 px-3 py-1.5 text-xs font-bold transition " +
-                (filter === f
-                  ? "border-flamingo-dark bg-flamingo-butter text-flamingo-dark shadow-[0_2px_0_0_#1A1A2E]"
-                  : "border-flamingo-dark/20 bg-white text-flamingo-dark/60 hover:bg-flamingo-cream")
-              }
-            >
-              {f === "all" ? `All (${flags.length})` : `${f.charAt(0).toUpperCase() + f.slice(1)} (${flags.filter(fl => fl.status === f).length})`}
-            </button>
-          ))}
+        <div className="mt-8 flex flex-wrap gap-2">
+          {(["all", "pending", "cleared", "blocked", "pep", "sanctions"] as const).map(f => {
+            const count = f === "all" ? flags.length
+              : f === "pep" ? pepFlagCount
+              : f === "sanctions" ? flags.filter(fl => !fl.flagType || fl.flagType === "sanctions" || fl.flagType === "both").length
+              : flags.filter(fl => fl.status === f).length;
+            return (
+              <button
+                key={f}
+                onClick={() => setFilter(f)}
+                className={
+                  "rounded-xl border-2 px-3 py-1.5 text-xs font-bold transition " +
+                  (filter === f
+                    ? f === "pep" ? "border-purple-600 bg-purple-100 text-purple-700 shadow-[0_2px_0_0_#7C3AED]"
+                    : "border-flamingo-dark bg-flamingo-butter text-flamingo-dark shadow-[0_2px_0_0_#1A1A2E]"
+                    : "border-flamingo-dark/20 bg-white text-flamingo-dark/60 hover:bg-flamingo-cream")
+                }
+              >
+                {f === "all" ? `All (${count})`
+                  : f === "pep" ? `PEP (${count})`
+                  : f === "sanctions" ? `Sanctions (${count})`
+                  : `${f.charAt(0).toUpperCase() + f.slice(1)} (${count})`}
+              </button>
+            );
+          })}
         </div>
 
         {/* Flags list */}
@@ -332,6 +388,7 @@ function Inner() {
                   >
                     {/* Status badge */}
                     <StatusBadge status={flag.status} />
+                    <FlagTypeBadge flagType={flag.flagType} />
 
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
@@ -373,7 +430,7 @@ function Inner() {
                           {/* Matched entries */}
                           <div>
                             <h3 className="text-xs font-bold uppercase tracking-wider text-flamingo-dark/50 mb-2">
-                              Sanctions Matches
+                              Screening Matches
                             </h3>
                             <div className="space-y-2">
                               {flag.matches.map((m, i) => (
@@ -397,10 +454,16 @@ function Inner() {
                                     </span>
                                   </div>
                                   <p className="text-xs text-flamingo-dark/60 mt-1">
-                                    Type: {m.type} · Lists: {m.lists.join(", ")}
+                                    {m.source === "pep" ? "PEP" : `Type: ${m.type}`} · Lists: {m.lists.join(", ")}
                                     {m.country ? ` · Country: ${m.country}` : ""}
+                                    {m.pepPosition ? ` · ${m.pepPosition}` : ""}
                                     {m.programmes?.length ? ` · ${m.programmes.join(", ")}` : ""}
                                   </p>
+                                  {m.source === "pep" && m.pepTier && (
+                                    <span className="mt-1 inline-block rounded-md bg-purple-100 px-1.5 py-0.5 text-[10px] font-bold text-purple-700">
+                                      PEP — {m.pepTier}
+                                    </span>
+                                  )}
                                 </div>
                               ))}
                             </div>
@@ -469,17 +532,24 @@ function Inner() {
           </h2>
           <div className="mt-3 space-y-2 text-sm text-flamingo-dark/70">
             <p>
-              Every merchant signup is automatically screened against four international sanctions lists:
-              the UN Security Council Consolidated List, US OFAC SDN list, EU Financial Sanctions, and
-              South Africa&apos;s FIC Targeted Financial Sanctions list.
+              Every merchant signup is automatically screened against international sanctions lists
+              (UN Security Council, US OFAC SDN, EU Financial Sanctions, SA FIC Targeted Financial Sanctions)
+              and Politically Exposed Persons (PEP) databases including a curated South African PEP list
+              and OpenSanctions global PEP data.
             </p>
             <p>
               Names are fuzzy-matched using normalisation, token overlap, and Levenshtein distance.
-              Matches scoring above 65% are flagged for manual review. A compliance officer must then
-              clear the flag (false positive) or block the merchant.
+              Matches scoring above 65% are flagged for manual review. Flags are categorised as
+              &quot;sanctions&quot;, &quot;pep&quot;, or &quot;both&quot; depending on the match source.
+              A compliance officer must then clear the flag (false positive) or block the merchant.
             </p>
             <p>
-              Use &quot;Refresh Lists&quot; to download the latest data from OpenSanctions, and
+              PEP screening is required under FICA section 21A. The SA curated list covers Cabinet ministers,
+              Premiers, SOE boards, judiciary, SARB governors, former PEPs, and PEP family members.
+              The plug-in architecture supports future integration with Refinitiv World-Check or similar providers.
+            </p>
+            <p>
+              Use &quot;Refresh Lists&quot; to download the latest sanctions + PEP data from OpenSanctions, and
               &quot;Batch Re-screen&quot; to re-check all active merchants against the updated lists.
             </p>
           </div>
@@ -520,6 +590,28 @@ function StatusBadge({ status }: { status: SanctionsFlag["status"] }) {
       styles[status]
     }>
       {status}
+    </span>
+  );
+}
+
+function FlagTypeBadge({ flagType }: { flagType?: FlagType }) {
+  if (!flagType) return null;
+  const styles: Record<string, string> = {
+    sanctions: "bg-orange-100 text-orange-700 border-orange-300",
+    pep: "bg-purple-100 text-purple-700 border-purple-300",
+    both: "bg-red-100 text-red-800 border-red-400",
+  };
+  const labels: Record<string, string> = {
+    sanctions: "Sanctions",
+    pep: "PEP",
+    both: "Sanctions + PEP",
+  };
+  return (
+    <span className={
+      "shrink-0 rounded-lg border px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wider " +
+      (styles[flagType] ?? "")
+    }>
+      {labels[flagType] ?? flagType}
     </span>
   );
 }

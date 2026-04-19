@@ -12,6 +12,8 @@ import {
   listSanctionsFlags,
   resolveSanctionsFlag,
   getSanctionsMeta,
+  getPepMeta,
+  getPepProviderName,
 } from "../../../../lib/sanctions";
 import { updateMerchantStatus } from "../../../../lib/store";
 
@@ -23,12 +25,18 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const [flags, meta] = await Promise.all([
+  const [flags, meta, pepMeta] = await Promise.all([
     listSanctionsFlags(),
     getSanctionsMeta(),
+    getPepMeta(),
   ]);
 
-  return NextResponse.json({ flags, meta });
+  return NextResponse.json({
+    flags,
+    meta,
+    pepMeta,
+    pepProvider: getPepProviderName(),
+  });
 }
 
 export async function POST(req: NextRequest) {
