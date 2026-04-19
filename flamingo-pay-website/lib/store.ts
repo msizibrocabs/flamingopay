@@ -15,6 +15,7 @@ import { encryptMerchantPII, decryptMerchantPII } from "./crypto";
 import { checkCTR, CTR_THRESHOLD } from "./fica";
 import { getBusinessProfile } from "./business-profiles";
 import { screenMerchant, createSanctionsFlag } from "./sanctions";
+import { sendPaymentNotification } from "./notifications";
 // Re-export shared types/functions so existing imports keep working
 export { type BusinessProfile, BUSINESS_PROFILES, getBusinessProfile } from "./business-profiles";
 
@@ -739,6 +740,15 @@ export async function createTransaction(
 
   // Run compliance auto-flagging rules
   await evaluateRules(merchantId, txn);
+
+  // Instant notification to merchant (WhatsApp → SMS fallback, fire-and-forget)
+  sendPaymentNotification({
+    phone: m.phone,
+    merchantName: m.businessName,
+    amount: txn.amount,
+    reference: txn.reference,
+    buyerBank: txn.buyerBank,
+  }).catch(() => {}); // non-blocking — never delay the transaction response
 
   return txn;
 }
