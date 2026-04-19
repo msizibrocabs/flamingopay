@@ -21,6 +21,17 @@ function isIOS(): boolean {
     (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
 }
 
+/** Detect if running on Android. */
+function isAndroid(): boolean {
+  if (typeof navigator === "undefined") return false;
+  return /Android/i.test(navigator.userAgent);
+}
+
+/** Detect if running on a mobile device. */
+function isMobile(): boolean {
+  return isIOS() || isAndroid();
+}
+
 /** Detect if the page is running as an installed PWA (standalone mode). */
 function isStandalone(): boolean {
   if (typeof window === "undefined") return false;
@@ -31,16 +42,21 @@ function isStandalone(): boolean {
 export function PushPrompt({ merchantId }: { merchantId: string | null | undefined }) {
   const { supported, permission, subscribed, loading, subscribe } = usePushNotifications(merchantId);
   const [dismissed, setDismissed] = useState(true);
-  const [iosNeedInstall, setIosNeedInstall] = useState(false);
-  const [showIOSSteps, setShowIOSSteps] = useState(false);
+  const [mobileNeedInstall, setMobileNeedInstall] = useState(false);
+  const [platform, setPlatform] = useState<"ios" | "android" | "desktop">("desktop");
+  const [showInstallSteps, setShowInstallSteps] = useState(false);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
     setDismissed(!!localStorage.getItem(DISMISS_KEY));
 
-    // On iOS in Safari (not standalone), push isn't available — show install prompt
-    if (isIOS() && !isStandalone()) {
-      setIosNeedInstall(true);
+    const onIOS = isIOS();
+    const onAndroid = isAndroid();
+    setPlatform(onIOS ? "ios" : onAndroid ? "android" : "desktop");
+
+    // On mobile (not installed as PWA), prompt to install first
+    if (isMobile() && !isStandalone()) {
+      setMobileNeedInstall(true);
     }
   }, []);
 
@@ -57,8 +73,8 @@ export function PushPrompt({ merchantId }: { merchantId: string | null | undefin
     setDismissed(true);
   }
 
-  // iOS in Safari — needs to install as PWA first
-  if (iosNeedInstall) {
+  // Mobile (not installed as PWA) — show install instructions
+  if (mobileNeedInstall) {
     return (
       <AnimatePresence>
         <motion.div
@@ -77,30 +93,52 @@ export function PushPrompt({ merchantId }: { merchantId: string | null | undefin
                 Add to your home screen to get instant payment alerts — even when your phone is locked.
               </p>
 
-              {showIOSSteps ? (
-                <div className="mt-3 space-y-2">
-                  <div className="flex items-center gap-2 text-xs text-flamingo-dark">
-                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-flamingo-pink text-[10px] font-bold text-white">1</span>
-                    <span>Tap the <strong>Share</strong> button <span className="inline-block text-base leading-none align-middle">⬆</span> at the bottom of Safari</span>
+              {showInstallSteps ? (
+                platform === "ios" ? (
+                  /* ── iOS install steps ── */
+                  <div className="mt-3 space-y-2">
+                    <div className="flex items-center gap-2 text-xs text-flamingo-dark">
+                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-flamingo-pink text-[10px] font-bold text-white">1</span>
+                      <span>Tap the <strong>Share</strong> button <span className="inline-block text-base leading-none align-middle">⬆</span> at the bottom of Safari</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs text-flamingo-dark">
+                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-flamingo-pink text-[10px] font-bold text-white">2</span>
+                      <span>Scroll down and tap <strong>&quot;Add to Home Screen&quot;</strong></span>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs text-flamingo-dark">
+                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-flamingo-pink text-[10px] font-bold text-white">3</span>
+                      <span>Open <strong>Flamingo Pay</strong> from your home screen</span>
+                    </div>
+                    <p className="text-[10px] text-flamingo-dark/50 mt-1">
+                      Once installed, you&apos;ll be able to enable push notifications.
+                    </p>
                   </div>
-                  <div className="flex items-center gap-2 text-xs text-flamingo-dark">
-                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-flamingo-pink text-[10px] font-bold text-white">2</span>
-                    <span>Scroll down and tap <strong>&quot;Add to Home Screen&quot;</strong></span>
+                ) : (
+                  /* ── Android install steps ── */
+                  <div className="mt-3 space-y-2">
+                    <div className="flex items-center gap-2 text-xs text-flamingo-dark">
+                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-flamingo-pink text-[10px] font-bold text-white">1</span>
+                      <span>Tap the <strong>menu</strong> button <strong>⋮</strong> in the top-right of Chrome</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs text-flamingo-dark">
+                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-flamingo-pink text-[10px] font-bold text-white">2</span>
+                      <span>Tap <strong>&quot;Add to Home screen&quot;</strong> or <strong>&quot;Install app&quot;</strong></span>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs text-flamingo-dark">
+                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-flamingo-pink text-[10px] font-bold text-white">3</span>
+                      <span>Tap <strong>Install</strong>, then open <strong>Flamingo Pay</strong> from your home screen</span>
+                    </div>
+                    <p className="text-[10px] text-flamingo-dark/50 mt-1">
+                      Once installed, you&apos;ll get instant payment alerts — like a real app!
+                    </p>
                   </div>
-                  <div className="flex items-center gap-2 text-xs text-flamingo-dark">
-                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-flamingo-pink text-[10px] font-bold text-white">3</span>
-                    <span>Open <strong>Flamingo Pay</strong> from your home screen</span>
-                  </div>
-                  <p className="text-[10px] text-flamingo-dark/50 mt-1">
-                    Once installed, you&apos;ll be able to enable push notifications.
-                  </p>
-                </div>
+                )
               ) : (
                 <div className="flex gap-2 mt-3">
                   <motion.button
                     whileHover={{ y: -1 }}
                     whileTap={{ y: 1 }}
-                    onClick={() => setShowIOSSteps(true)}
+                    onClick={() => setShowInstallSteps(true)}
                     className="rounded-xl border-2 border-flamingo-dark bg-flamingo-pink px-4 py-2 text-xs font-bold text-white shadow-[0_3px_0_0_#1A1A2E] transition active:translate-y-[2px] active:shadow-[0_1px_0_0_#1A1A2E]"
                   >
                     Show me how
