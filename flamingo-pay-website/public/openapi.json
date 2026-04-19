@@ -1,0 +1,2665 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Flamingo Pay API",
+    "version": "1.0.0",
+    "description": "Payment processing and merchant management API for South African financial institutions",
+    "contact": {
+      "name": "Flamingo Pay Support"
+    }
+  },
+  "servers": [
+    {
+      "url": "https://flamingopay.local",
+      "description": "Production server"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "sessionAuth": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "flamingo_session",
+        "description": "Server-side session cookie (admin/compliance)"
+      },
+      "merchantId": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-Merchant-Id",
+        "description": "Merchant ID for client-side authentication"
+      }
+    },
+    "schemas": {
+      "Merchant": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique merchant identifier"
+          },
+          "phone": {
+            "type": "string",
+            "pattern": "^\\+?\\d{10,}$"
+          },
+          "businessName": {
+            "type": "string"
+          },
+          "businessType": {
+            "type": "string",
+            "enum": ["retail", "ecommerce", "service", "nonprofit", "other"]
+          },
+          "ownerName": {
+            "type": "string"
+          },
+          "address": {
+            "type": "string"
+          },
+          "bank": {
+            "type": "string"
+          },
+          "accountNumber": {
+            "type": "string"
+          },
+          "accountType": {
+            "type": "string",
+            "enum": ["cheque", "savings"]
+          },
+          "expectedMonthlyVolume": {
+            "type": "number",
+            "minimum": 0
+          },
+          "status": {
+            "type": "string",
+            "enum": ["pending", "approved", "rejected", "suspended"]
+          },
+          "frozen": {
+            "type": "boolean"
+          },
+          "freezeReason": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "documents": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Document"
+            }
+          }
+        }
+      },
+      "Document": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": ["id", "selfie", "affidavit", "company_reg", "proof_of_address", "bank_letter", "source_of_funds"]
+          },
+          "status": {
+            "type": "string",
+            "enum": ["required", "submitted", "verified", "rejected"]
+          },
+          "fileName": {
+            "type": "string"
+          },
+          "blobUrl": {
+            "type": "string"
+          },
+          "note": {
+            "type": "string"
+          },
+          "uploadedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "Transaction": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "merchantId": {
+            "type": "string"
+          },
+          "amount": {
+            "type": "number",
+            "description": "Amount in ZAR"
+          },
+          "rail": {
+            "type": "string",
+            "enum": ["eft", "payshap"]
+          },
+          "buyerBank": {
+            "type": "string"
+          },
+          "reference": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["pending", "completed", "failed", "refunded"]
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ComplianceFlag": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "merchantId": {
+            "type": "string"
+          },
+          "txnId": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["open", "investigating", "cleared", "confirmed"]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "resolvedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "resolvedBy": {
+            "type": "string"
+          }
+        }
+      },
+      "Complaint": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "merchantId": {
+            "type": "string"
+          },
+          "merchantName": {
+            "type": "string"
+          },
+          "complainantName": {
+            "type": "string"
+          },
+          "complainantEmail": {
+            "type": "string"
+          },
+          "complainantPhone": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string",
+            "enum": ["fraud", "quality", "delivery", "refund", "other"]
+          },
+          "subject": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["open", "assigned", "in_progress", "resolved", "escalated"]
+          },
+          "level": {
+            "type": "string",
+            "enum": ["level_1", "level_2", "level_3"]
+          },
+          "outcome": {
+            "type": "string",
+            "enum": ["upheld", "partially_upheld", "not_upheld", "unresolved"]
+          },
+          "relatedTxnId": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "resolvedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "StaffMember": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "name": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string",
+            "enum": ["owner", "manager", "staff"]
+          },
+          "active": {
+            "type": "boolean"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "lastLoginAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "AuditEntry": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "action": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          },
+          "actorId": {
+            "type": "string"
+          },
+          "actorName": {
+            "type": "string"
+          },
+          "targetId": {
+            "type": "string"
+          },
+          "targetType": {
+            "type": "string"
+          },
+          "detail": {
+            "type": "string"
+          },
+          "ip": {
+            "type": "string"
+          }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/api/auth/login": {
+      "post": {
+        "tags": ["Authentication"],
+        "summary": "Login with role and credentials",
+        "description": "Authenticate as merchant, admin, or compliance officer. For merchants, provide merchantId and PIN. For admin/compliance, provide passcode and name.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "oneOf": [
+                  {
+                    "properties": {
+                      "role": {
+                        "type": "string",
+                        "enum": ["merchant"]
+                      },
+                      "merchantId": {
+                        "type": "string"
+                      },
+                      "pin": {
+                        "type": "string",
+                        "pattern": "^\\d{4}$"
+                      }
+                    },
+                    "required": ["role", "merchantId", "pin"]
+                  },
+                  {
+                    "properties": {
+                      "role": {
+                        "type": "string",
+                        "enum": ["admin", "compliance"]
+                      },
+                      "passcode": {
+                        "type": "string"
+                      },
+                      "name": {
+                        "type": "string"
+                      }
+                    },
+                    "required": ["role", "passcode", "name"]
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Login successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "merchantId": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "token": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        },
+        "x-rate-limit": "10 requests per minute"
+      }
+    },
+    "/api/auth/merchant-login": {
+      "post": {
+        "tags": ["Authentication"],
+        "summary": "Merchant login by phone and PIN",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "phone": {
+                    "type": "string"
+                  },
+                  "pin": {
+                    "type": "string",
+                    "pattern": "^\\d{4}$"
+                  }
+                },
+                "required": ["phone", "pin"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Login successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "merchant": {
+                      "$ref": "#/components/schemas/Merchant"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "attemptsLeft": {
+                      "type": "integer"
+                    },
+                    "lockedUntil": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        },
+        "x-rate-limit": "10 requests per minute"
+      }
+    },
+    "/api/auth/logout": {
+      "post": {
+        "tags": ["Authentication"],
+        "summary": "Logout",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "role": {
+                    "type": "string",
+                    "enum": ["merchant", "admin", "compliance"]
+                  }
+                },
+                "required": ["role"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Logout successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/session": {
+      "get": {
+        "tags": ["Authentication"],
+        "summary": "Check current session",
+        "parameters": [
+          {
+            "name": "role",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": ["merchant", "admin", "compliance"]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Session is valid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "authenticated": {
+                      "type": "boolean"
+                    },
+                    "role": {
+                      "type": "string"
+                    },
+                    "id": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "lastActiveAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/api/auth/otp": {
+      "post": {
+        "tags": ["Authentication"],
+        "summary": "Send or verify OTP",
+        "description": "Send an OTP code to a phone for 2FA, PIN reset, or signup. Then verify it with the code.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "phone": {
+                    "type": "string"
+                  },
+                  "purpose": {
+                    "type": "string",
+                    "enum": ["login_2fa", "pin_reset", "signup"]
+                  },
+                  "action": {
+                    "type": "string",
+                    "enum": ["send", "verify"]
+                  },
+                  "code": {
+                    "type": "string",
+                    "description": "Required for verify action"
+                  }
+                },
+                "required": ["phone", "purpose", "action"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OTP sent or verified",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "sent": {
+                      "type": "boolean"
+                    },
+                    "expiresIn": {
+                      "type": "integer",
+                      "description": "Seconds until expiry"
+                    },
+                    "devOTP": {
+                      "type": "string",
+                      "description": "Only in dev mode"
+                    },
+                    "verified": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        },
+        "x-rate-limit": "10 requests per minute"
+      }
+    },
+    "/api/auth/pin-reset": {
+      "post": {
+        "tags": ["Authentication"],
+        "summary": "Reset merchant PIN",
+        "description": "Reset PIN after OTP verification. Requires OTP code from previous verification step.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "phone": {
+                    "type": "string"
+                  },
+                  "newPin": {
+                    "type": "string",
+                    "pattern": "^\\d{4}$"
+                  },
+                  "otpCode": {
+                    "type": "string"
+                  }
+                },
+                "required": ["phone", "newPin", "otpCode"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "PIN reset successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "reset": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          }
+        }
+      }
+    },
+    "/api/merchants": {
+      "get": {
+        "tags": ["Merchants"],
+        "summary": "List all merchants",
+        "responses": {
+          "200": {
+            "description": "List of merchants",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "merchants": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Merchant"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Merchants"],
+        "summary": "Create merchant account",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "phone": {
+                    "type": "string"
+                  },
+                  "businessName": {
+                    "type": "string"
+                  },
+                  "businessType": {
+                    "type": "string"
+                  },
+                  "ownerName": {
+                    "type": "string"
+                  },
+                  "address": {
+                    "type": "string"
+                  },
+                  "bank": {
+                    "type": "string"
+                  },
+                  "accountNumber": {
+                    "type": "string"
+                  },
+                  "accountType": {
+                    "type": "string",
+                    "enum": ["cheque", "savings"]
+                  },
+                  "expectedMonthlyVolume": {
+                    "type": "number"
+                  }
+                },
+                "required": ["phone", "businessName", "businessType", "ownerName", "bank", "accountNumber", "accountType"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Merchant created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "merchant": {
+                      "$ref": "#/components/schemas/Merchant"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Merchant already exists"
+          }
+        }
+      }
+    },
+    "/api/merchants/{id}": {
+      "get": {
+        "tags": ["Merchants"],
+        "summary": "Get merchant details",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Merchant details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "merchant": {
+                      "$ref": "#/components/schemas/Merchant"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/merchants/{id}/status": {
+      "patch": {
+        "tags": ["Merchants"],
+        "summary": "Update merchant status (admin only)",
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "status": {
+                    "type": "string",
+                    "enum": ["pending", "approved", "rejected", "suspended"]
+                  },
+                  "reason": {
+                    "type": "string",
+                    "description": "Required for rejected status"
+                  }
+                },
+                "required": ["status"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Status updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "merchant": {
+                      "$ref": "#/components/schemas/Merchant"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/api/merchants/{id}/transactions": {
+      "get": {
+        "tags": ["Transactions"],
+        "summary": "List merchant transactions",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Transaction list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "transactions": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Transaction"
+                      }
+                    },
+                    "stats": {
+                      "type": "object",
+                      "properties": {
+                        "total": {
+                          "type": "number"
+                        },
+                        "count": {
+                          "type": "integer"
+                        },
+                        "pending": {
+                          "type": "integer"
+                        },
+                        "completed": {
+                          "type": "integer"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      },
+      "post": {
+        "tags": ["Transactions"],
+        "summary": "Create transaction (approved merchants only)",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "amount": {
+                    "type": "number",
+                    "minimum": 0.01
+                  },
+                  "rail": {
+                    "type": "string",
+                    "enum": ["eft", "payshap"]
+                  },
+                  "buyerBank": {
+                    "type": "string"
+                  },
+                  "idempotencyKey": {
+                    "type": "string"
+                  }
+                },
+                "required": ["amount"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Transaction created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "transaction": {
+                      "$ref": "#/components/schemas/Transaction"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Merchant not approved"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/merchants/{id}/transactions/{txnId}/refund": {
+      "post": {
+        "tags": ["Transactions"],
+        "summary": "Refund transaction",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "txnId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "amount": {
+                    "type": "number",
+                    "description": "Partial refund amount. If omitted, full refund issued."
+                  },
+                  "reason": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Refund processed"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/merchants/{id}/documents": {
+      "get": {
+        "tags": ["Merchants"],
+        "summary": "Get merchant documents",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Document list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "documents": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Document"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": ["Merchants"],
+        "summary": "Update document status (admin only)",
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "enum": ["id", "selfie", "affidavit", "company_reg", "proof_of_address", "bank_letter"]
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": ["required", "submitted", "verified", "rejected"]
+                  },
+                  "note": {
+                    "type": "string"
+                  },
+                  "fileName": {
+                    "type": "string"
+                  }
+                },
+                "required": ["kind"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Document updated"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/api/merchants/{id}/export": {
+      "get": {
+        "tags": ["Merchants"],
+        "summary": "Export transactions as CSV",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "CSV file",
+            "content": {
+              "text/csv": {}
+            }
+          }
+        }
+      }
+    },
+    "/api/merchants/{id}/statement": {
+      "get": {
+        "tags": ["Merchants"],
+        "summary": "Generate transaction statement PDF",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "month",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}$",
+              "example": "2026-03"
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "PDF statement",
+            "content": {
+              "application/pdf": {}
+            }
+          }
+        }
+      }
+    },
+    "/api/merchants/{id}/update": {
+      "patch": {
+        "tags": ["Merchants"],
+        "summary": "Update merchant profile",
+        "security": [
+          {
+            "sessionAuth": []
+          },
+          {
+            "merchantId": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "businessName": {
+                    "type": "string"
+                  },
+                  "address": {
+                    "type": "string"
+                  },
+                  "ownerName": {
+                    "type": "string"
+                  },
+                  "bank": {
+                    "type": "string"
+                  },
+                  "accountType": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Profile updated"
+          },
+          "403": {
+            "description": "Cannot update other merchant profiles"
+          }
+        }
+      },
+      "delete": {
+        "tags": ["Merchants"],
+        "summary": "Delete merchant account (POPIA erasure)",
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Account deleted"
+          }
+        }
+      }
+    },
+    "/api/merchants/check-phone": {
+      "get": {
+        "tags": ["Merchants"],
+        "summary": "Check if phone is registered",
+        "parameters": [
+          {
+            "name": "phone",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Phone check result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "exists": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/login": {
+      "post": {
+        "tags": ["Admin"],
+        "summary": "Admin staff login",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "password": {
+                    "type": "string"
+                  }
+                },
+                "required": ["email", "password"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Login successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "staff": {
+                      "$ref": "#/components/schemas/StaffMember"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        },
+        "x-rate-limit": "10 requests per minute"
+      }
+    },
+    "/api/admin/session": {
+      "get": {
+        "tags": ["Admin"],
+        "summary": "Get current admin session",
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Session info",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "authenticated": {
+                      "type": "boolean"
+                    },
+                    "staff": {
+                      "$ref": "#/components/schemas/StaffMember"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      },
+      "delete": {
+        "tags": ["Admin"],
+        "summary": "Logout",
+        "responses": {
+          "200": {
+            "description": "Logout successful"
+          }
+        }
+      }
+    },
+    "/api/admin/staff": {
+      "get": {
+        "tags": ["Admin"],
+        "summary": "List all staff (owner only)",
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Staff list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "staff": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/StaffMember"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      },
+      "post": {
+        "tags": ["Admin"],
+        "summary": "Create staff member (owner only)",
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "role": {
+                    "type": "string",
+                    "enum": ["owner", "manager", "staff"]
+                  },
+                  "password": {
+                    "type": "string",
+                    "minLength": 6
+                  }
+                },
+                "required": ["email", "name", "role", "password"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Staff created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "staff": {
+                      "$ref": "#/components/schemas/StaffMember"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/staff/{id}": {
+      "patch": {
+        "tags": ["Admin"],
+        "summary": "Update staff member (owner only)",
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "role": {
+                    "type": "string",
+                    "enum": ["owner", "manager", "staff"]
+                  },
+                  "password": {
+                    "type": "string"
+                  },
+                  "active": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Staff updated"
+          }
+        }
+      },
+      "delete": {
+        "tags": ["Admin"],
+        "summary": "Delete staff member (owner only)",
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Staff deleted"
+          }
+        }
+      }
+    },
+    "/api/admin/audit": {
+      "get": {
+        "tags": ["Admin"],
+        "summary": "List audit logs",
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "action",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "role",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "actorId",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "targetId",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 200
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Audit entries",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "entries": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/AuditEntry"
+                      }
+                    },
+                    "total": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/search": {
+      "get": {
+        "tags": ["Admin"],
+        "summary": "Search merchants and transactions",
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 20,
+              "maximum": 50
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Search results"
+          }
+        }
+      }
+    },
+    "/api/admin/cleanup-merchants": {
+      "post": {
+        "tags": ["Admin"],
+        "summary": "Cleanup corrupted merchant records",
+        "parameters": [
+          {
+            "name": "dry",
+            "in": "query",
+            "schema": {
+              "type": "boolean",
+              "default": true
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Cleanup results"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/api/compliance/flags": {
+      "get": {
+        "tags": ["Compliance"],
+        "summary": "List compliance flags",
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": ["open", "investigating", "cleared", "confirmed"]
+            }
+          },
+          {
+            "name": "merchantId",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Flag list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "flags": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/ComplianceFlag"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Compliance"],
+        "summary": "Create compliance flag",
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "merchantId": {
+                    "type": "string"
+                  },
+                  "txnId": {
+                    "type": "string"
+                  },
+                  "note": {
+                    "type": "string"
+                  },
+                  "officerName": {
+                    "type": "string"
+                  }
+                },
+                "required": ["merchantId", "txnId"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Flag created"
+          }
+        }
+      }
+    },
+    "/api/compliance/flags/{flagId}": {
+      "get": {
+        "tags": ["Compliance"],
+        "summary": "Get flag details",
+        "parameters": [
+          {
+            "name": "flagId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Flag details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "flag": {
+                      "$ref": "#/components/schemas/ComplianceFlag"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": ["Compliance"],
+        "summary": "Update flag status",
+        "parameters": [
+          {
+            "name": "flagId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "status": {
+                    "type": "string",
+                    "enum": ["open", "investigating", "cleared", "confirmed"]
+                  },
+                  "officerNote": {
+                    "type": "string"
+                  },
+                  "resolvedBy": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Flag updated"
+          }
+        }
+      }
+    },
+    "/api/compliance/freeze": {
+      "post": {
+        "tags": ["Compliance"],
+        "summary": "Freeze/unfreeze merchant account",
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "merchantId": {
+                    "type": "string"
+                  },
+                  "action": {
+                    "type": "string",
+                    "enum": ["freeze", "unfreeze"]
+                  },
+                  "reason": {
+                    "type": "string"
+                  }
+                },
+                "required": ["merchantId"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Merchant frozen/unfrozen",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "merchant": {
+                      "$ref": "#/components/schemas/Merchant"
+                    },
+                    "action": {
+                      "type": "string",
+                      "enum": ["frozen", "unfrozen"]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/compliance/stats": {
+      "get": {
+        "tags": ["Compliance"],
+        "summary": "Get compliance statistics",
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Compliance stats"
+          }
+        }
+      }
+    },
+    "/api/sanctions/batch": {
+      "post": {
+        "tags": ["Sanctions"],
+        "summary": "Batch re-screen all merchants (owner/manager only)",
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Batch screening results"
+          },
+          "403": {
+            "description": "Insufficient permissions"
+          }
+        }
+      }
+    },
+    "/api/sanctions/refresh": {
+      "post": {
+        "tags": ["Sanctions"],
+        "summary": "Refresh sanctions and PEP lists (owner/manager only)",
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lists refreshed"
+          }
+        }
+      }
+    },
+    "/api/sanctions/flags": {
+      "get": {
+        "tags": ["Sanctions"],
+        "summary": "List sanctions flags",
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Flags with metadata"
+          }
+        }
+      },
+      "post": {
+        "tags": ["Sanctions"],
+        "summary": "Resolve sanctions flag (owner/manager only)",
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "merchantId": {
+                    "type": "string"
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": ["cleared", "blocked"]
+                  },
+                  "note": {
+                    "type": "string"
+                  }
+                },
+                "required": ["merchantId", "status"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Flag resolved"
+          }
+        }
+      }
+    },
+    "/api/sanctions/screen": {
+      "post": {
+        "tags": ["Sanctions"],
+        "summary": "Screen name or merchant against sanctions",
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "oneOf": [
+                  {
+                    "properties": {
+                      "name": {
+                        "type": "string"
+                      }
+                    },
+                    "required": ["name"]
+                  },
+                  {
+                    "properties": {
+                      "businessName": {
+                        "type": "string"
+                      },
+                      "ownerName": {
+                        "type": "string"
+                      },
+                      "merchantId": {
+                        "type": "string"
+                      }
+                    },
+                    "required": ["businessName", "ownerName"]
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Screening results"
+          }
+        }
+      }
+    },
+    "/api/complaints": {
+      "get": {
+        "tags": ["Complaints"],
+        "summary": "List complaints",
+        "parameters": [
+          {
+            "name": "merchantId",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": ["open", "assigned", "in_progress", "resolved", "escalated"]
+            }
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": ["fraud", "quality", "delivery", "refund", "other"]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Complaint list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "complaints": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Complaint"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Complaints"],
+        "summary": "Create complaint",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "merchantId": {
+                    "type": "string"
+                  },
+                  "complainantName": {
+                    "type": "string"
+                  },
+                  "complainantEmail": {
+                    "type": "string"
+                  },
+                  "complainantPhone": {
+                    "type": "string"
+                  },
+                  "category": {
+                    "type": "string",
+                    "enum": ["fraud", "quality", "delivery", "refund", "other"]
+                  },
+                  "subject": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "relatedTxnId": {
+                    "type": "string"
+                  }
+                },
+                "required": ["merchantId", "category", "subject", "description"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Complaint created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "complaint": {
+                      "$ref": "#/components/schemas/Complaint"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/complaints/{id}": {
+      "get": {
+        "tags": ["Complaints"],
+        "summary": "Get complaint details",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Complaint details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "complaint": {
+                      "$ref": "#/components/schemas/Complaint"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": ["Complaints"],
+        "summary": "Update complaint (admin only)",
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "status": {
+                    "type": "string",
+                    "enum": ["open", "assigned", "in_progress", "resolved", "escalated"]
+                  },
+                  "handler": {
+                    "type": "string"
+                  },
+                  "outcome": {
+                    "type": "string",
+                    "enum": ["upheld", "partially_upheld", "not_upheld", "unresolved"]
+                  },
+                  "outcomeNote": {
+                    "type": "string"
+                  },
+                  "level": {
+                    "type": "string",
+                    "enum": ["level_1", "level_2", "level_3"]
+                  },
+                  "note": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Complaint updated"
+          }
+        }
+      }
+    },
+    "/api/complaints/stats": {
+      "get": {
+        "tags": ["Complaints"],
+        "summary": "Get complaint statistics (admin only)",
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Complaint stats"
+          }
+        }
+      }
+    },
+    "/api/webhooks/ozow": {
+      "post": {
+        "tags": ["Webhooks"],
+        "summary": "Ozow payment notification webhook",
+        "description": "Receives payment notifications from Ozow. Signature verification required.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "TransactionId": {
+                    "type": "string"
+                  },
+                  "TransactionReference": {
+                    "type": "string"
+                  },
+                  "Status": {
+                    "type": "string"
+                  },
+                  "Amount": {
+                    "type": "string"
+                  },
+                  "Optional1": {
+                    "type": "string",
+                    "description": "Merchant ID"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Webhook received"
+          },
+          "401": {
+            "description": "Invalid signature"
+          }
+        }
+      }
+    },
+    "/api/webhooks/payshap": {
+      "post": {
+        "tags": ["Webhooks"],
+        "summary": "PayShap payment notification webhook",
+        "description": "Receives payment notifications from PayShap. HMAC-SHA256 signature verification required.",
+        "parameters": [
+          {
+            "name": "X-PayShap-Signature",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "eventType": {
+                    "type": "string",
+                    "enum": ["payment.completed", "payment.refunded", "payment.failed", "settlement.completed"]
+                  },
+                  "paymentId": {
+                    "type": "string"
+                  },
+                  "merchantReference": {
+                    "type": "string"
+                  },
+                  "amount": {
+                    "type": "number"
+                  },
+                  "buyerBank": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Webhook received"
+          },
+          "401": {
+            "description": "Invalid signature"
+          }
+        }
+      }
+    },
+    "/api/push/subscribe": {
+      "post": {
+        "tags": ["Notifications"],
+        "summary": "Register push notification subscription",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "merchantId": {
+                    "type": "string"
+                  },
+                  "subscription": {
+                    "type": "object",
+                    "properties": {
+                      "endpoint": {
+                        "type": "string"
+                      },
+                      "keys": {
+                        "type": "object",
+                        "properties": {
+                          "p256dh": {
+                            "type": "string"
+                          },
+                          "auth": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "required": ["merchantId", "subscription"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Subscription saved"
+          }
+        }
+      },
+      "delete": {
+        "tags": ["Notifications"],
+        "summary": "Unsubscribe from push notifications",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "merchantId": {
+                    "type": "string"
+                  },
+                  "endpoint": {
+                    "type": "string"
+                  }
+                },
+                "required": ["merchantId", "endpoint"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Unsubscribed"
+          }
+        }
+      }
+    },
+    "/api/notifications/test": {
+      "post": {
+        "tags": ["Notifications"],
+        "summary": "Send test notification (admin only)",
+        "security": [
+          {
+            "sessionAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "phone": {
+                    "type": "string"
+                  },
+                  "merchantId": {
+                    "type": "string"
+                  },
+                  "merchantName": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Notification sent"
+          }
+        }
+      }
+    },
+    "/api/receipt/{txnId}": {
+      "get": {
+        "tags": ["Transactions"],
+        "summary": "Get transaction receipt",
+        "parameters": [
+          {
+            "name": "txnId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Receipt details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "txn": {
+                      "$ref": "#/components/schemas/Transaction"
+                    },
+                    "merchantName": {
+                      "type": "string"
+                    },
+                    "merchantId": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/upload": {
+      "post": {
+        "tags": ["Documents"],
+        "summary": "Upload document (KYC)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  },
+                  "merchantId": {
+                    "type": "string"
+                  },
+                  "kind": {
+                    "type": "string",
+                    "enum": ["id", "selfie", "affidavit", "company_reg", "proof_of_address", "bank_letter", "source_of_funds"]
+                  }
+                },
+                "required": ["file", "merchantId", "kind"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "File uploaded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "url": {
+                      "type": "string"
+                    },
+                    "kind": {
+                      "type": "string"
+                    },
+                    "merchantId": {
+                      "type": "string"
+                    },
+                    "fileName": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "x-rate-limit": "20 requests per minute"
+      }
+    },
+    "/api/documents/view": {
+      "get": {
+        "tags": ["Documents"],
+        "summary": "View stored document",
+        "parameters": [
+          {
+            "name": "url",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Document file"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    }
+  },
+  "responses": {
+    "BadRequest": {
+      "description": "Bad Request",
+      "content": {
+        "application/json": {
+          "schema": {
+            "$ref": "#/components/schemas/Error"
+          }
+        }
+      }
+    },
+    "Unauthorized": {
+      "description": "Unauthorized",
+      "content": {
+        "application/json": {
+          "schema": {
+            "$ref": "#/components/schemas/Error"
+          }
+        }
+      }
+    },
+    "NotFound": {
+      "description": "Not Found",
+      "content": {
+        "application/json": {
+          "schema": {
+            "$ref": "#/components/schemas/Error"
+          }
+        }
+      }
+    },
+    "TooManyRequests": {
+      "description": "Too Many Requests",
+      "content": {
+        "application/json": {
+          "schema": {
+            "$ref": "#/components/schemas/Error"
+          }
+        }
+      }
+    }
+  }
+}

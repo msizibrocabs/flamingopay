@@ -12,7 +12,7 @@
 import "server-only";
 import { Redis } from "@upstash/redis";
 import { encryptMerchantPII, decryptMerchantPII } from "./crypto";
-import { checkCTR, CTR_THRESHOLD } from "./fica";
+import { checkCTR, checkSTR, CTR_THRESHOLD } from "./fica";
 import { getBusinessProfile } from "./business-profiles";
 import { screenMerchant, createSanctionsFlag } from "./sanctions";
 import { sendPaymentNotification } from "./notifications";
@@ -50,6 +50,13 @@ export const KYC_THRESHOLDS = {
   standard: 100_000,    // R25k – R100k/month
   // enhanced: > R100k/month
 } as const;
+
+/** Default velocity limits per KYC tier. Merchants can have custom overrides. */
+export const DEFAULT_VELOCITY: Record<KycTier, Required<VelocityLimits>> = {
+  simplified: { maxTxnPerHour: 15, maxDailyVolume: 10_000, maxSingleTxn: 5_000 },
+  standard:   { maxTxnPerHour: 30, maxDailyVolume: 50_000, maxSingleTxn: 25_000 },
+  enhanced:   { maxTxnPerHour: 60, maxDailyVolume: 200_000, maxSingleTxn: 100_000 },
+};
 
 /** Determine KYC tier from expected monthly volume. */
 export function kycTierForVolume(monthlyVolume: number): KycTier {
@@ -126,6 +133,23 @@ export type MerchantApplication = {
   lastLoginAt?: string;
   /** SHA-256 hash of the 4-digit PIN. */
   pinHash?: string;
+  /** Velocity limits — if unset, defaults by KYC tier apply. */
+  velocityLimits?: VelocityLimits;
+  /** Transaction hold — if true, new txns are blocked pending review. */
+  transactionHold?: boolean;
+  /** Reason for the hold. */
+  holdReason?: string;
+  holdSetBy?: string;
+  holdSetAt?: string;
+};
+
+export type VelocityLimits = {
+  /** Max transactions per hour. */
+  maxTxnPerHour?: number;
+  /** Max daily transaction volume in ZAR. */
+  maxDailyVolume?: number;
+  /** Max single transaction amount in ZAR. */
+  maxSingleTxn?: number;
 };
 
 // ---------------------- PIN Hashing ----------------------
@@ -704,6 +728,47 @@ export async function createTransaction(
   if (m.status === "suspended") {
     return { error: "Merchant account is suspended" };
   }
+
+  // Transaction hold — compliance freeze
+  if (m.transactionHold) {
+    return { error: `Transactions are on hold: ${m.holdReason ?? "Pending compliance review"}. Contact support.` };
+  }
+
+  // Velocity limits enforcement
+  {
+    const limits = {
+      ...DEFAULT_VELOCITY[m.kycTier ?? "simplified"],
+      ...(m.velocityLimits ?? {}),
+    };
+
+    // Max single transaction
+    if (input.amount > limits.maxSingleTxn) {
+      return {
+        error: `Transaction of R${input.amount.toLocaleString("en-ZA")} exceeds your single transaction limit of R${limits.maxSingleTxn.toLocaleString("en-ZA")}. Contact support to increase.`,
+      };
+    }
+
+    // Max transactions per hour
+    const hourAgo = new Date(Date.now() - 3600000).toISOString();
+    const txnsLastHour = allTxns.filter(t => t.timestamp >= hourAgo && t.status === "completed").length;
+    if (txnsLastHour >= limits.maxTxnPerHour) {
+      return {
+        error: `You've reached the limit of ${limits.maxTxnPerHour} transactions per hour. Please try again shortly.`,
+      };
+    }
+
+    // Max daily volume
+    const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+    const todayVolume = allTxns
+      .filter(t => t.timestamp >= todayStart.toISOString() && t.status === "completed")
+      .reduce((s, t) => s + t.amount, 0);
+    if (todayVolume + input.amount > limits.maxDailyVolume) {
+      return {
+        error: `Daily volume would reach R${(todayVolume + input.amount).toLocaleString("en-ZA")}, exceeding your limit of R${limits.maxDailyVolume.toLocaleString("en-ZA")}/day.`,
+      };
+    }
+  }
+
   const list = allTxns;
   const ref = `FP-${Math.floor(Math.random() * 9e5 + 1e5)}`;
   const txn: StoredTxn = {
@@ -737,6 +802,15 @@ export async function createTransaction(
       .filter(t => t.id !== txn.id && t.timestamp >= dayAgo && t.status === "completed")
       .map(t => t.amount);
     await checkCTR(merchantId, m.businessName, txn.id, txn.amount, txn.buyerBank, txn.rail, txn.timestamp, recent24h);
+  }
+
+  // FICA s29: Check for suspicious transaction patterns (STR)
+  {
+    const recentForSTR = list
+      .filter(t => t.id !== txn.id)
+      .slice(0, 200) // last 200 txns for pattern analysis
+      .map(t => ({ id: t.id, amount: t.amount, timestamp: t.timestamp, status: t.status }));
+    await checkSTR(merchantId, m.businessName, txn.id, txn.amount, txn.timestamp, recentForSTR);
   }
 
   // Run compliance auto-flagging rules
@@ -850,6 +924,18 @@ export async function updateMerchantStatus(
     m.rejectionReason = reason;
     m.approvedAt = undefined;
   }
+  await redis.set(`merchant:${id}`, JSON.stringify(encryptMerchantPII(m)));
+  return m;
+}
+
+/** Update arbitrary fields on a merchant record. */
+export async function updateMerchantFields(
+  id: string,
+  fields: Partial<MerchantApplication>,
+): Promise<MerchantApplication | null> {
+  const m = await getMerchant(id);
+  if (!m) return null;
+  Object.assign(m, fields);
   await redis.set(`merchant:${id}`, JSON.stringify(encryptMerchantPII(m)));
   return m;
 }

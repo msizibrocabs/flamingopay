@@ -120,6 +120,289 @@ export async function markCTRFiled(ctrId: string): Promise<boolean> {
   return true;
 }
 
+// ─── STR (Suspicious Transaction Report) ───
+// FICA s29 — mandatory reporting of suspicious or unusual transactions.
+// Patterns detected: structuring, velocity spikes, unusual hours, round amounts.
+
+export type STRReason =
+  | "structuring"          // Multiple txns just below CTR threshold
+  | "velocity_spike"       // Sudden volume increase (3x 7-day average)
+  | "unusual_hours"        // Transactions between 00:00–05:00
+  | "round_amounts"        // Repeated round-number transactions
+  | "rapid_fire"           // >10 txns in 1 hour
+  | "refund_abuse"         // >20% refund rate in 30 days
+  | "manual";              // Compliance officer raised manually
+
+export type SuspiciousTransactionReport = {
+  id: string;
+  merchantId: string;
+  merchantName: string;
+  reason: STRReason;
+  description: string;
+  /** Transaction IDs that triggered the STR */
+  relatedTxnIds: string[];
+  totalAmount: number;
+  status: "draft" | "pending_review" | "filed" | "dismissed";
+  createdAt: string;
+  reviewedBy?: string;
+  reviewedAt?: string;
+  filedWithFIC: boolean;
+  filedAt?: string;
+  ficReference?: string;
+  /** Risk level assessed by the compliance officer */
+  riskLevel?: "low" | "medium" | "high" | "critical";
+  notes?: string;
+};
+
+/**
+ * Analyse a merchant's recent transactions for suspicious patterns.
+ * Called after each transaction. Returns an STR if patterns detected.
+ */
+export async function checkSTR(
+  merchantId: string,
+  merchantName: string,
+  txnId: string,
+  amount: number,
+  txnTimestamp: string,
+  recentTxns: { id: string; amount: number; timestamp: string; status: string }[],
+): Promise<SuspiciousTransactionReport | null> {
+  const reasons: { reason: STRReason; description: string; txnIds: string[]; total: number }[] = [];
+  const now = new Date(txnTimestamp);
+  const currentHour = now.getHours();
+
+  // 1. Structuring detection — multiple txns in 24h just below R25k each but totalling ≥ R25k
+  const day = 24 * 3600000;
+  const last24h = recentTxns.filter(
+    t => t.status === "completed" && new Date(t.timestamp).getTime() > now.getTime() - day,
+  );
+  const subThresholdTxns = last24h.filter(t => t.amount >= 15000 && t.amount < CTR_THRESHOLD);
+  if (subThresholdTxns.length >= 2) {
+    const total = subThresholdTxns.reduce((s, t) => s + t.amount, 0) + (amount >= 15000 && amount < CTR_THRESHOLD ? amount : 0);
+    if (total >= CTR_THRESHOLD) {
+      reasons.push({
+        reason: "structuring",
+        description: `${subThresholdTxns.length + 1} transactions between R15k-R25k in 24h totalling R${total.toLocaleString("en-ZA")} — possible structuring to avoid CTR threshold`,
+        txnIds: [...subThresholdTxns.map(t => t.id), txnId],
+        total,
+      });
+    }
+  }
+
+  // 2. Velocity spike — today's volume > 3x the 7-day daily average
+  const sevenDaysAgo = new Date(now.getTime() - 7 * day);
+  const last7d = recentTxns.filter(
+    t => t.status === "completed" && new Date(t.timestamp) >= sevenDaysAgo,
+  );
+  const dailyAvg7d = last7d.length > 0 ? last7d.reduce((s, t) => s + t.amount, 0) / 7 : 0;
+  const todayTotal = last24h.reduce((s, t) => s + t.amount, 0) + amount;
+  if (dailyAvg7d > 0 && todayTotal > dailyAvg7d * 3 && todayTotal > 5000) {
+    reasons.push({
+      reason: "velocity_spike",
+      description: `Today's volume R${todayTotal.toLocaleString("en-ZA")} is ${(todayTotal / dailyAvg7d).toFixed(1)}x the 7-day daily average of R${dailyAvg7d.toLocaleString("en-ZA", { maximumFractionDigits: 0 })}`,
+      txnIds: [...last24h.map(t => t.id), txnId],
+      total: todayTotal,
+    });
+  }
+
+  // 3. Unusual hours — transactions between midnight and 5am
+  if (currentHour >= 0 && currentHour < 5) {
+    const nightTxns = last24h.filter(t => {
+      const h = new Date(t.timestamp).getHours();
+      return h >= 0 && h < 5;
+    });
+    if (nightTxns.length >= 3) {
+      reasons.push({
+        reason: "unusual_hours",
+        description: `${nightTxns.length + 1} transactions between 00:00-05:00 in the last 24 hours`,
+        txnIds: [...nightTxns.map(t => t.id), txnId],
+        total: nightTxns.reduce((s, t) => s + t.amount, 0) + amount,
+      });
+    }
+  }
+
+  // 4. Rapid-fire — >10 transactions in the last hour
+  const lastHour = recentTxns.filter(
+    t => t.status === "completed" && new Date(t.timestamp).getTime() > now.getTime() - 3600000,
+  );
+  if (lastHour.length >= 10) {
+    reasons.push({
+      reason: "rapid_fire",
+      description: `${lastHour.length + 1} transactions in the last hour — unusually high frequency`,
+      txnIds: [...lastHour.map(t => t.id), txnId],
+      total: lastHour.reduce((s, t) => s + t.amount, 0) + amount,
+    });
+  }
+
+  // 5. Round amounts — >5 transactions at exactly round amounts (R100, R500, R1000, etc.) in 24h
+  const roundAmounts = [100, 200, 500, 1000, 2000, 5000, 10000, 20000];
+  const roundTxns = last24h.filter(t => roundAmounts.includes(t.amount));
+  if (roundAmounts.includes(amount)) roundTxns.push({ id: txnId, amount, timestamp: txnTimestamp, status: "completed" });
+  if (roundTxns.length >= 5) {
+    reasons.push({
+      reason: "round_amounts",
+      description: `${roundTxns.length} transactions at exact round amounts in 24h — possible money laundering pattern`,
+      txnIds: roundTxns.map(t => t.id),
+      total: roundTxns.reduce((s, t) => s + t.amount, 0),
+    });
+  }
+
+  // 6. Refund abuse — >20% refund rate in last 30 days
+  const thirtyDaysAgo = new Date(now.getTime() - 30 * day);
+  const last30d = recentTxns.filter(t => new Date(t.timestamp) >= thirtyDaysAgo);
+  const completedCount = last30d.filter(t => t.status === "completed").length;
+  const refundedCount = last30d.filter(t => t.status === "refunded" || t.status === "partial_refund").length;
+  if (completedCount >= 10 && refundedCount / completedCount > 0.2) {
+    reasons.push({
+      reason: "refund_abuse",
+      description: `${refundedCount}/${completedCount} transactions refunded (${((refundedCount / completedCount) * 100).toFixed(0)}%) in 30 days — exceeds 20% threshold`,
+      txnIds: last30d.filter(t => t.status === "refunded" || t.status === "partial_refund").map(t => t.id),
+      total: last30d.filter(t => t.status === "refunded" || t.status === "partial_refund").reduce((s, t) => s + t.amount, 0),
+    });
+  }
+
+  if (reasons.length === 0) return null;
+
+  // Use the most severe reason as the primary
+  const primary = reasons[0];
+  const str: SuspiciousTransactionReport = {
+    id: `str_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`,
+    merchantId,
+    merchantName,
+    reason: primary.reason,
+    description: reasons.map(r => r.description).join("; "),
+    relatedTxnIds: [...new Set(reasons.flatMap(r => r.txnIds))],
+    totalAmount: primary.total,
+    status: "pending_review",
+    createdAt: new Date().toISOString(),
+    filedWithFIC: false,
+  };
+
+  // Store STR — check for recent duplicate (same merchant + reason within 24h)
+  const strs = await listSTRs();
+  const recentDuplicate = strs.find(
+    s =>
+      s.merchantId === merchantId &&
+      s.reason === primary.reason &&
+      new Date(s.createdAt).getTime() > now.getTime() - day,
+  );
+  if (recentDuplicate) {
+    // Update the existing STR instead of creating a duplicate
+    return null;
+  }
+
+  strs.push(str);
+  await redis.set("fica:strs", JSON.stringify(strs));
+
+  console.log(`[STR] Created ${str.id} for ${merchantName}: ${primary.reason}`);
+  return str;
+}
+
+/** List all STRs, optionally filtered. */
+export async function listSTRs(filters?: {
+  merchantId?: string;
+  status?: SuspiciousTransactionReport["status"];
+  filed?: boolean;
+}): Promise<SuspiciousTransactionReport[]> {
+  const raw = await redis.get("fica:strs");
+  let strs: SuspiciousTransactionReport[] = raw
+    ? typeof raw === "string" ? JSON.parse(raw) : raw as SuspiciousTransactionReport[]
+    : [];
+
+  if (filters?.merchantId) strs = strs.filter(s => s.merchantId === filters.merchantId);
+  if (filters?.status) strs = strs.filter(s => s.status === filters.status);
+  if (filters?.filed !== undefined) strs = strs.filter(s => s.filedWithFIC === filters.filed);
+
+  return strs.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+}
+
+/** Update an STR (review, file, dismiss). */
+export async function updateSTR(
+  strId: string,
+  update: {
+    status?: SuspiciousTransactionReport["status"];
+    riskLevel?: SuspiciousTransactionReport["riskLevel"];
+    reviewedBy?: string;
+    notes?: string;
+    ficReference?: string;
+  },
+): Promise<SuspiciousTransactionReport | null> {
+  const raw = await redis.get("fica:strs");
+  const strs: SuspiciousTransactionReport[] = raw
+    ? typeof raw === "string" ? JSON.parse(raw) : raw as SuspiciousTransactionReport[]
+    : [];
+
+  const idx = strs.findIndex(s => s.id === strId);
+  if (idx === -1) return null;
+
+  if (update.status) strs[idx].status = update.status;
+  if (update.riskLevel) strs[idx].riskLevel = update.riskLevel;
+  if (update.reviewedBy) {
+    strs[idx].reviewedBy = update.reviewedBy;
+    strs[idx].reviewedAt = new Date().toISOString();
+  }
+  if (update.notes) strs[idx].notes = update.notes;
+  if (update.ficReference) strs[idx].ficReference = update.ficReference;
+  if (update.status === "filed") {
+    strs[idx].filedWithFIC = true;
+    strs[idx].filedAt = new Date().toISOString();
+  }
+
+  await redis.set("fica:strs", JSON.stringify(strs));
+  return strs[idx];
+}
+
+/** Create a manual STR (compliance officer raised). */
+export async function createManualSTR(
+  merchantId: string,
+  merchantName: string,
+  description: string,
+  riskLevel: SuspiciousTransactionReport["riskLevel"],
+  createdBy: string,
+): Promise<SuspiciousTransactionReport> {
+  const str: SuspiciousTransactionReport = {
+    id: `str_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`,
+    merchantId,
+    merchantName,
+    reason: "manual",
+    description,
+    relatedTxnIds: [],
+    totalAmount: 0,
+    status: "pending_review",
+    createdAt: new Date().toISOString(),
+    filedWithFIC: false,
+    riskLevel,
+    reviewedBy: createdBy,
+  };
+
+  const strs = await listSTRs();
+  strs.push(str);
+  await redis.set("fica:strs", JSON.stringify(strs));
+
+  return str;
+}
+
+/** Get STR statistics. */
+export async function strStats(): Promise<{
+  total: number;
+  pendingReview: number;
+  filed: number;
+  dismissed: number;
+  byReason: Record<string, number>;
+}> {
+  const strs = await listSTRs();
+  const byReason: Record<string, number> = {};
+  for (const s of strs) {
+    byReason[s.reason] = (byReason[s.reason] ?? 0) + 1;
+  }
+  return {
+    total: strs.length,
+    pendingReview: strs.filter(s => s.status === "pending_review").length,
+    filed: strs.filter(s => s.status === "filed").length,
+    dismissed: strs.filter(s => s.status === "dismissed").length,
+    byReason,
+  };
+}
+
 // ─── PEP Screening ───
 // Politically Exposed Persons check — in production, integrate with a
 // screening API (e.g., Refinitiv World-Check, Dow Jones, ComplyAdvantage).
