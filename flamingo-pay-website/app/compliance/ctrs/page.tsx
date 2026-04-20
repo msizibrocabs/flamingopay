@@ -13,10 +13,11 @@ type CTR = {
   merchantId: string;
   merchantName: string;
   txnId: string;
-  amount: number;
-  timestamp: string;
+  txnAmount: number;
+  txnTimestamp: string;
   filedWithFIC: boolean;
   filedAt?: string;
+  createdAt: string;
 };
 
 type CTRStats = {
@@ -171,10 +172,10 @@ function CTRList() {
                 </div>
 
                 <div className="mt-3 flex flex-wrap items-center gap-4 text-xs text-flamingo-dark/50">
-                  <span className="font-bold text-flamingo-dark">{formatZAR(ctr.amount)}</span>
+                  <span className="font-bold text-flamingo-dark">{formatZAR(ctr.txnAmount)}</span>
                   <span>Merchant: {ctr.merchantId}</span>
                   {ctr.filedAt && <span className="text-green-700 font-bold">Filed: {new Date(ctr.filedAt).toLocaleDateString("en-ZA")}</span>}
-                  <span className="ml-auto">{timeAgo(ctr.timestamp)}</span>
+                  <span className="ml-auto">{timeAgo(ctr.createdAt)}</span>
                 </div>
 
                 {/* File action */}
