@@ -30,18 +30,38 @@ function FlagsList() {
   const [flags, setFlags] = useState<TxnFlag[]>([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<FlagStatus | "all">("all");
+  const [rescanning, setRescanning] = useState(false);
+  const [rescanResult, setRescanResult] = useState<{ scanned: number; flagsCreated: number } | null>(null);
 
-  useEffect(() => {
-    let cancelled = false;
-    const url = tab === "all" ? "/api/compliance/flags" : `/api/compliance/flags?status=${tab}`;
+  const fetchFlags = (selectedTab: FlagStatus | "all") => {
+    const url = selectedTab === "all" ? "/api/compliance/flags" : `/api/compliance/flags?status=${selectedTab}`;
     setLoading(true);
     fetch(url)
       .then(r => r.json())
-      .then(d => { if (!cancelled) setFlags(d.flags ?? []); })
-      .catch(() => { if (!cancelled) setFlags([]); })
-      .finally(() => { if (!cancelled) setLoading(false); });
-    return () => { cancelled = true; };
+      .then(d => setFlags(d.flags ?? []))
+      .catch(() => setFlags([]))
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    fetchFlags(tab);
   }, [tab]);
+
+  const handleRescan = async () => {
+    setRescanning(true);
+    setRescanResult(null);
+    try {
+      const res = await fetch("/api/compliance/flags/rescan", { method: "POST" });
+      const data = await res.json();
+      setRescanResult({ scanned: data.scanned, flagsCreated: data.flagsCreated });
+      // Refresh the flags list
+      fetchFlags(tab);
+    } catch {
+      setRescanResult({ scanned: 0, flagsCreated: 0 });
+    } finally {
+      setRescanning(false);
+    }
+  };
 
   const reasonIcons: Record<string, string> = { high_amount: "💰", velocity: "⚡", unusual_hours: "🌙", manual: "🖊️" };
 
@@ -57,7 +77,7 @@ function FlagsList() {
         </div>
       </Reveal>
 
-      <div className="mb-6 flex gap-2 overflow-x-auto">
+      <div className="mb-6 flex items-center gap-2 overflow-x-auto">
         {TABS.map(t => (
           <button key={t.key} onClick={() => setTab(t.key)} className={
             "shrink-0 rounded-xl border-2 px-3 py-1.5 text-sm font-bold transition " +
@@ -68,7 +88,20 @@ function FlagsList() {
             {t.label}
           </button>
         ))}
+        <button
+          onClick={handleRescan}
+          disabled={rescanning}
+          className="ml-auto shrink-0 rounded-xl border-2 border-red-600 bg-red-600 px-4 py-1.5 text-sm font-bold text-white transition hover:bg-red-700 disabled:opacity-50"
+        >
+          {rescanning ? "Scanning…" : "🔄 Rescan All Transactions"}
+        </button>
       </div>
+
+      {rescanResult && (
+        <div className="mb-4 rounded-xl border-2 border-green-600 bg-green-50 px-4 py-3 text-sm font-semibold text-green-800">
+          Rescan complete: {rescanResult.scanned} transactions scanned, {rescanResult.flagsCreated} new flags generated.
+        </div>
+      )}
 
       {loading ? (
         <div className="grid gap-3 sm:grid-cols-2">

@@ -161,6 +161,42 @@ export async function runRetentionCleanup(): Promise<{
     await redis.set("retention:pending_purges", JSON.stringify(remaining));
   }
 
+  // ── Compliance flags: prune resolved flags older than 5 years ──
+  try {
+    const flagIds: string[] = await redis.smembers("flags:index") as string[];
+    const cutoff = new Date(now.getTime() - RETENTION_POLICY.complianceFlags * 86400000);
+
+    for (const flagId of flagIds) {
+      const raw = await redis.get(`flag:${flagId}`);
+      if (!raw) {
+        // Key already expired / evicted — clean index
+        await redis.srem("flags:index", flagId);
+        continue;
+      }
+      const flag = typeof raw === "string" ? JSON.parse(raw) : raw;
+      // Only purge flags that are resolved (cleared/confirmed) AND past retention
+      if (
+        (flag.status === "cleared" || flag.status === "confirmed") &&
+        flag.resolvedAt &&
+        new Date(flag.resolvedAt) < cutoff
+      ) {
+        await redis.del(`flag:${flagId}`);
+        await redis.srem("flags:index", flagId);
+        await appendAuditLog({
+          action: "account_deleted",
+          role: "system",
+          actorId: "retention-scheduler",
+          actorName: "Data Retention Scheduler",
+          targetId: flagId,
+          targetType: "compliance_flag",
+          detail: `Resolved compliance flag purged after ${RETENTION_POLICY.complianceFlags}-day retention period`,
+        });
+      }
+    }
+  } catch (err) {
+    errors.push(`flag-cleanup: ${err}`);
+  }
+
   return { purgedMerchants, errors };
 }
 

@@ -1156,14 +1156,106 @@ function pad(h: number): string {
 /** Legacy export — the old static rules, now based on the default profile. */
 export const DEFAULT_RULES: FlagRule[] = rulesForMerchant("Other");
 
+/** 5-year TTL for FICA compliance (in seconds). */
+const FLAG_TTL_SECONDS = 5 * 365 * 86400;
+
+/**
+ * Retrieve ALL flags from Redis.
+ *
+ * Storage model (v2): each flag lives in its own key `flag:<id>` with a 5-year
+ * TTL.  A Redis Set `flags:index` tracks every flag ID so we can enumerate them
+ * without scanning.  This avoids the old single-key design where Upstash could
+ * evict the entire collection under memory pressure.
+ *
+ * On first call after the migration the function also checks the legacy `flags`
+ * key and migrates any data it finds into the new per-key layout.
+ */
 async function getAllFlags(): Promise<TxnFlag[]> {
-  const raw = await redis.get("flags");
-  if (!raw) return [];
-  return typeof raw === "string" ? JSON.parse(raw) : raw as TxnFlag[];
+  // ── Migrate legacy single-key data if it still exists ──
+  const legacyRaw = await redis.get("flags");
+  if (legacyRaw) {
+    const legacyFlags: TxnFlag[] =
+      typeof legacyRaw === "string" ? JSON.parse(legacyRaw) : legacyRaw as TxnFlag[];
+    if (legacyFlags.length > 0) {
+      // Write each flag into its own key + register in the index set
+      const pipeline = redis.pipeline();
+      for (const f of legacyFlags) {
+        pipeline.set(`flag:${f.id}`, JSON.stringify(f), { ex: FLAG_TTL_SECONDS });
+        pipeline.sadd("flags:index", f.id);
+      }
+      // Set a long TTL on the index itself so it survives
+      pipeline.expire("flags:index", FLAG_TTL_SECONDS);
+      // Remove the old key to prevent re-migration
+      pipeline.del("flags");
+      await pipeline.exec();
+    } else {
+      // Empty legacy array — just delete the key
+      await redis.del("flags");
+    }
+  }
+
+  // ── Read from per-key storage ──
+  const flagIds: string[] = await redis.smembers("flags:index") as string[];
+  if (flagIds.length === 0) return [];
+
+  // Batch-fetch all flag keys via pipeline
+  const pipeline = redis.pipeline();
+  for (const id of flagIds) {
+    pipeline.get(`flag:${id}`);
+  }
+  const results = await pipeline.exec();
+
+  const flags: TxnFlag[] = [];
+  const staleIds: string[] = [];
+
+  for (let i = 0; i < results.length; i++) {
+    const raw = results[i];
+    if (!raw) {
+      // Key was evicted or expired — clean up the index
+      staleIds.push(flagIds[i]);
+      continue;
+    }
+    const flag: TxnFlag = typeof raw === "string" ? JSON.parse(raw) : raw as TxnFlag;
+    flags.push(flag);
+  }
+
+  // Prune any stale IDs from the index
+  if (staleIds.length > 0) {
+    const cleanup = redis.pipeline();
+    for (const id of staleIds) {
+      cleanup.srem("flags:index", id);
+    }
+    await cleanup.exec();
+  }
+
+  return flags;
 }
 
-async function saveFlags(flags: TxnFlag[]): Promise<void> {
-  await redis.set("flags", JSON.stringify(flags));
+/**
+ * Persist a single flag (create or update).
+ * Stores in its own Redis key with a 5-year FICA TTL and registers the ID in
+ * the `flags:index` set.
+ */
+async function saveFlag(flag: TxnFlag): Promise<void> {
+  const pipeline = redis.pipeline();
+  pipeline.set(`flag:${flag.id}`, JSON.stringify(flag), { ex: FLAG_TTL_SECONDS });
+  pipeline.sadd("flags:index", flag.id);
+  pipeline.expire("flags:index", FLAG_TTL_SECONDS);
+  await pipeline.exec();
+}
+
+/**
+ * Persist multiple flags at once (batch create).
+ */
+async function saveFlagsBatch(flags: TxnFlag[]): Promise<void> {
+  if (flags.length === 0) return;
+  const pipeline = redis.pipeline();
+  for (const f of flags) {
+    pipeline.set(`flag:${f.id}`, JSON.stringify(f), { ex: FLAG_TTL_SECONDS });
+    pipeline.sadd("flags:index", f.id);
+  }
+  pipeline.expire("flags:index", FLAG_TTL_SECONDS);
+  await pipeline.exec();
 }
 
 export async function evaluateRules(
@@ -1234,9 +1326,7 @@ export async function evaluateRules(
   }
 
   if (newFlags.length > 0) {
-    const existing = await getAllFlags();
-    existing.push(...newFlags);
-    await saveFlags(existing);
+    await saveFlagsBatch(newFlags);
   }
 
   return newFlags;
@@ -1253,8 +1343,9 @@ export async function listFlags(filters?: {
 }
 
 export async function getFlag(flagId: string): Promise<TxnFlag | undefined> {
-  const flags = await getAllFlags();
-  return flags.find(f => f.id === flagId);
+  const raw = await redis.get(`flag:${flagId}`);
+  if (!raw) return undefined;
+  return typeof raw === "string" ? JSON.parse(raw) : raw as TxnFlag;
 }
 
 export async function createManualFlag(
@@ -1283,9 +1374,7 @@ export async function createManualFlag(
     txnSnapshot: txn,
   };
 
-  const flags = await getAllFlags();
-  flags.push(flag);
-  await saveFlags(flags);
+  await saveFlag(flag);
   return flag;
 }
 
@@ -1297,18 +1386,17 @@ export async function updateFlag(
     resolvedBy?: string;
   },
 ): Promise<TxnFlag | null> {
-  const flags = await getAllFlags();
-  const idx = flags.findIndex(f => f.id === flagId);
-  if (idx === -1) return null;
+  const raw = await redis.get(`flag:${flagId}`);
+  if (!raw) return null;
 
+  const existing: TxnFlag = typeof raw === "string" ? JSON.parse(raw) : raw as TxnFlag;
   const now = new Date().toISOString();
-  const updated: TxnFlag = { ...flags[idx], ...patch, updatedAt: now };
+  const updated: TxnFlag = { ...existing, ...patch, updatedAt: now };
   if (patch.status === "cleared" || patch.status === "confirmed") {
     updated.resolvedAt = now;
     if (patch.resolvedBy) updated.resolvedBy = patch.resolvedBy;
   }
-  flags[idx] = updated;
-  await saveFlags(flags);
+  await saveFlag(updated);
   return updated;
 }
 
