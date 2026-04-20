@@ -121,7 +121,7 @@ function DisputesList() {
   async function handleResolve(disputeId: string) {
     if (!resolveForm.decision) return;
     try {
-      const res = await fetch(`/api/disputes/${disputeId}`, {
+      const res = await fetch(`/api/compliance/disputes/${disputeId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -141,7 +141,7 @@ function DisputesList() {
 
   async function handleMarkRefund(disputeId: string) {
     try {
-      await fetch(`/api/disputes/${disputeId}`, {
+      await fetch(`/api/compliance/disputes/${disputeId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ markRefundDone: true }),

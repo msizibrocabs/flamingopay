@@ -139,6 +139,10 @@ function EDDCaseDetail({ caseId }: { caseId: string }) {
   const [decisionNote, setDecisionNote] = useState("");
   const [conditions, setConditions] = useState("");
 
+  // Waive check modal
+  const [waiveCheck, setWaiveCheck] = useState<string | null>(null);
+  const [waiveJustification, setWaiveJustification] = useState("");
+
   // Note form
   const [showNote, setShowNote] = useState(false);
   const [noteText, setNoteText] = useState("");
@@ -209,16 +213,19 @@ function EDDCaseDetail({ caseId }: { caseId: string }) {
     }
   }
 
-  async function handleWaiveCheck(checkType: string) {
-    const justification = prompt("Justification for waiving this check:");
-    if (!justification) return;
+  async function handleWaiveCheck() {
+    if (!waiveCheck || !waiveJustification.trim()) return;
     const ok = await patchCase({
       action: "waive_check",
-      checkType,
+      checkType: waiveCheck,
       waivedBy: officer,
-      justification,
+      justification: waiveJustification.trim(),
     });
-    if (ok) showToastMsg("Check waived");
+    if (ok) {
+      showToastMsg("Check waived");
+      setWaiveCheck(null);
+      setWaiveJustification("");
+    }
   }
 
   async function handleDecision() {
@@ -499,6 +506,40 @@ function EDDCaseDetail({ caseId }: { caseId: string }) {
         )}
       </AnimatePresence>
 
+      {/* Waive Check Modal */}
+      <AnimatePresence>
+        {waiveCheck && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+            <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }}
+              className="w-full max-w-lg rounded-2xl border-2 border-flamingo-dark bg-white p-6 shadow-[0_8px_0_0_#1A1A2E]">
+              <h2 className="display text-lg font-black text-flamingo-dark mb-3">⏭️ Waive Check</h2>
+              <p className="text-xs text-flamingo-dark/60 mb-4">
+                Provide justification for waiving this check. This will be recorded in the audit trail.
+              </p>
+              <textarea
+                value={waiveJustification}
+                onChange={e => setWaiveJustification(e.target.value)}
+                placeholder="Justification for waiving this check..."
+                rows={3}
+                className="w-full rounded-xl border-2 border-flamingo-dark/20 bg-flamingo-cream px-3 py-2 text-sm focus:border-flamingo-dark focus:outline-none"
+                autoFocus
+              />
+              <div className="mt-4 flex gap-2 justify-end">
+                <button onClick={() => { setWaiveCheck(null); setWaiveJustification(""); }}
+                  className="rounded-xl border-2 border-flamingo-dark/20 px-4 py-2 text-sm font-bold text-flamingo-dark/60">
+                  Cancel
+                </button>
+                <button onClick={handleWaiveCheck} disabled={actionLoading || !waiveJustification.trim()}
+                  className="rounded-xl border-2 border-flamingo-dark bg-amber-400 px-4 py-2 text-sm font-bold text-flamingo-dark shadow-[0_3px_0_0_#1A1A2E] disabled:opacity-50">
+                  {actionLoading ? "Waiving..." : "Confirm Waive"}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* EDD Checks */}
       <Reveal delay={0.1}>
         <div className="mb-6">
@@ -546,7 +587,7 @@ function EDDCaseDetail({ caseId }: { caseId: string }) {
                       </button>
                       {!check.required && (
                         <button
-                          onClick={() => handleWaiveCheck(check.type)}
+                          onClick={() => { setWaiveCheck(check.type); setWaiveJustification(""); }}
                           className="rounded-lg border-2 border-flamingo-dark/20 px-3 py-1 text-xs font-bold text-flamingo-dark/50 transition hover:bg-gray-50"
                         >
                           Waive
