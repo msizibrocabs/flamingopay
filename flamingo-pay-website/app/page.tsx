@@ -572,6 +572,7 @@ export default function Home() {
               <li><Link href="/merchant/signup" className="hover:text-flamingo-pink">Sign up</Link></li>
               <li><a href="#how" className="hover:text-flamingo-pink">How it works</a></li>
               <li><a href="#pricing" className="hover:text-flamingo-pink">Pricing</a></li>
+              <li><Link href="/developers" className="hover:text-flamingo-pink">API Docs</Link></li>
             </ul>
           </div>
           <div>
