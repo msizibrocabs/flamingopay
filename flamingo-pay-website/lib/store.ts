@@ -657,10 +657,22 @@ export async function createMerchant(input: NewMerchantInput): Promise<MerchantA
               m.cipcRegistrationNumber = input.cipcRegistrationNumber;
             }
             // Auto-approve if fully verified and no sanctions flags
-            if (kycResult.status === "verified") {
+            if (kycResult.status === "verified" && !kycResult.isPep) {
               m.status = "approved";
               m.approvedAt = new Date().toISOString();
               console.log(`[kyc] ${id}: Auto-approved — all checks passed`);
+            }
+            // PEP identified — do NOT auto-approve, trigger EDD
+            if (kycResult.isPep) {
+              m.status = "pending";
+              console.log(`[kyc] ${id}: PEP identified — triggering Enhanced Due Diligence`);
+              import("./edd").then(({ triggerPepEDD }) => {
+                const amlCheck = kycResult.checks.find(c => c.service === "aml_pep_sanctions");
+                const pepDetail = amlCheck?.summary ?? "PEP identified via VerifyNow AML/PEP/Sanctions screening";
+                triggerPepEDD(id, input.businessName, input.ownerName, pepDetail)
+                  .then(eddCase => console.log(`[edd] PEP case opened for ${id}: ${eddCase.id}`))
+                  .catch(err => console.error(`[edd] Failed to open PEP case for ${id}:`, err));
+              });
             }
             await redis.set(
               `merchant:${id}`,
@@ -703,6 +715,17 @@ export async function createMerchant(input: NewMerchantInput): Promise<MerchantA
           flagType: result.flagType,
         });
         console.log(`[sanctions] Merchant ${id} flagged on signup — ${result.flagType} — score ${result.highestScore}`);
+
+        // Trigger EDD for near-matches (fuzzy match, score 65–94)
+        // Exact matches (95+) are handled by the sanctions flag system directly
+        if (result.highestScore >= 65 && result.highestScore < 95) {
+          import("./edd").then(({ triggerSanctionsNearMatchEDD }) => {
+            const matchSummary = unique.map(e => `${e.name} (${e.source ?? "unknown list"})`).join(", ");
+            triggerSanctionsNearMatchEDD(id, input.businessName, input.ownerName, matchSummary, result.highestScore)
+              .then(eddCase => console.log(`[edd] Sanctions near-match case opened for ${id}: ${eddCase.id}`))
+              .catch(err => console.error(`[edd] Failed to open sanctions case for ${id}:`, err));
+          });
+        }
       }
     })
     .catch((err) => {

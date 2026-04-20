@@ -584,6 +584,10 @@ export type FICAComplianceStatus = {
   beneficialOwnership: "declared" | "verified" | "incomplete" | "not_declared";
   pendingCTRs: number;
   totalCTRs: number;
+  /** Enhanced Due Diligence status for this merchant. */
+  eddStatus: "none" | "open" | "investigation" | "pending_approval" | "approved" | "rejected";
+  /** Number of active EDD cases. */
+  eddCaseCount: number;
 };
 
 export async function getFICAStatus(merchantId: string): Promise<FICAComplianceStatus> {
@@ -601,6 +605,26 @@ export async function getFICAStatus(merchantId: string): Promise<FICAComplianceS
   const ctrs = await listCTRs({ merchantId });
   const pendingCTRs = ctrs.filter(c => !c.filedWithFIC).length;
 
+  // EDD status — check for active cases
+  let eddStatus: FICAComplianceStatus["eddStatus"] = "none";
+  let eddCaseCount = 0;
+  try {
+    const { getEDDCasesForMerchant } = await import("./edd");
+    const eddCases = await getEDDCasesForMerchant(merchantId);
+    const activeCases = eddCases.filter(c => !["closed", "rejected"].includes(c.status));
+    eddCaseCount = activeCases.length;
+    if (activeCases.length > 0) {
+      // Return the most critical status among active cases
+      const statuses = activeCases.map(c => c.status);
+      if (statuses.includes("pending_approval")) eddStatus = "pending_approval";
+      else if (statuses.includes("investigation")) eddStatus = "investigation";
+      else if (statuses.includes("opened")) eddStatus = "open";
+      else if (statuses.includes("approved")) eddStatus = "approved";
+    }
+  } catch {
+    // EDD module not available — skip
+  }
+
   return {
     merchantId,
     pepScreening: latestPEP?.status ?? "not_screened",
@@ -608,5 +632,7 @@ export async function getFICAStatus(merchantId: string): Promise<FICAComplianceS
     beneficialOwnership: bo?.status ?? "not_declared",
     pendingCTRs,
     totalCTRs: ctrs.length,
+    eddStatus,
+    eddCaseCount,
   };
 }
