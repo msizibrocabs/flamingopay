@@ -51,7 +51,11 @@ function FlagsList() {
     setRescanning(true);
     setRescanResult(null);
     try {
-      const res = await fetch("/api/compliance/flags/rescan", { method: "POST" });
+      const res = await fetch("/api/compliance/flags/rescan", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+      });
       const data = await res.json();
       if (!res.ok) {
         setRescanResult({ scanned: 0, flagsCreated: 0, error: data.error ?? `Server error (${res.status})` });

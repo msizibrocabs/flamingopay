@@ -596,6 +596,7 @@ export default function Home() {
               <li><Link href="/legal/privacy" className="hover:text-flamingo-pink">Privacy Policy</Link></li>
               <li><Link href="/legal/terms" className="hover:text-flamingo-pink">Merchant Terms</Link></li>
               <li><Link href="/legal/cpa" className="hover:text-flamingo-pink">Consumer Protection</Link></li>
+              <li><Link href="/legal/dpa" className="hover:text-flamingo-pink">Data Processing Agreements</Link></li>
               <li><Link href="/dsar" className="hover:text-flamingo-pink">Request Your Data (POPIA)</Link></li>
               <li><a href="mailto:compliance@flamingopay.co.za" className="hover:text-flamingo-pink">Compliance</a></li>
             </ul>
@@ -618,6 +619,8 @@ export default function Home() {
               <Link href="/legal/terms" className="hover:text-flamingo-pink">Terms</Link>
               <span aria-hidden className="text-white/30">·</span>
               <Link href="/legal/cpa" className="hover:text-flamingo-pink">CPA</Link>
+              <span aria-hidden className="text-white/30">·</span>
+              <Link href="/legal/dpa" className="hover:text-flamingo-pink">DPA</Link>
               <span aria-hidden className="text-white/30">·</span>
               <span>Payment Facilitator · FICA &amp; POPIA compliant</span>
             </div>
