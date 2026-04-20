@@ -590,8 +590,10 @@ export default function DpaPage() {
         </p>
         <ul>
           <li>
-            <strong>Information Officer:</strong> Siphokazi Gazi, Compliance
-            Officer
+            <strong>Information Officer:</strong> Shawn Henderson
+          </li>
+          <li>
+            <strong>Compliance Officer:</strong> Siphokazi Gazi
           </li>
           <li>
             <strong>Email:</strong>{" "}

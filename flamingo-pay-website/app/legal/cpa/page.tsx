@@ -466,7 +466,7 @@ export default function CpaPage() {
             </a>
           </li>
           <li>
-            Compliance Officer:{" "}
+            Compliance Officer: Siphokazi Gazi —{" "}
             <a className="text-flamingo-pink-deep underline" href="mailto:compliance@flamingopay.co.za">
               compliance@flamingopay.co.za
             </a>

@@ -68,8 +68,8 @@ export default function PrivacyPolicyPage() {
           2091, Gauteng, South Africa.
         </p>
         <p>
-          Our designated Information Officer is <strong>Siphokazi Gazi</strong>
-          , Compliance Officer, reachable at{" "}
+          Our designated Information Officer is <strong>Shawn Henderson</strong>
+          , and our Compliance Officer is <strong>Siphokazi Gazi</strong>, reachable at{" "}
           <a
             className="text-flamingo-pink-deep underline"
             href="mailto:compliance@flamingopay.co.za"
@@ -427,7 +427,7 @@ export default function PrivacyPolicyPage() {
             Flamingo Pay (Pty) Ltd
           </p>
           <p className="mt-1 text-sm text-flamingo-dark/70">
-            Information Officer: Siphokazi Gazi
+            Information Officer: Shawn Henderson · Compliance Officer: Siphokazi Gazi
           </p>
           <ul className="mt-3 space-y-1 text-sm text-flamingo-dark/80">
             <li>
