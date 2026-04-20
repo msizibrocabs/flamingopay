@@ -317,10 +317,12 @@ export async function collectPersonalData(dsar: DsarRequest): Promise<DataExport
           description: "Documents submitted for identity verification.",
           data: m.documents.map((d) => ({
             kind: d.kind,
+            label: d.label,
             status: d.status,
-            uploadedAt: d.uploadedAt,
-            reviewedAt: d.reviewedAt,
-            reviewNote: d.reviewNote,
+            submittedAt: d.submittedAt,
+            verifiedAt: d.verifiedAt,
+            rejectedAt: d.rejectedAt,
+            note: d.note,
           })),
         });
       }
