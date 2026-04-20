@@ -155,8 +155,8 @@ const FALLBACK_PASSCODES: Record<string, string> = {
 };
 
 const ENV_PASSCODES: Record<string, string | undefined> = {
-  admin: process.env.ADMIN_PASSCODE ?? FALLBACK_PASSCODES.admin,
-  compliance: process.env.COMPLIANCE_PASSCODE ?? FALLBACK_PASSCODES.compliance,
+  admin: process.env.ADMIN_PASSCODE || FALLBACK_PASSCODES.admin,
+  compliance: process.env.COMPLIANCE_PASSCODE || FALLBACK_PASSCODES.compliance,
 };
 
 // Pre-hash env passcodes on startup for constant-time comparison.
