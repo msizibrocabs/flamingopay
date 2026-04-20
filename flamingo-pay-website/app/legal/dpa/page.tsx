@@ -590,7 +590,7 @@ export default function DpaPage() {
         </p>
         <ul>
           <li>
-            <strong>Information Officer:</strong> Shawn Henderson, Compliance
+            <strong>Information Officer:</strong> Siphokazi Gazi, Compliance
             Officer
           </li>
           <li>
