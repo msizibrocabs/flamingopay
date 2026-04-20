@@ -600,7 +600,21 @@ export default function PayPage() {
                   Make another payment
                 </motion.button>
 
-                <div className="mt-4 flex items-center justify-center gap-2">
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.9 }}
+                  className="mt-3 text-center"
+                >
+                  <a
+                    href={`/dispute${txnRef ? `?ref=${txnRef}` : ""}`}
+                    className="text-xs font-semibold text-red-500/70 hover:text-red-600 hover:underline"
+                  >
+                    Something wrong? Report a problem
+                  </a>
+                </motion.div>
+
+                <div className="mt-3 flex items-center justify-center gap-2">
                   <span className="w-6 h-6 rounded-full bg-flamingo-pink flex items-center justify-center text-white text-xs font-black">F</span>
                   <span className="text-xs text-flamingo-dark/40">Powered by Flamingo Pay</span>
                 </div>
