@@ -39,9 +39,19 @@ export default function ComplianceDashboard() {
   );
 }
 
+type EDDStats = {
+  total: number;
+  opened: number;
+  investigation: number;
+  pendingApproval: number;
+  approved: number;
+  overdueReviews: number;
+};
+
 function Dashboard() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [disputeStats, setDisputeStats] = useState<DisputeStats | null>(null);
+  const [eddStats, setEddStats] = useState<EDDStats | null>(null);
   const [recent, setRecent] = useState<TxnFlag[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -51,12 +61,14 @@ function Dashboard() {
       fetch("/api/compliance/stats").then(r => r.json()),
       fetch("/api/compliance/flags?status=open").then(r => r.json()),
       fetch("/api/compliance/disputes").then(r => r.ok ? r.json() : { stats: null }).catch(() => ({ stats: null })),
+      fetch("/api/compliance/edd?stats=true").then(r => r.ok ? r.json() : { stats: null }).catch(() => ({ stats: null })),
     ])
-      .then(([s, f, d]) => {
+      .then(([s, f, d, e]) => {
         if (!cancelled) {
           setStats(s);
           setRecent((f.flags ?? []).slice(0, 10));
           setDisputeStats(d.stats ?? null);
+          setEddStats(e.stats ?? null);
         }
       })
       .catch(() => {})
@@ -162,6 +174,36 @@ function Dashboard() {
               <StatCard label="Awaiting merchant" value={disputeStats.awaitingMerchant} tone="amber" />
               <StatCard label="Escalated" value={disputeStats.escalated} tone="purple" highlight={disputeStats.escalated > 0} />
               <StatCard label="Total refunded" value={disputeStats.totalRefunded} tone="green" money />
+            </div>
+          </section>
+        </Reveal>
+      )}
+
+      {/* EDD summary */}
+      {eddStats && (eddStats.opened > 0 || eddStats.investigation > 0 || eddStats.pendingApproval > 0 || eddStats.overdueReviews > 0) && (
+        <Reveal delay={0.18}>
+          <section className="mt-10">
+            <div className="mb-4 flex items-end justify-between">
+              <h2
+                className="display font-black text-flamingo-dark leading-none"
+                style={{ fontSize: "clamp(1.5rem, 3vw, 2.25rem)", letterSpacing: "-0.03em" }}
+              >
+                Enhanced Due Diligence
+                {(eddStats.opened + eddStats.investigation + eddStats.pendingApproval) > 0 && (
+                  <span className="ml-2 inline-grid h-6 min-w-6 place-items-center rounded-full border-2 border-flamingo-dark bg-red-600 px-2 text-xs font-extrabold text-white">
+                    {eddStats.opened + eddStats.investigation + eddStats.pendingApproval}
+                  </span>
+                )}
+              </h2>
+              <Link href="/compliance/edd" className="text-sm font-bold text-red-600 underline-offset-2 hover:underline">
+                View all EDD cases
+              </Link>
+            </div>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <StatCard label="Open cases" value={eddStats.opened} tone="red" highlight={eddStats.opened > 0} />
+              <StatCard label="Investigating" value={eddStats.investigation} tone="amber" />
+              <StatCard label="Pending approval" value={eddStats.pendingApproval} tone="purple" highlight={eddStats.pendingApproval > 0} />
+              <StatCard label="Overdue reviews" value={eddStats.overdueReviews} tone="red" highlight={eddStats.overdueReviews > 0} />
             </div>
           </section>
         </Reveal>
