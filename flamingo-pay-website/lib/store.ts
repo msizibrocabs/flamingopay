@@ -1179,8 +1179,12 @@ function pad(h: number): string {
 /** Legacy export — the old static rules, now based on the default profile. */
 export const DEFAULT_RULES: FlagRule[] = rulesForMerchant("Other");
 
-/** 5-year TTL for FICA compliance (in seconds). */
-const FLAG_TTL_SECONDS = 5 * 365 * 86400;
+/**
+ * No TTL on flags — persist indefinitely like merchants and transactions.
+ * Previously used a 5-year TTL, but Upstash eviction policy was dropping
+ * flag keys under memory pressure, causing flags to vanish.
+ * FICA 5-year retention is handled by the data-retention module instead.
+ */
 
 /**
  * Retrieve ALL flags from Redis.
@@ -1203,11 +1207,11 @@ async function getAllFlags(): Promise<TxnFlag[]> {
       // Write each flag into its own key + register in the index set
       const pipeline = redis.pipeline();
       for (const f of legacyFlags) {
-        pipeline.set(`flag:${f.id}`, JSON.stringify(f), { ex: FLAG_TTL_SECONDS });
+        pipeline.set(`flag:${f.id}`, JSON.stringify(f));
         pipeline.sadd("flags:index", f.id);
       }
       // Set a long TTL on the index itself so it survives
-      pipeline.expire("flags:index", FLAG_TTL_SECONDS);
+      // No expiry on index — persists indefinitely
       // Remove the old key to prevent re-migration
       pipeline.del("flags");
       await pipeline.exec();
@@ -1261,9 +1265,8 @@ async function getAllFlags(): Promise<TxnFlag[]> {
  */
 async function saveFlag(flag: TxnFlag): Promise<void> {
   const pipeline = redis.pipeline();
-  pipeline.set(`flag:${flag.id}`, JSON.stringify(flag), { ex: FLAG_TTL_SECONDS });
+  pipeline.set(`flag:${flag.id}`, JSON.stringify(flag));
   pipeline.sadd("flags:index", flag.id);
-  pipeline.expire("flags:index", FLAG_TTL_SECONDS);
   await pipeline.exec();
 }
 
@@ -1274,10 +1277,9 @@ async function saveFlagsBatch(flags: TxnFlag[]): Promise<void> {
   if (flags.length === 0) return;
   const pipeline = redis.pipeline();
   for (const f of flags) {
-    pipeline.set(`flag:${f.id}`, JSON.stringify(f), { ex: FLAG_TTL_SECONDS });
+    pipeline.set(`flag:${f.id}`, JSON.stringify(f));
     pipeline.sadd("flags:index", f.id);
   }
-  pipeline.expire("flags:index", FLAG_TTL_SECONDS);
   await pipeline.exec();
 }
 
