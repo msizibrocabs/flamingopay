@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { complianceSignIn, DEMO_COMPLIANCE_PASSCODE } from "../../../lib/compliance";
+import { complianceSignIn } from "../../../lib/compliance";
 
 export default function ComplianceLoginPage() {
   const router = useRouter();
@@ -11,22 +11,34 @@ export default function ComplianceLoginPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
     if (!name.trim()) {
       setError("Please enter your name.");
       return;
     }
-    if (code !== DEMO_COMPLIANCE_PASSCODE) {
-      setError("Incorrect compliance passcode.");
-      return;
-    }
     setLoading(true);
-    setTimeout(() => {
+    try {
+      // Create server-side session (sets httpOnly cookie for API auth)
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ role: "compliance", name: name.trim(), passcode: code }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error ?? "Login failed.");
+        setLoading(false);
+        return;
+      }
+      // Also save to localStorage for client-side gate
       complianceSignIn(name.trim());
       router.push("/compliance");
-    }, 400);
+    } catch {
+      setError("Network error. Please try again.");
+      setLoading(false);
+    }
   }
 
   return (
@@ -92,7 +104,7 @@ export default function ComplianceLoginPage() {
           </button>
 
           <p className="mt-4 text-center text-xs text-flamingo-dark/60">
-            Demo passcode: <span className="font-mono font-bold">{DEMO_COMPLIANCE_PASSCODE}</span>
+            Contact your admin for the compliance passcode.
           </p>
         </form>
       </div>
