@@ -595,6 +595,7 @@ export default function Home() {
             <ul className="mt-4 space-y-2 text-sm">
               <li><Link href="/legal/privacy" className="hover:text-flamingo-pink">Privacy Policy</Link></li>
               <li><Link href="/legal/terms" className="hover:text-flamingo-pink">Merchant Terms</Link></li>
+              <li><Link href="/dsar" className="hover:text-flamingo-pink">Request Your Data (POPIA)</Link></li>
               <li><a href="mailto:compliance@flamingopay.co.za" className="hover:text-flamingo-pink">Compliance</a></li>
             </ul>
           </div>
