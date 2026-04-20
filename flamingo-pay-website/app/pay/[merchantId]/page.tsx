@@ -59,6 +59,149 @@ const stepVariants = {
   exit: { opacity: 0, x: -20 },
 };
 
+/* ──────────────────────────────────────────────
+   Auto-download receipt as PNG via canvas
+   ────────────────────────────────────────────── */
+function downloadReceipt(info: {
+  merchantName: string;
+  amount: number;
+  method: string;
+  ref: string;
+  date: Date;
+}) {
+  try {
+    const W = 600;
+    const H = 820;
+    const canvas = document.createElement("canvas");
+    canvas.width = W;
+    canvas.height = H;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    // Background
+    ctx.fillStyle = "#FFF8F0";
+    ctx.fillRect(0, 0, W, H);
+
+    // Pink header bar
+    ctx.fillStyle = "#E8396B";
+    ctx.fillRect(0, 0, W, 120);
+
+    // Logo circle
+    ctx.beginPath();
+    ctx.arc(W / 2, 55, 24, 0, Math.PI * 2);
+    ctx.fillStyle = "#FFFFFF";
+    ctx.fill();
+    ctx.fillStyle = "#E8396B";
+    ctx.font = "bold 24px sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText("F", W / 2, 63);
+
+    // "Flamingo Pay" in header
+    ctx.fillStyle = "#FFFFFF";
+    ctx.font = "bold 16px sans-serif";
+    ctx.fillText("Flamingo Pay", W / 2, 100);
+
+    // "PAYMENT RECEIPT" title
+    ctx.fillStyle = "#E8396B";
+    ctx.font = "bold 11px sans-serif";
+    ctx.letterSpacing = "3px";
+    ctx.fillText("PAYMENT RECEIPT", W / 2, 155);
+    ctx.letterSpacing = "0px";
+
+    // Amount
+    const amtStr = `R${info.amount.toLocaleString("en-ZA", { minimumFractionDigits: 2 })}`;
+    ctx.fillStyle = "#1A1A2E";
+    ctx.font = "bold 42px sans-serif";
+    ctx.fillText(amtStr, W / 2, 210);
+
+    // Status badge
+    ctx.fillStyle = "#10B981";
+    const badgeW = 80;
+    const badgeH = 26;
+    const badgeX = W / 2 - badgeW / 2;
+    const badgeY = 225;
+    ctx.beginPath();
+    ctx.roundRect(badgeX, badgeY, badgeW, badgeH, 13);
+    ctx.fill();
+    ctx.fillStyle = "#FFFFFF";
+    ctx.font = "bold 11px sans-serif";
+    ctx.fillText("PAID", W / 2, 243);
+
+    // Receipt card
+    const cardX = 60;
+    const cardY = 275;
+    const cardW = W - 120;
+    const cardH = 320;
+    ctx.fillStyle = "#FFFFFF";
+    ctx.strokeStyle = "#1A1A2E";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.roundRect(cardX, cardY, cardW, cardH, 16);
+    ctx.fill();
+    ctx.stroke();
+
+    // Receipt rows
+    ctx.textAlign = "left";
+    const rows = [
+      ["Paid to", info.merchantName],
+      ["Amount", amtStr],
+      ["Via", info.method],
+      ["Reference", info.ref],
+      ["Date", info.date.toLocaleDateString("en-ZA", { day: "numeric", month: "long", year: "numeric" })],
+      ["Time", info.date.toLocaleTimeString("en-ZA", { hour: "2-digit", minute: "2-digit" })],
+    ];
+    let rowY = cardY + 40;
+    for (const [label, value] of rows) {
+      ctx.fillStyle = "#1A1A2E80";
+      ctx.font = "600 13px sans-serif";
+      ctx.textAlign = "left";
+      ctx.fillText(label, cardX + 24, rowY);
+      ctx.fillStyle = "#1A1A2E";
+      ctx.font = "bold 14px sans-serif";
+      ctx.textAlign = "right";
+      ctx.fillText(value, cardX + cardW - 24, rowY);
+      rowY += 42;
+    }
+
+    // Dashed divider
+    ctx.setLineDash([4, 4]);
+    ctx.strokeStyle = "#1A1A2E30";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(cardX + 24, rowY - 10);
+    ctx.lineTo(cardX + cardW - 24, rowY - 10);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Save this text
+    ctx.textAlign = "center";
+    ctx.fillStyle = "#1A1A2E60";
+    ctx.font = "600 12px sans-serif";
+    ctx.fillText("Keep this receipt for your records.", W / 2, rowY + 18);
+
+    // Footer
+    ctx.fillStyle = "#1A1A2E40";
+    ctx.font = "11px sans-serif";
+    ctx.fillText("Flamingo Pay (Pty) Ltd · Reg No: 2026/276925/07", W / 2, H - 60);
+    ctx.fillText("www.flamingopay.co.za", W / 2, H - 40);
+
+    // Trigger download
+    canvas.toBlob((blob) => {
+      if (!blob) return;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `FlaminGO-Receipt-${info.ref}.png`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }, "image/png");
+  } catch {
+    // Silent fail — receipt download is best-effort
+  }
+}
+
 export default function PayPage() {
   const params = useParams();
   const merchantId = params.merchantId as string;
@@ -100,7 +243,20 @@ export default function PayPage() {
   );
 
   useEffect(() => {
-    if (step === "done") flamingoConfetti();
+    if (step === "done") {
+      flamingoConfetti();
+      // Auto-download receipt after a short delay so the UI renders first
+      const timer = setTimeout(() => {
+        downloadReceipt({
+          merchantName: merchant?.name ?? "Merchant",
+          amount: parseFloat(amount),
+          method: selectedMethod ? METHODS[selectedMethod].label : "PayShap",
+          ref: txnRef ?? "—",
+          date: new Date(),
+        });
+      }, 1500);
+      return () => clearTimeout(timer);
+    }
   }, [step]);
 
   // Rotate processing quips
