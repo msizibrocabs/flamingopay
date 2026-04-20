@@ -176,16 +176,31 @@ function STRList() {
             <p className="mt-1 text-sm text-flamingo-dark/60">
               Filing for <strong>{fileModal.merchantName}</strong> — {fileModal.description}
             </p>
-            <label className="mt-4 block">
+
+            <div className="mt-4 rounded-xl border-2 border-blue-200 bg-blue-50 px-3 py-2.5">
+              <p className="text-xs font-extrabold text-blue-800">How to file</p>
+              <ol className="mt-1 space-y-1 text-xs text-blue-700">
+                <li>1. Log in to the <a href="https://www.fic.gov.za/goaml" target="_blank" rel="noopener noreferrer" className="font-bold underline underline-offset-2">FIC goAML portal</a></li>
+                <li>2. Submit a new STR with the transaction details below</li>
+                <li>3. Copy the reference number back here to complete your record</li>
+              </ol>
+            </div>
+
+            <div className="mt-3 rounded-xl border border-flamingo-dark/10 bg-flamingo-cream px-3 py-2 text-xs text-flamingo-dark/70">
+              <span className="font-bold text-flamingo-dark">Quick reference:</span>{" "}
+              {fileModal.merchantName} · {REASON_LABELS[fileModal.reason] ?? fileModal.reason} · {formatZAR(fileModal.totalAmount)} · {fileModal.relatedTxnIds.length} txn(s)
+            </div>
+
+            <label className="mt-3 block">
               <span className="text-xs font-bold uppercase tracking-widest text-flamingo-dark/50">
-                FIC reference number (optional)
+                FIC reference number (optional — you can add this later)
               </span>
               <input
                 type="text"
                 value={ficRef}
                 onChange={e => setFicRef(e.target.value)}
                 placeholder="e.g. FIC-2026-00123"
-                className="mt-1 block w-full rounded-xl border-2 border-flamingo-dark bg-flamingo-cream px-3 py-2 text-sm font-semibold text-flamingo-dark outline-none placeholder:text-flamingo-dark/30"
+                className="mt-1 block w-full rounded-xl border-2 border-flamingo-dark bg-white px-3 py-2 text-sm font-semibold text-flamingo-dark outline-none placeholder:text-flamingo-dark/30"
                 autoFocus
               />
             </label>
