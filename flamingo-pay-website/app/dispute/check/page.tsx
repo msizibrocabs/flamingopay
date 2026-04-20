@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 
@@ -59,6 +59,21 @@ const ACTION_LABELS: Record<string, string> = {
 };
 
 export default function DisputeCheckPage() {
+  return (
+    <Suspense fallback={
+      <main className="grid min-h-dvh place-items-center bg-flamingo-cream">
+        <div className="flex items-center gap-2 text-flamingo-dark/70">
+          <span className="inline-block h-3 w-3 animate-ping rounded-full bg-flamingo-pink" />
+          Loading...
+        </div>
+      </main>
+    }>
+      <DisputeCheckInner />
+    </Suspense>
+  );
+}
+
+function DisputeCheckInner() {
   const searchParams = useSearchParams();
   const prefilled = searchParams.get("ref") ?? "";
 
