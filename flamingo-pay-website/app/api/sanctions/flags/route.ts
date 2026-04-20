@@ -7,7 +7,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { getSession } from "../../../../lib/api-auth";
+import { getSession, requireSession } from "../../../../lib/api-auth";
 import {
   listSanctionsFlags,
   resolveSanctionsFlag,
@@ -20,10 +20,9 @@ import { updateMerchantStatus } from "../../../../lib/store";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const session = await getSession("admin");
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  let session = await requireSession("compliance");
+  if (session instanceof Response) session = await requireSession("admin");
+  if (session instanceof Response) return session;
 
   const [flags, meta, pepMeta] = await Promise.all([
     listSanctionsFlags(),
@@ -40,15 +39,22 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const session = await getSession("admin");
-  if (!session) {
+  // Compliance officers or admin managers/owners can resolve flags
+  const complianceSession = await getSession("compliance");
+  const adminSession = await getSession("admin");
+  if (!complianceSession && !adminSession) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const role = session.adminRole ?? "staff";
-  if (role !== "owner" && role !== "manager") {
-    return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 });
+  // Admin staff (non-manager) can't resolve — only compliance, admin owners, or admin managers
+  if (!complianceSession) {
+    const role = adminSession!.adminRole ?? "staff";
+    if (role !== "owner" && role !== "manager") {
+      return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 });
+    }
   }
+
+  const activeSession = complianceSession ?? adminSession!;
 
   try {
     const body = await req.json();
@@ -64,7 +70,7 @@ export async function POST(req: NextRequest) {
     const flag = await resolveSanctionsFlag(
       merchantId,
       status,
-      session.name || session.email || "admin",
+      activeSession.name || activeSession.email || "officer",
       note,
     );
 

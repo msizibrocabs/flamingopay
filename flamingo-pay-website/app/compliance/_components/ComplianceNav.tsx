@@ -12,6 +12,7 @@ const LINKS = [
   { href: "/compliance/strs", label: "STRs" },
   { href: "/compliance/ctrs", label: "CTRs" },
   { href: "/compliance/edd", label: "EDD" },
+  { href: "/compliance/sanctions", label: "Sanctions" },
   { href: "/compliance/risk", label: "Risk" },
   { href: "/compliance/disputes", label: "Disputes" },
   { href: "/compliance/dsar", label: "DSAR" },

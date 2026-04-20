@@ -5,16 +5,15 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { getSession } from "../../../../lib/api-auth";
+import { requireSession } from "../../../../lib/api-auth";
 import { screenName, screenNamePep, screenMerchant } from "../../../../lib/sanctions";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
-  const session = await getSession("admin");
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  let session = await requireSession("compliance");
+  if (session instanceof Response) session = await requireSession("admin");
+  if (session instanceof Response) return session;
 
   try {
     const body = await req.json();

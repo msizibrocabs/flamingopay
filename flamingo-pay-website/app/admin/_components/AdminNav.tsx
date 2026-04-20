@@ -29,7 +29,6 @@ export function AdminNav() {
     { href: "/admin", label: "Overview" },
     { href: "/admin/merchants", label: "Merchants" },
     { href: "/admin/complaints", label: "Complaints" },
-    ...(isOwnerOrManager ? [{ href: "/admin/sanctions", label: "Sanctions" }] : []),
     ...(isOwnerOrManager ? [{ href: "/admin/audit", label: "Audit Log" }] : []),
     ...(isOwner ? [{ href: "/admin/staff", label: "Staff" }] : []),
   ];

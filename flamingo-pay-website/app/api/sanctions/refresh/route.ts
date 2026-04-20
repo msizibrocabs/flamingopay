@@ -4,20 +4,23 @@
  */
 
 import { NextResponse } from "next/server";
-import { getSession } from "../../../../lib/api-auth";
+import { getSession, requireSession } from "../../../../lib/api-auth";
 import { refreshSanctionsList, refreshPepList } from "../../../../lib/sanctions";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 120; // Allow up to 120s for fetching both datasets
 
 export async function POST() {
-  const session = await getSession("admin");
-  if (!session) {
+  const complianceSession = await getSession("compliance");
+  const adminSession = await getSession("admin");
+  if (!complianceSession && !adminSession) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  const role = session.adminRole ?? "staff";
-  if (role !== "owner" && role !== "manager") {
-    return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 });
+  if (!complianceSession) {
+    const role = adminSession!.adminRole ?? "staff";
+    if (role !== "owner" && role !== "manager") {
+      return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 });
+    }
   }
 
   try {
