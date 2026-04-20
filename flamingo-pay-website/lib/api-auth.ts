@@ -147,9 +147,16 @@ export async function requireAdminRole(
 
 import { compareSync, hashSync } from "bcryptjs";
 
+// Fallback passcodes used when env vars aren't set (demo/dev mode).
+// In production, always set ADMIN_PASSCODE and COMPLIANCE_PASSCODE env vars.
+const FALLBACK_PASSCODES: Record<string, string> = {
+  admin: "admin2026",
+  compliance: "compliance2026",
+};
+
 const ENV_PASSCODES: Record<string, string | undefined> = {
-  admin: process.env.ADMIN_PASSCODE,
-  compliance: process.env.COMPLIANCE_PASSCODE,
+  admin: process.env.ADMIN_PASSCODE ?? FALLBACK_PASSCODES.admin,
+  compliance: process.env.COMPLIANCE_PASSCODE ?? FALLBACK_PASSCODES.compliance,
 };
 
 // Pre-hash env passcodes on startup for constant-time comparison.
