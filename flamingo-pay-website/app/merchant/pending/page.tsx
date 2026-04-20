@@ -65,6 +65,9 @@ export default function PendingPage() {
   const isRejected = merchant.status === "rejected";
   const isSuspended = merchant.status === "suspended";
 
+  // Check if EDD is active — shows additional context to the merchant
+  const hasEDD = merchant.status === "pending" && (merchant as MerchantApplication & { eddStatus?: string }).eddStatus === "open";
+
   return (
     <main className="min-h-dvh bg-flamingo-cream">
       <div className="mx-auto flex max-w-md flex-col px-5 py-10">
@@ -133,6 +136,11 @@ export default function PendingPage() {
             </div>
           )}
         </section>
+
+        {/* EDD notice — shown when enhanced due diligence is underway */}
+        {!isRejected && !isSuspended && merchant.status === "pending" && (
+          <EDDNotice merchantId={merchant.id} />
+        )}
 
         {/* Show rejected / required documents so merchant can re-upload */}
         <DocFeedback docs={merchant.documents} merchantId={merchant.id} />
@@ -233,6 +241,44 @@ function DocFeedback({
         {actionable.map((doc) => (
           <DocRow key={doc.kind} doc={doc} merchantId={merchantId} />
         ))}
+      </div>
+    </section>
+  );
+}
+
+function EDDNotice({ merchantId }: { merchantId: string }) {
+  const [hasEDD, setHasEDD] = useState(false);
+
+  useEffect(() => {
+    fetch(`/api/merchants/${merchantId}`, { cache: "no-store" })
+      .then(r => r.json())
+      .then(d => {
+        // If the merchant has EDD cases, our compliance team needs extra time
+        const m = d.merchant;
+        if (m?.kycResult?.isPep || m?.kycResult?.sanctionsNearMatch) {
+          setHasEDD(true);
+        }
+      })
+      .catch(() => {});
+  }, [merchantId]);
+
+  if (!hasEDD) return null;
+
+  return (
+    <section className="mt-4 rounded-3xl border-2 border-flamingo-dark bg-flamingo-butter p-5 shadow-[0_6px_0_0_#1A1A2E]">
+      <p className="text-xs font-bold uppercase tracking-widest text-flamingo-dark">
+        Enhanced verification in progress
+      </p>
+      <p className="mt-2 text-sm text-flamingo-dark/80">
+        Your application requires additional compliance checks as part of our regulatory obligations under FICA.
+        This is a standard procedure and does not reflect negatively on your application.
+      </p>
+      <p className="mt-2 text-sm text-flamingo-dark/80">
+        Our compliance team may reach out to request additional documentation. This process typically takes 1–3 business days.
+      </p>
+      <div className="mt-3 flex items-center gap-2 text-xs text-flamingo-dark/60">
+        <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-amber-500" />
+        Enhanced Due Diligence review underway
       </div>
     </section>
   );

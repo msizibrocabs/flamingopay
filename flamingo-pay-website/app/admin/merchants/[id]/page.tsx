@@ -280,6 +280,9 @@ function Detail({ id }: { id: string }) {
       </section>
       </Reveal>
 
+      {/* FICA Status */}
+      <FICAStatusSection merchantId={id} />
+
       {/* Details grid */}
       <Reveal delay={0.2}>
       <section className="mt-4 grid gap-4 sm:grid-cols-2">
@@ -799,6 +802,96 @@ function MonitoringCard({ businessType }: { businessType: string }) {
         <Row k="Anomaly trigger" v={`≥ ${p.anomalyMultiplier}× merchant avg`} />
       </dl>
     </div>
+  );
+}
+
+type FICAStatus = {
+  kycComplete: boolean;
+  kycTier: string;
+  pepScreened: boolean;
+  pepStatus: string;
+  sanctionsScreened: boolean;
+  sanctionsStatus: string;
+  documentsVerified: boolean;
+  documentProgress: string;
+  ctrsGenerated: number;
+  strsGenerated: number;
+  eddStatus: string;
+  eddCaseCount: number;
+  overallCompliant: boolean;
+};
+
+function FICAStatusSection({ merchantId }: { merchantId: string }) {
+  const [fica, setFica] = useState<FICAStatus | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch(`/api/merchants/${merchantId}/fica-status`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => setFica(d))
+      .catch(() => setFica(null))
+      .finally(() => setLoading(false));
+  }, [merchantId]);
+
+  if (loading) {
+    return (
+      <Reveal delay={0.15}>
+        <div className="mt-4 h-24 animate-pulse rounded-2xl border-2 border-flamingo-dark/20 bg-white/60" />
+      </Reveal>
+    );
+  }
+
+  if (!fica) return null;
+
+  const checks = [
+    { label: "KYC verification", ok: fica.kycComplete, detail: fica.kycTier },
+    { label: "PEP screening", ok: fica.pepStatus === "clear", detail: fica.pepStatus },
+    { label: "Sanctions screening", ok: fica.sanctionsStatus === "clear", detail: fica.sanctionsStatus },
+    { label: "Documents verified", ok: fica.documentsVerified, detail: fica.documentProgress },
+  ];
+
+  return (
+    <Reveal delay={0.15}>
+      <section className={`mt-4 rounded-2xl border-2 p-4 shadow-[0_6px_0_0_#1A1A2E] ${
+        fica.overallCompliant
+          ? "border-flamingo-dark bg-flamingo-mint"
+          : "border-flamingo-dark bg-flamingo-pink-soft"
+      }`}>
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <p className="text-[10px] font-extrabold uppercase tracking-widest text-flamingo-dark/70">FICA Compliance Status</p>
+            <p className={`text-sm font-extrabold ${fica.overallCompliant ? "text-green-700" : "text-flamingo-pink-deep"}`}>
+              {fica.overallCompliant ? "✓ Compliant" : "⚠ Action Required"}
+            </p>
+          </div>
+          <Link href="/compliance" className="text-xs font-bold text-flamingo-pink-deep underline-offset-2 hover:underline">
+            Compliance portal →
+          </Link>
+        </div>
+        <div className="grid gap-2 sm:grid-cols-2">
+          {checks.map(c => (
+            <div key={c.label} className="flex items-center gap-2 rounded-lg bg-white/60 px-3 py-2">
+              <span className={`grid h-5 w-5 place-items-center rounded-full text-[10px] font-extrabold text-white ${c.ok ? "bg-green-500" : "bg-red-500"}`}>
+                {c.ok ? "✓" : "✕"}
+              </span>
+              <span className="text-xs font-bold text-flamingo-dark">{c.label}</span>
+              <span className="ml-auto text-[10px] font-bold text-flamingo-dark/50 uppercase">{c.detail}</span>
+            </div>
+          ))}
+        </div>
+        {(fica.ctrsGenerated > 0 || fica.strsGenerated > 0 || fica.eddCaseCount > 0) && (
+          <div className="mt-2 flex flex-wrap gap-3 text-xs text-flamingo-dark/70">
+            {fica.ctrsGenerated > 0 && <span className="font-bold">{fica.ctrsGenerated} CTR(s)</span>}
+            {fica.strsGenerated > 0 && <span className="font-bold text-red-700">{fica.strsGenerated} STR(s)</span>}
+            {fica.eddCaseCount > 0 && (
+              <Link href="/compliance/edd" className="font-bold text-red-700 underline-offset-2 hover:underline">
+                {fica.eddCaseCount} EDD case(s) — {fica.eddStatus}
+              </Link>
+            )}
+          </div>
+        )}
+      </section>
+    </Reveal>
   );
 }
 

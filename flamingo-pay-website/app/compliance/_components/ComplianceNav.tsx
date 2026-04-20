@@ -8,7 +8,10 @@ import { complianceSignOut, currentComplianceOfficer } from "../../../lib/compli
 const LINKS = [
   { href: "/compliance", label: "Dashboard" },
   { href: "/compliance/flags", label: "Flags" },
+  { href: "/compliance/strs", label: "STRs" },
+  { href: "/compliance/ctrs", label: "CTRs" },
   { href: "/compliance/edd", label: "EDD" },
+  { href: "/compliance/risk", label: "Risk" },
   { href: "/compliance/disputes", label: "Disputes" },
   { href: "/compliance/dsar", label: "DSAR" },
 ];
