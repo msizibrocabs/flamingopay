@@ -5,7 +5,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { getSession } from "../../../../lib/api-auth";
+import { requireSession } from "../../../../lib/api-auth";
 import { listMerchants, listTransactions } from "../../../../lib/store";
 import { calculateMerchantRisk } from "../../../../lib/risk";
 import type { MerchantRiskScore, RiskLevel } from "../../../../lib/risk";
@@ -14,10 +14,9 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 export async function GET(req: NextRequest) {
-  const session = await getSession("admin");
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  let session = await requireSession("compliance");
+  if (session instanceof Response) session = await requireSession("admin");
+  if (session instanceof Response) return session;
 
   const url = new URL(req.url);
   const singleId = url.searchParams.get("merchantId");

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getFlag, updateFlag, type FlagStatus } from "../../../../../lib/store";
+import { requireSession } from "../../../../../lib/api-auth";
 import { appendAuditLog } from "../../../../../lib/audit";
 
 export const dynamic = "force-dynamic";
@@ -10,6 +11,10 @@ export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ flagId: string }> },
 ) {
+  let session = await requireSession("compliance");
+  if (session instanceof Response) session = await requireSession("admin");
+  if (session instanceof Response) return session;
+
   const { flagId } = await params;
   const flag = await getFlag(flagId);
   if (!flag) return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -20,6 +25,10 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ flagId: string }> },
 ) {
+  let session = await requireSession("compliance");
+  if (session instanceof Response) session = await requireSession("admin");
+  if (session instanceof Response) return session;
+
   const { flagId } = await params;
   let body: { status?: FlagStatus; officerNote?: string; resolvedBy?: string };
   try {

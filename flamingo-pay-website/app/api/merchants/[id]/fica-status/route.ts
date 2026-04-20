@@ -13,8 +13,8 @@ export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  let session = await requireSession("admin");
-  if (session instanceof Response) session = await requireSession("compliance");
+  let session = await requireSession("compliance");
+  if (session instanceof Response) session = await requireSession("admin");
   if (session instanceof Response) return session;
 
   const { id } = await params;
