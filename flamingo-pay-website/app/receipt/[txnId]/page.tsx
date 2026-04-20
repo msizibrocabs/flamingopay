@@ -133,7 +133,17 @@ export default function ReceiptPage({
           </button>
         </div>
 
-        <p className="mt-6 text-center text-[11px] text-flamingo-dark/40">
+        <div className="mt-4 rounded-xl border-2 border-flamingo-dark/15 bg-white px-4 py-3 text-center">
+          <p className="text-xs text-flamingo-dark/50">Something wrong with this payment?</p>
+          <Link
+            href={`/dispute?ref=${t.reference}`}
+            className="mt-1 inline-block text-sm font-bold text-red-600 hover:underline"
+          >
+            Report a problem
+          </Link>
+        </div>
+
+        <p className="mt-4 text-center text-[11px] text-flamingo-dark/40">
           Powered by Flamingo Pay • www.flamingopay.co.za
         </p>
       </div>

@@ -21,6 +21,15 @@ type Stats = {
   flaggedAmount: number;
 };
 
+type DisputeStats = {
+  total: number;
+  open: number;
+  awaitingMerchant: number;
+  escalated: number;
+  resolved: number;
+  totalRefunded: number;
+};
+
 export default function ComplianceDashboard() {
   return (
     <ComplianceGate>
@@ -32,6 +41,7 @@ export default function ComplianceDashboard() {
 
 function Dashboard() {
   const [stats, setStats] = useState<Stats | null>(null);
+  const [disputeStats, setDisputeStats] = useState<DisputeStats | null>(null);
   const [recent, setRecent] = useState<TxnFlag[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -40,11 +50,13 @@ function Dashboard() {
     Promise.all([
       fetch("/api/compliance/stats").then(r => r.json()),
       fetch("/api/compliance/flags?status=open").then(r => r.json()),
+      fetch("/api/compliance/disputes").then(r => r.ok ? r.json() : { stats: null }).catch(() => ({ stats: null })),
     ])
-      .then(([s, f]) => {
+      .then(([s, f, d]) => {
         if (!cancelled) {
           setStats(s);
           setRecent((f.flags ?? []).slice(0, 10));
+          setDisputeStats(d.stats ?? null);
         }
       })
       .catch(() => {})
@@ -124,6 +136,36 @@ function Dashboard() {
           </div>
         )}
       </section>
+
+      {/* Dispute summary */}
+      {disputeStats && (disputeStats.open > 0 || disputeStats.escalated > 0) && (
+        <Reveal delay={0.15}>
+          <section className="mt-10">
+            <div className="mb-4 flex items-end justify-between">
+              <h2
+                className="display font-black text-flamingo-dark leading-none"
+                style={{ fontSize: "clamp(1.5rem, 3vw, 2.25rem)", letterSpacing: "-0.03em" }}
+              >
+                Buyer disputes
+                {(disputeStats.open + disputeStats.escalated) > 0 && (
+                  <span className="ml-2 inline-grid h-6 min-w-6 place-items-center rounded-full border-2 border-flamingo-dark bg-orange-500 px-2 text-xs font-extrabold text-white">
+                    {disputeStats.open + disputeStats.escalated}
+                  </span>
+                )}
+              </h2>
+              <Link href="/compliance/disputes" className="text-sm font-bold text-red-600 underline-offset-2 hover:underline">
+                View all disputes
+              </Link>
+            </div>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <StatCard label="Open" value={disputeStats.open} tone="red" highlight={disputeStats.open > 0} />
+              <StatCard label="Awaiting merchant" value={disputeStats.awaitingMerchant} tone="amber" />
+              <StatCard label="Escalated" value={disputeStats.escalated} tone="purple" highlight={disputeStats.escalated > 0} />
+              <StatCard label="Total refunded" value={disputeStats.totalRefunded} tone="green" money />
+            </div>
+          </section>
+        </Reveal>
+      )}
 
       <Reveal delay={0.2}>
         <section className="mt-10 rounded-3xl border-2 border-flamingo-dark bg-flamingo-butter p-5 shadow-[0_6px_0_0_#1A1A2E]">

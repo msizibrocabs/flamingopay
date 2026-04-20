@@ -8,6 +8,7 @@ import { complianceSignOut, currentComplianceOfficer } from "../../../lib/compli
 const LINKS = [
   { href: "/compliance", label: "Dashboard" },
   { href: "/compliance/flags", label: "Flags" },
+  { href: "/compliance/disputes", label: "Disputes" },
 ];
 
 export function ComplianceNav() {

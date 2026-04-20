@@ -551,7 +551,7 @@ export default function Home() {
 
       {/* ─────────────────── FOOTER ─────────────────── */}
       <footer className="bg-flamingo-ink text-white/70 border-t border-white/10">
-        <div className="max-w-7xl mx-auto px-6 py-16 grid md:grid-cols-5 gap-10">
+        <div className="max-w-7xl mx-auto px-6 py-16 grid md:grid-cols-6 gap-10">
           <div className="md:col-span-1">
             <div className="flex items-center gap-2">
               <span className="w-10 h-10 rounded-full bg-gradient-flamingo border-2 border-white flex items-center justify-center text-white font-black">
@@ -581,6 +581,13 @@ export default function Home() {
               <li>Reg No: 2026/276925/07</li>
               <li>A23, 10th Ave, Edenburg, Rivonia</li>
               <li>Sandton, 2091</li>
+            </ul>
+          </div>
+          <div>
+            <p className="display-eyebrow text-[10px] text-white/90">Buyers</p>
+            <ul className="mt-4 space-y-2 text-sm">
+              <li><Link href="/dispute" className="hover:text-flamingo-pink">Report a problem</Link></li>
+              <li><Link href="/dispute/check" className="hover:text-flamingo-pink">Check dispute status</Link></li>
             </ul>
           </div>
           <div>
