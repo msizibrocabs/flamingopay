@@ -101,6 +101,10 @@ function STRList() {
   const [tab, setTab] = useState("all");
   const [actionId, setActionId] = useState<string | null>(null);
   const [toast, setToast] = useState("");
+  const [fileModal, setFileModal] = useState<STR | null>(null);
+  const [ficRef, setFicRef] = useState("");
+  const [dismissModal, setDismissModal] = useState<STR | null>(null);
+  const [dismissReason, setDismissReason] = useState("");
 
   const fetchData = (selectedTab: string) => {
     const params = new URLSearchParams({ stats: "true" });
@@ -137,13 +141,22 @@ function STRList() {
     setActionId(null);
   }
 
-  async function handleFileWithFIC(str: STR) {
-    const ref = prompt("Enter FIC reference number (optional):");
-    await updateSTR(str.id, {
+  async function confirmFileWithFIC() {
+    if (!fileModal) return;
+    await updateSTR(fileModal.id, {
       status: "filed",
-      ficReference: ref || undefined,
+      ficReference: ficRef.trim() || undefined,
       notes: `Filed with FIC by ${currentComplianceOfficer()?.name ?? "officer"}`,
     });
+    setFileModal(null);
+    setFicRef("");
+  }
+
+  async function confirmDismiss() {
+    if (!dismissModal || !dismissReason.trim()) return;
+    await updateSTR(dismissModal.id, { status: "dismissed", notes: `Dismissed: ${dismissReason}` });
+    setDismissModal(null);
+    setDismissReason("");
   }
 
   return (
@@ -152,6 +165,78 @@ function STRList() {
       {toast && (
         <div className="fixed top-4 left-1/2 z-50 -translate-x-1/2 rounded-xl border-2 border-flamingo-dark bg-white px-4 py-2 text-sm font-bold shadow-[0_4px_0_0_#1A1A2E]">
           {toast}
+        </div>
+      )}
+
+      {/* File with FIC modal */}
+      {fileModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-flamingo-dark/40 backdrop-blur-sm">
+          <div className="mx-4 w-full max-w-md rounded-2xl border-2 border-flamingo-dark bg-white p-6 shadow-[0_8px_0_0_#1A1A2E]">
+            <h3 className="display text-lg font-extrabold text-flamingo-dark">File STR with FIC</h3>
+            <p className="mt-1 text-sm text-flamingo-dark/60">
+              Filing for <strong>{fileModal.merchantName}</strong> — {fileModal.description}
+            </p>
+            <label className="mt-4 block">
+              <span className="text-xs font-bold uppercase tracking-widest text-flamingo-dark/50">
+                FIC reference number (optional)
+              </span>
+              <input
+                type="text"
+                value={ficRef}
+                onChange={e => setFicRef(e.target.value)}
+                placeholder="e.g. FIC-2026-00123"
+                className="mt-1 block w-full rounded-xl border-2 border-flamingo-dark bg-flamingo-cream px-3 py-2 text-sm font-semibold text-flamingo-dark outline-none placeholder:text-flamingo-dark/30"
+                autoFocus
+              />
+            </label>
+            <div className="mt-4 flex justify-end gap-2">
+              <button onClick={() => setFileModal(null)}
+                className="rounded-lg border-2 border-flamingo-dark/30 bg-white px-4 py-2 text-sm font-bold text-flamingo-dark/70">
+                Cancel
+              </button>
+              <button onClick={confirmFileWithFIC}
+                disabled={actionId === fileModal.id}
+                className="rounded-lg border-2 border-flamingo-dark bg-green-500 px-4 py-2 text-sm font-extrabold text-white shadow-[0_3px_0_0_#1A1A2E] disabled:opacity-50">
+                {actionId === fileModal.id ? "Filing..." : "Confirm Filing"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Dismiss modal */}
+      {dismissModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-flamingo-dark/40 backdrop-blur-sm">
+          <div className="mx-4 w-full max-w-md rounded-2xl border-2 border-flamingo-dark bg-white p-6 shadow-[0_8px_0_0_#1A1A2E]">
+            <h3 className="display text-lg font-extrabold text-flamingo-dark">Dismiss STR</h3>
+            <p className="mt-1 text-sm text-flamingo-dark/60">
+              Dismissing STR for <strong>{dismissModal.merchantName}</strong>
+            </p>
+            <label className="mt-4 block">
+              <span className="text-xs font-bold uppercase tracking-widest text-flamingo-dark/50">
+                Reason for dismissal
+              </span>
+              <textarea
+                value={dismissReason}
+                onChange={e => setDismissReason(e.target.value)}
+                placeholder="e.g. Legitimate business activity — verified with merchant"
+                rows={3}
+                className="mt-1 block w-full rounded-xl border-2 border-flamingo-dark bg-flamingo-cream px-3 py-2 text-sm font-semibold text-flamingo-dark outline-none placeholder:text-flamingo-dark/30"
+                autoFocus
+              />
+            </label>
+            <div className="mt-4 flex justify-end gap-2">
+              <button onClick={() => setDismissModal(null)}
+                className="rounded-lg border-2 border-flamingo-dark/30 bg-white px-4 py-2 text-sm font-bold text-flamingo-dark/70">
+                Cancel
+              </button>
+              <button onClick={confirmDismiss}
+                disabled={!dismissReason.trim() || actionId === dismissModal.id}
+                className="rounded-lg border-2 border-flamingo-dark bg-flamingo-pink-soft px-4 py-2 text-sm font-extrabold text-flamingo-pink-deep shadow-[0_3px_0_0_#1A1A2E] disabled:opacity-50">
+                {actionId === dismissModal.id ? "Dismissing..." : "Confirm Dismiss"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -248,17 +333,14 @@ function STRList() {
                       </button>
                     )}
                     {(str.status === "draft" || str.status === "pending_review") && (
-                      <button onClick={() => handleFileWithFIC(str)}
+                      <button onClick={() => { setFileModal(str); setFicRef(""); }}
                         disabled={actionId === str.id}
                         className="rounded-lg border-2 border-flamingo-dark bg-green-500 px-3 py-1 text-xs font-bold text-white shadow-[0_2px_0_0_#1A1A2E] disabled:opacity-50">
                         File with FIC
                       </button>
                     )}
                     {(str.status === "draft" || str.status === "pending_review") && (
-                      <button onClick={() => {
-                        const reason = prompt("Reason for dismissal:");
-                        if (reason) updateSTR(str.id, { status: "dismissed", notes: `Dismissed: ${reason}` });
-                      }}
+                      <button onClick={() => { setDismissModal(str); setDismissReason(""); }}
                         disabled={actionId === str.id}
                         className="rounded-lg border-2 border-flamingo-dark/20 px-3 py-1 text-xs font-bold text-flamingo-dark/50 disabled:opacity-50">
                         Dismiss
