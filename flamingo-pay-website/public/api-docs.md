@@ -1,8 +1,8 @@
 # Flamingo Pay API Documentation
 
-**Version:** 1.0.0  
+**Version:** 1.1.0  
 **Base URL:** `https://flamingopay.local/api`  
-**Last Updated:** April 2026
+**Last Updated:** 20 April 2026
 
 ---
 
@@ -18,9 +18,12 @@
 8. [Compliance Endpoints](#compliance-endpoints)
 9. [Sanctions Endpoints](#sanctions-endpoints)
 10. [Complaint Management](#complaint-management)
-11. [Webhooks](#webhooks)
-12. [Notifications](#notifications)
-13. [Document Management](#document-management)
+11. [Dispute Resolution](#dispute-resolution)
+12. [Data Subject Access Requests (DSAR)](#data-subject-access-requests-dsar)
+13. [Merchant Holds & Verification](#merchant-holds--verification)
+14. [Webhooks](#webhooks)
+15. [Notifications](#notifications)
+16. [Document Management](#document-management)
 
 ---
 
@@ -1436,6 +1439,195 @@ curl -X GET https://flamingopay.local/api/compliance/stats \
 }
 ```
 
+### POST /compliance/login
+
+**Purpose:** Authenticate compliance staff. Creates a server-side session cookie.
+
+**Authorization:** None (public login endpoint)
+
+**Request Body:**
+
+```json
+{
+  "email": "compliance@flamingopay.co.za",
+  "password": "string"
+}
+```
+
+**Response (200):**
+
+```json
+{
+  "ok": true,
+  "officer": {
+    "id": "string",
+    "name": "string",
+    "email": "string"
+  }
+}
+```
+
+**Cookie Set:** `fp_compliance_token` (HTTP-only, secure)
+
+### POST /compliance/flags/rescan
+
+**Purpose:** Re-evaluate all transactions against current flagging rules to regenerate compliance flags.
+
+**Authorization:** Compliance or admin session required
+
+**Request Body:** None
+
+**Response (200):**
+
+```json
+{
+  "success": true,
+  "scanned": 150,
+  "flagsCreated": 3,
+  "merchantsAffected": 2,
+  "flagsByMerchant": { "m_abc123": 2, "m_def456": 1 }
+}
+```
+
+### GET /compliance/disputes
+
+**Purpose:** List disputes with statistics for the compliance dashboard.
+
+**Authorization:** Compliance or admin session required
+
+**Query Parameters:**
+
+- `status` - Filter by dispute status
+- `merchantId` - Filter by merchant
+
+**Response (200):**
+
+```json
+{
+  "disputes": [
+    {
+      "id": "string",
+      "ref": "DSP-ABCD12",
+      "status": "open",
+      "reason": "wrong_amount",
+      "amount": 150.00,
+      "merchantName": "Mama's Spaza",
+      "buyerPhone": "0721234567",
+      "createdAt": "2026-04-20T..."
+    }
+  ],
+  "stats": {
+    "total": 25,
+    "open": 5,
+    "awaitingMerchant": 3,
+    "escalated": 2,
+    "refundPending": 1,
+    "resolved": 14
+  }
+}
+```
+
+### GET /compliance/risk
+
+**Purpose:** Portfolio risk dashboard with risk scores for all merchants.
+
+**Authorization:** Admin session required
+
+**Query Parameters:**
+
+- `merchantId` - Filter to a specific merchant
+
+**Response (200):**
+
+```json
+{
+  "scores": [
+    {
+      "merchantId": "m_abc123",
+      "businessName": "Mama's Spaza",
+      "riskScore": 45,
+      "riskLevel": "medium",
+      "factors": []
+    }
+  ],
+  "summary": {
+    "totalMerchants": 200,
+    "averageScore": 30,
+    "byLevel": { "low": 150, "medium": 40, "high": 8, "critical": 2 }
+  }
+}
+```
+
+### GET /compliance/strs
+
+**Purpose:** List Suspicious Transaction Reports.
+
+**Authorization:** Admin session required
+
+**Query Parameters:**
+
+- `merchantId` - Filter by merchant
+- `status` - Filter by STR status
+- `filed` - Filter by whether STR has been filed with FIC
+- `stats` - Include summary statistics
+
+**Response (200):**
+
+```json
+{
+  "strs": [
+    {
+      "id": "string",
+      "merchantId": "m_abc123",
+      "merchantName": "string",
+      "description": "string",
+      "riskLevel": "high",
+      "status": "pending",
+      "ficReference": null,
+      "createdAt": "2026-04-20T..."
+    }
+  ],
+  "stats": { "total": 10, "pending": 3, "filed": 7 }
+}
+```
+
+### POST /compliance/strs
+
+**Purpose:** Create a manual STR or update an existing one.
+
+**Authorization:** Admin session required (owner or manager role)
+
+**Request Body (create):**
+
+```json
+{
+  "merchantId": "m_abc123",
+  "merchantName": "Mama's Spaza",
+  "description": "Unusual transaction pattern detected",
+  "riskLevel": "high"
+}
+```
+
+**Request Body (update):**
+
+```json
+{
+  "strId": "str_123",
+  "status": "filed",
+  "ficReference": "FIC-2026-001",
+  "notes": "Filed with FIC on 20 April 2026"
+}
+```
+
+**Response (200):**
+
+```json
+{
+  "ok": true,
+  "str": { "id": "str_123", "status": "filed" }
+}
+```
+
 ---
 
 ## Sanctions Endpoints
@@ -1783,6 +1975,571 @@ curl -X GET https://flamingopay.local/api/complaints/stats \
 
 ---
 
+## Dispute Resolution
+
+### POST /disputes
+
+**Purpose:** File a new buyer dispute (public endpoint).
+
+**Authorization:** None
+
+**Request Body:**
+
+```json
+{
+  "txnId": "string",
+  "txnRef": "FP-ABC123",
+  "merchantId": "m_abc123",
+  "merchantName": "Mama's Spaza",
+  "amount": 150.00,
+  "txnDate": "2026-04-20",
+  "buyerPhone": "0721234567",
+  "buyerEmail": "buyer@example.com",
+  "reason": "wrong_amount",
+  "description": "I was charged R150 but should have been R100",
+  "evidenceUrl": "string (optional)"
+}
+```
+
+**Response (201):**
+
+```json
+{
+  "dispute": {
+    "id": "string",
+    "ref": "DSP-ABCD12",
+    "status": "open",
+    "createdAt": "2026-04-20T...",
+    "deadline": "2026-05-20T..."
+  }
+}
+```
+
+### GET /disputes
+
+**Purpose:** List all disputes with optional filters.
+
+**Authorization:** Compliance or admin session required
+
+**Query Parameters:**
+
+- `status` - Filter by status (open, merchant_response, escalated, refund_pending, refund_done, rejected, closed)
+- `merchantId` - Filter by merchant
+
+**Response (200):**
+
+```json
+{
+  "disputes": [
+    {
+      "id": "string",
+      "ref": "DSP-ABCD12",
+      "status": "open",
+      "reason": "wrong_amount",
+      "amount": 150.00,
+      "merchantId": "m_abc123",
+      "merchantName": "Mama's Spaza",
+      "buyerPhone": "0721234567",
+      "createdAt": "2026-04-20T..."
+    }
+  ]
+}
+```
+
+### GET /disputes/lookup
+
+**Purpose:** Public status lookup of a dispute by reference number.
+
+**Authorization:** None
+
+**Query Parameters:**
+
+- `ref` (required) - Dispute reference (e.g. `DSP-ABCD12`)
+
+**Response (200):**
+
+```json
+{
+  "dispute": {
+    "ref": "DSP-ABCD12",
+    "status": "open",
+    "reason": "wrong_amount",
+    "amount": 150.00,
+    "merchantName": "Mama's Spaza",
+    "txnDate": "2026-04-20",
+    "createdAt": "2026-04-20T...",
+    "updatedAt": "2026-04-20T...",
+    "refundAmount": null,
+    "merchantResponse": null,
+    "resolution": null
+  }
+}
+```
+
+### POST /disputes/search
+
+**Purpose:** Public endpoint for buyers to search transactions (to find the transaction they want to dispute).
+
+**Authorization:** None
+
+**Request Body:**
+
+```json
+{
+  "amount": 150.00,
+  "dateFrom": "2026-04-01",
+  "dateTo": "2026-04-20",
+  "merchantName": "Mama"
+}
+```
+
+**Response (200):**
+
+```json
+{
+  "transactions": [
+    {
+      "txnId": "string",
+      "txnRef": "FP-ABC123",
+      "amount": 150.00,
+      "date": "2026-04-20T...",
+      "merchantId": "m_abc123",
+      "merchantName": "Mama's Spaza",
+      "rail": "payshap",
+      "buyerBank": "FNB"
+    }
+  ]
+}
+```
+
+### GET /disputes/{disputeId}
+
+**Purpose:** Retrieve full dispute details.
+
+**Authorization:** Compliance or admin session required
+
+**Response (200):**
+
+```json
+{
+  "dispute": {
+    "id": "string",
+    "ref": "DSP-ABCD12",
+    "status": "open",
+    "reason": "wrong_amount",
+    "description": "string",
+    "amount": 150.00,
+    "merchantId": "m_abc123",
+    "merchantName": "string",
+    "buyerPhone": "string",
+    "buyerEmail": "string",
+    "merchantResponse": null,
+    "resolution": null,
+    "timeline": [],
+    "createdAt": "2026-04-20T...",
+    "updatedAt": "2026-04-20T..."
+  }
+}
+```
+
+### PATCH /disputes/{disputeId}
+
+**Purpose:** Update a dispute — merchant response or compliance resolution.
+
+**Authorization:** Compliance or admin session required (for resolution actions)
+
+**Request Body (merchant response):**
+
+```json
+{
+  "action": "accept",
+  "note": "Customer is correct, will refund"
+}
+```
+
+**Request Body (compliance resolution):**
+
+```json
+{
+  "decision": "refund_full",
+  "resolvedBy": "Siphokazi Gazi",
+  "refundAmount": 150.00
+}
+```
+
+**Request Body (mark refund completed):**
+
+```json
+{
+  "markRefundDone": true
+}
+```
+
+**Response (200):**
+
+```json
+{
+  "dispute": { "id": "string", "status": "refund_done" }
+}
+```
+
+---
+
+## Data Subject Access Requests (DSAR)
+
+### POST /dsar
+
+**Purpose:** Submit a new POPIA data subject access or deletion request (public endpoint).
+
+**Authorization:** None
+
+**Request Body:**
+
+```json
+{
+  "requestType": "access",
+  "requesterType": "buyer",
+  "fullName": "Sipho Ndlovu",
+  "email": "sipho@example.com",
+  "phone": "0721234567",
+  "idNumber": "5083",
+  "merchantId": "m_abc123",
+  "description": "All personal data you hold about me"
+}
+```
+
+| Field | Type | Required | Notes |
+|-------|------|----------|-------|
+| `requestType` | `"access"` \| `"deletion"` | No (default: access) | Section 23 access or Section 24 deletion |
+| `requesterType` | `"buyer"` \| `"merchant"` | Yes | |
+| `fullName` | string | Yes | |
+| `email` | string | Yes | |
+| `phone` | string | Yes | |
+| `idNumber` | string | No | Last 4 digits of SA ID (for verification) |
+| `merchantId` | string | No | Required for merchant requests |
+| `description` | string | Yes | |
+
+**Response (201):**
+
+```json
+{
+  "dsar": {
+    "ref": "DSAR-AB12CD",
+    "deadline": "2026-05-20T..."
+  }
+}
+```
+
+Deletion requests get a `DEL-XXXXXX` reference prefix.
+
+### GET /dsar/lookup
+
+**Purpose:** Public status lookup of a DSAR by reference number.
+
+**Authorization:** None
+
+**Query Parameters:**
+
+- `ref` (required) - DSAR reference (e.g. `DSAR-AB12CD` or `DEL-AB12CD`)
+
+**Response (200):**
+
+```json
+{
+  "dsar": {
+    "ref": "DSAR-AB12CD",
+    "requestType": "access",
+    "status": "ready",
+    "requesterType": "buyer",
+    "fullName": "Sipho Ndlovu",
+    "createdAt": "2026-04-20T...",
+    "deadline": "2026-05-20T...",
+    "updatedAt": "2026-04-22T...",
+    "dataExport": {
+      "generatedAt": "2026-04-22T...",
+      "generatedBy": "system",
+      "sections": []
+    },
+    "deletionReport": null
+  }
+}
+```
+
+### POST /dsar/lookup
+
+**Purpose:** Mark a DSAR data export as downloaded.
+
+**Authorization:** None
+
+**Request Body:**
+
+```json
+{
+  "ref": "DSAR-AB12CD"
+}
+```
+
+**Response (200):**
+
+```json
+{
+  "success": true
+}
+```
+
+### GET /compliance/dsar
+
+**Purpose:** List all DSARs with statistics for the compliance dashboard.
+
+**Authorization:** Compliance or admin session required
+
+**Query Parameters:**
+
+- `status` - Filter by status (new, verified, processing, ready, downloaded, rejected, closed)
+
+**Response (200):**
+
+```json
+{
+  "dsars": [
+    {
+      "id": "string",
+      "ref": "DSAR-AB12CD",
+      "requestType": "access",
+      "status": "new",
+      "requesterType": "buyer",
+      "fullName": "Sipho Ndlovu",
+      "email": "sipho@example.com",
+      "phone": "0721234567",
+      "createdAt": "2026-04-20T...",
+      "deadline": "2026-05-20T..."
+    }
+  ],
+  "stats": {
+    "total": 10,
+    "pending": 3,
+    "processing": 2,
+    "ready": 1,
+    "overdue": 0
+  }
+}
+```
+
+### GET /compliance/dsar/{dsarId}
+
+**Purpose:** Retrieve full DSAR details.
+
+**Authorization:** Compliance or admin session required
+
+**Response (200):**
+
+```json
+{
+  "dsar": {
+    "id": "string",
+    "ref": "DSAR-AB12CD",
+    "requestType": "access",
+    "status": "new",
+    "requesterType": "buyer",
+    "fullName": "string",
+    "email": "string",
+    "phone": "string",
+    "idNumber": "5083",
+    "merchantId": null,
+    "description": "string",
+    "notes": [],
+    "dataExport": null,
+    "deletionReport": null,
+    "createdAt": "2026-04-20T...",
+    "updatedAt": "2026-04-20T...",
+    "deadline": "2026-05-20T..."
+  }
+}
+```
+
+### PATCH /compliance/dsar/{dsarId}
+
+**Purpose:** Process a DSAR — verify identity, generate export / execute deletion, reject, add note, or close.
+
+**Authorization:** Compliance or admin session required
+
+**Request Body:**
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `action` | `"verify"` \| `"process"` \| `"reject"` \| `"note"` \| `"close"` | Required |
+| `officer` | string | Name of the compliance officer |
+| `reason` | string | Required when action is `reject` |
+| `noteText` | string | Required when action is `note` |
+
+**Actions:**
+
+- `verify` — Mark identity as verified, move to `verified` status
+- `process` — For access requests: generates data export. For deletion requests: executes POPIA Section 24 deletion (anonymises non-financial PII, retains FICA records for 5 years). Moves to `ready` status
+- `reject` — Reject the request with a reason
+- `note` — Add an internal note
+- `close` — Close a completed request
+
+**Response (200):**
+
+```json
+{
+  "dsar": { "id": "string", "status": "verified" }
+}
+```
+
+---
+
+## Merchant Holds & Verification
+
+### GET /merchants/{id}/hold
+
+**Purpose:** Get current hold status and velocity limits for a merchant.
+
+**Authorization:** Admin session required
+
+**Response (200):**
+
+```json
+{
+  "transactionHold": false,
+  "holdReason": null,
+  "holdSetBy": null,
+  "holdSetAt": null,
+  "velocityLimits": {
+    "maxTxnPerHour": 20,
+    "maxDailyVolume": 50000,
+    "maxSingleTxn": 5000
+  },
+  "velocityDefaults": {
+    "maxTxnPerHour": 20,
+    "maxDailyVolume": 50000,
+    "maxSingleTxn": 5000
+  },
+  "velocityOverrides": null,
+  "kycTier": "basic"
+}
+```
+
+### POST /merchants/{id}/hold
+
+**Purpose:** Place or lift a transaction hold on a merchant.
+
+**Authorization:** Admin session required (owner or manager role)
+
+**Request Body:**
+
+```json
+{
+  "action": "hold",
+  "reason": "Suspicious activity — under investigation"
+}
+```
+
+**Response (200):**
+
+```json
+{
+  "ok": true,
+  "action": "hold"
+}
+```
+
+### PUT /merchants/{id}/hold
+
+**Purpose:** Update velocity limits (transaction rate limits) for a merchant.
+
+**Authorization:** Admin session required (owner or manager role)
+
+**Request Body:**
+
+```json
+{
+  "maxTxnPerHour": 10,
+  "maxDailyVolume": 25000,
+  "maxSingleTxn": 2500
+}
+```
+
+**Response (200):**
+
+```json
+{
+  "ok": true,
+  "velocityLimits": {
+    "maxTxnPerHour": 10,
+    "maxDailyVolume": 25000,
+    "maxSingleTxn": 2500
+  }
+}
+```
+
+### GET /merchants/{id}/verify
+
+**Purpose:** Get KYC verification status and results for a merchant.
+
+**Authorization:** None
+
+**Response (200):**
+
+```json
+{
+  "merchantId": "m_abc123",
+  "kycTier": "basic",
+  "overallStatus": "pending",
+  "requiredChecks": ["id_verification", "selfie_match", "sanctions_screening"],
+  "estimatedCredits": 3,
+  "record": null
+}
+```
+
+### POST /merchants/{id}/verify
+
+**Purpose:** Trigger full KYC verification for a merchant. Auto-approves if all checks pass.
+
+**Authorization:** None
+
+**Request Body:**
+
+```json
+{
+  "idNumber": "9501015800086",
+  "selfieBase64": "data:image/jpeg;base64,...",
+  "cipcRegistrationNumber": "2026/276925/07",
+  "dateOfBirth": "1995-01-01",
+  "accountNumber": "62123456789"
+}
+```
+
+| Field | Type | Required | Notes |
+|-------|------|----------|-------|
+| `idNumber` | string | Yes | 13-digit SA ID number |
+| `selfieBase64` | string | No | Base64-encoded selfie for biometric matching |
+| `cipcRegistrationNumber` | string | No | CIPC company registration number |
+| `dateOfBirth` | string | No | YYYY-MM-DD format |
+| `accountNumber` | string | No | Bank account number for verification |
+
+**Response (200):**
+
+```json
+{
+  "merchantId": "m_abc123",
+  "status": "verified",
+  "checks": [
+    { "type": "id_verification", "status": "pass", "details": "ID confirmed" },
+    { "type": "selfie_match", "status": "pass", "details": "Match score: 95%" },
+    { "type": "sanctions_screening", "status": "pass", "details": "No matches" }
+  ],
+  "isPep": false,
+  "hasSanctionsHit": false,
+  "totalCredits": 3,
+  "notes": "All checks passed — auto-approved",
+  "autoApproved": true
+}
+```
+
+---
+
 ## Webhooks
 
 ### POST /webhooks/ozow
@@ -2115,6 +2872,19 @@ For API support, bank partnerships, or technical questions:
 ---
 
 ## Changelog
+
+### Version 1.1.0 (20 April 2026)
+
+- Dispute resolution system (file, lookup, search, resolve disputes)
+- POPIA DSAR system — Section 23 access requests and Section 24 deletion requests
+- Compliance DSAR management (verify, process, reject, close)
+- Compliance login endpoint (separate auth from admin)
+- Compliance disputes dashboard with statistics
+- Compliance risk scoring and portfolio dashboard
+- Suspicious Transaction Reports (STRs) — create, update, file with FIC
+- Compliance flags rescan endpoint
+- Merchant transaction holds and velocity limits
+- KYC verification endpoint (ID, selfie, sanctions, PEP checks)
 
 ### Version 1.0.0 (April 2026)
 
