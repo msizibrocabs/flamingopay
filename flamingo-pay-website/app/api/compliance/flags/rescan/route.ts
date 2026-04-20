@@ -25,60 +25,68 @@ export async function POST(req: NextRequest) {
   if (session instanceof Response) session = await requireSession("admin");
   if (session instanceof Response) return session;
 
-  const merchants = await listMerchants();
+  try {
+    const merchants = await listMerchants();
 
-  // Get all existing flags so we can skip already-flagged transactions
-  const existingFlags = await listFlags();
-  const flaggedTxnIds = new Set(existingFlags.map((f) => f.txnId));
+    // Get all existing flags so we can skip already-flagged transactions
+    const existingFlags = await listFlags();
+    const flaggedTxnIds = new Set(existingFlags.map((f) => f.txnId));
 
-  let totalScanned = 0;
-  let totalFlagged = 0;
-  const flagsByMerchant: Record<string, number> = {};
+    let totalScanned = 0;
+    let totalFlagged = 0;
+    const flagsByMerchant: Record<string, number> = {};
 
-  for (const merchant of merchants) {
-    if (merchant.status !== "approved") continue;
+    for (const merchant of merchants) {
+      if (merchant.status !== "approved") continue;
 
-    const txns = await listTransactions(merchant.id);
-    let merchantFlagCount = 0;
+      const txns = await listTransactions(merchant.id);
+      let merchantFlagCount = 0;
 
-    for (const txn of txns) {
-      // Skip transactions that already have flags
-      if (flaggedTxnIds.has(txn.id)) continue;
+      for (const txn of txns) {
+        // Skip transactions that already have flags
+        if (flaggedTxnIds.has(txn.id)) continue;
 
-      totalScanned++;
-      const newFlags = await evaluateRules(merchant.id, txn);
+        totalScanned++;
+        const newFlags = await evaluateRules(merchant.id, txn);
 
-      if (newFlags.length > 0) {
-        merchantFlagCount += newFlags.length;
-        totalFlagged += newFlags.length;
-        // Track newly flagged IDs to avoid duplicates within this run
-        for (const f of newFlags) {
-          flaggedTxnIds.add(f.txnId);
+        if (newFlags.length > 0) {
+          merchantFlagCount += newFlags.length;
+          totalFlagged += newFlags.length;
+          // Track newly flagged IDs to avoid duplicates within this run
+          for (const f of newFlags) {
+            flaggedTxnIds.add(f.txnId);
+          }
         }
+      }
+
+      if (merchantFlagCount > 0) {
+        flagsByMerchant[merchant.id] = merchantFlagCount;
       }
     }
 
-    if (merchantFlagCount > 0) {
-      flagsByMerchant[merchant.id] = merchantFlagCount;
-    }
+    await appendAuditLog({
+      action: "flag_updated" as import("../../../../../lib/audit").AuditAction,
+      role: "compliance",
+      actorId: "rescan",
+      actorName: "Compliance Rescan",
+      targetId: "all",
+      targetType: "flag",
+      detail: `Bulk rescan completed: ${totalScanned} transactions scanned, ${totalFlagged} new flags generated across ${Object.keys(flagsByMerchant).length} merchants`,
+      ip: req.headers.get("x-forwarded-for")?.split(",")[0]?.trim(),
+    });
+
+    return NextResponse.json({
+      success: true,
+      scanned: totalScanned,
+      flagsCreated: totalFlagged,
+      merchantsAffected: Object.keys(flagsByMerchant).length,
+      flagsByMerchant,
+    });
+  } catch (err) {
+    console.error("[rescan] Error:", err);
+    return NextResponse.json(
+      { error: `Rescan failed: ${err instanceof Error ? err.message : String(err)}` },
+      { status: 500 },
+    );
   }
-
-  await appendAuditLog({
-    action: "flag_updated" as import("../../../../../lib/audit").AuditAction,
-    role: "compliance",
-    actorId: "rescan",
-    actorName: "Compliance Rescan",
-    targetId: "all",
-    targetType: "flag",
-    detail: `Bulk rescan completed: ${totalScanned} transactions scanned, ${totalFlagged} new flags generated across ${Object.keys(flagsByMerchant).length} merchants`,
-    ip: req.headers.get("x-forwarded-for")?.split(",")[0]?.trim(),
-  });
-
-  return NextResponse.json({
-    success: true,
-    scanned: totalScanned,
-    flagsCreated: totalFlagged,
-    merchantsAffected: Object.keys(flagsByMerchant).length,
-    flagsByMerchant,
-  });
 }

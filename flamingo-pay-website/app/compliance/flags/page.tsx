@@ -31,7 +31,7 @@ function FlagsList() {
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<FlagStatus | "all">("all");
   const [rescanning, setRescanning] = useState(false);
-  const [rescanResult, setRescanResult] = useState<{ scanned: number; flagsCreated: number } | null>(null);
+  const [rescanResult, setRescanResult] = useState<{ scanned: number; flagsCreated: number; error?: string } | null>(null);
 
   const fetchFlags = (selectedTab: FlagStatus | "all") => {
     const url = selectedTab === "all" ? "/api/compliance/flags" : `/api/compliance/flags?status=${selectedTab}`;
@@ -53,11 +53,15 @@ function FlagsList() {
     try {
       const res = await fetch("/api/compliance/flags/rescan", { method: "POST" });
       const data = await res.json();
-      setRescanResult({ scanned: data.scanned, flagsCreated: data.flagsCreated });
+      if (!res.ok) {
+        setRescanResult({ scanned: 0, flagsCreated: 0, error: data.error ?? `Server error (${res.status})` });
+        return;
+      }
+      setRescanResult({ scanned: data.scanned ?? 0, flagsCreated: data.flagsCreated ?? 0 });
       // Refresh the flags list
       fetchFlags(tab);
-    } catch {
-      setRescanResult({ scanned: 0, flagsCreated: 0 });
+    } catch (err) {
+      setRescanResult({ scanned: 0, flagsCreated: 0, error: `Network error: ${err}` });
     } finally {
       setRescanning(false);
     }
@@ -98,8 +102,14 @@ function FlagsList() {
       </div>
 
       {rescanResult && (
-        <div className="mb-4 rounded-xl border-2 border-green-600 bg-green-50 px-4 py-3 text-sm font-semibold text-green-800">
-          Rescan complete: {rescanResult.scanned} transactions scanned, {rescanResult.flagsCreated} new flags generated.
+        <div className={`mb-4 rounded-xl border-2 px-4 py-3 text-sm font-semibold ${
+          rescanResult.error
+            ? "border-red-600 bg-red-50 text-red-800"
+            : "border-green-600 bg-green-50 text-green-800"
+        }`}>
+          {rescanResult.error
+            ? `Rescan failed: ${rescanResult.error}`
+            : `Rescan complete: ${rescanResult.scanned} transactions scanned, ${rescanResult.flagsCreated} new flags generated.`}
         </div>
       )}
 
