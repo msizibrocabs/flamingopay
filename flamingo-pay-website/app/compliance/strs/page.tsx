@@ -30,7 +30,7 @@ type STR = {
 
 type STRStats = {
   total: number;
-  draft: number;
+  draft?: number;
   pendingReview: number;
   filed: number;
   dismissed: number;
@@ -172,7 +172,7 @@ function STRList() {
 
       {stats && (
         <RevealGroup className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <RevealItem><StatCard label="Draft" value={stats.draft} tone="gray" /></RevealItem>
+          <RevealItem><StatCard label="Draft" value={stats.draft ?? (stats.total - stats.pendingReview - stats.filed - stats.dismissed)} tone="gray" /></RevealItem>
           <RevealItem><StatCard label="Pending Review" value={stats.pendingReview} tone="amber" highlight={stats.pendingReview > 0} /></RevealItem>
           <RevealItem><StatCard label="Filed with FIC" value={stats.filed} tone="green" /></RevealItem>
           <RevealItem><StatCard label="Dismissed" value={stats.dismissed} tone="purple" /></RevealItem>
