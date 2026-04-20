@@ -420,23 +420,57 @@ export type PEPScreeningResult = {
 };
 
 /**
- * Screen a person against PEP/sanctions lists.
- * In production: call external API. For now: log the screening request.
+ * Screen a person against PEP/sanctions lists via VerifyNow.
+ * Uses VerifyNow AML/PEP/Sanctions Check (R14.95 / 5 credits per screen).
+ * Screens against global sanctions lists, PEP registers, watchlists,
+ * and crime & terrorism databases.
  */
 export async function screenPEP(
   merchantId: string,
   ownerName: string,
+  idNumber?: string,
+  dateOfBirth?: string,
 ): Promise<PEPScreeningResult> {
-  const result: PEPScreeningResult = {
-    id: `pep_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`,
-    merchantId,
-    ownerName,
-    screenedAt: new Date().toISOString(),
-    // In production, this would come from the external screening API
-    // For now, mark as clear (no screening provider integrated yet)
-    status: process.env.PEP_SCREENING_API_KEY ? "pending" : "clear",
-    providerRef: undefined,
-  };
+  const id = `pep_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
+  const screenedAt = new Date().toISOString();
+
+  let result: PEPScreeningResult;
+
+  try {
+    // Call VerifyNow AML/PEP/Sanctions API
+    const { verifyAmlPepSanctions } = await import("./verifynow");
+    const check = await verifyAmlPepSanctions(ownerName, idNumber, dateOfBirth);
+
+    const details = check.details as Record<string, unknown> | undefined;
+    const isPep = details?.isPep === true;
+    const isSanctioned = details?.isSanctioned === true;
+    const hitCount = (details?.hitCount as number) ?? 0;
+
+    result = {
+      id,
+      merchantId,
+      ownerName,
+      screenedAt,
+      status: check.status === "error"
+        ? "error"
+        : (isPep || isSanctioned || hitCount > 0)
+          ? "flagged"
+          : "clear",
+      matchDetails: check.summary,
+      providerRef: check.referenceId,
+    };
+  } catch (err) {
+    // If VerifyNow is unreachable, mark as error (never default to clear)
+    console.error(`[fica] PEP screening failed for ${merchantId}:`, err);
+    result = {
+      id,
+      merchantId,
+      ownerName,
+      screenedAt,
+      status: "error",
+      matchDetails: `Screening failed: ${err instanceof Error ? err.message : "Unknown error"}`,
+    };
+  }
 
   // Store screening result
   const key = `fica:pep:${merchantId}`;
