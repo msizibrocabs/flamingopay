@@ -7,6 +7,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { getMerchant, updateMerchantFields } from "../../../../../lib/store";
+import { requireSession } from "../../../../../lib/api-auth";
 import {
   runFullKycVerification,
   getKycRecord,
@@ -24,6 +25,10 @@ type Params = { params: Promise<{ id: string }> };
  * GET — Retrieve verification status for a merchant.
  */
 export async function GET(_req: NextRequest, { params }: Params) {
+  let session = await requireSession("compliance");
+  if (session instanceof Response) session = await requireSession("admin");
+  if (session instanceof Response) return session;
+
   const { id } = await params;
   const merchant = await getMerchant(id);
   if (!merchant) {
@@ -75,6 +80,10 @@ export async function GET(_req: NextRequest, { params }: Params) {
  *   dateOfBirth?:   string            — YYYY-MM-DD
  */
 export async function POST(req: NextRequest, { params }: Params) {
+  let session = await requireSession("compliance");
+  if (session instanceof Response) session = await requireSession("admin");
+  if (session instanceof Response) return session;
+
   const { id } = await params;
   const merchant = await getMerchant(id);
   if (!merchant) {

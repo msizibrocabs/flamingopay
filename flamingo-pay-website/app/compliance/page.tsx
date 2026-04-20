@@ -48,10 +48,18 @@ type EDDStats = {
   overdueReviews: number;
 };
 
+type DocSummary = {
+  merchantsInQueue: number;
+  totalPending: number;
+  totalRejected: number;
+  totalVerified: number;
+};
+
 function Dashboard() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [disputeStats, setDisputeStats] = useState<DisputeStats | null>(null);
   const [eddStats, setEddStats] = useState<EDDStats | null>(null);
+  const [docSummary, setDocSummary] = useState<DocSummary | null>(null);
   const [recent, setRecent] = useState<TxnFlag[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -62,13 +70,15 @@ function Dashboard() {
       fetch("/api/compliance/flags?status=open").then(r => r.json()),
       fetch("/api/compliance/disputes").then(r => r.ok ? r.json() : { stats: null }).catch(() => ({ stats: null })),
       fetch("/api/compliance/edd?stats=true").then(r => r.ok ? r.json() : { stats: null }).catch(() => ({ stats: null })),
+      fetch("/api/compliance/documents?filter=pending").then(r => r.ok ? r.json() : { summary: null }).catch(() => ({ summary: null })),
     ])
-      .then(([s, f, d, e]) => {
+      .then(([s, f, d, e, docs]) => {
         if (!cancelled) {
           setStats(s);
           setRecent((f.flags ?? []).slice(0, 10));
           setDisputeStats(d.stats ?? null);
           setEddStats(e.stats ?? null);
+          setDocSummary(docs.summary ?? null);
         }
       })
       .catch(() => {})
@@ -209,7 +219,35 @@ function Dashboard() {
         </Reveal>
       )}
 
-      <Reveal delay={0.2}>
+      {/* Document review summary */}
+      {docSummary && docSummary.totalPending > 0 && (
+        <Reveal delay={0.2}>
+          <section className="mt-10">
+            <div className="mb-4 flex items-end justify-between">
+              <h2
+                className="display font-black text-flamingo-dark leading-none"
+                style={{ fontSize: "clamp(1.5rem, 3vw, 2.25rem)", letterSpacing: "-0.03em" }}
+              >
+                Document review
+                <span className="ml-2 inline-grid h-6 min-w-6 place-items-center rounded-full border-2 border-flamingo-dark bg-blue-500 px-2 text-xs font-extrabold text-white">
+                  {docSummary.totalPending}
+                </span>
+              </h2>
+              <Link href="/compliance/documents" className="text-sm font-bold text-red-600 underline-offset-2 hover:underline">
+                Review documents
+              </Link>
+            </div>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <StatCard label="Merchants in queue" value={docSummary.merchantsInQueue} tone="amber" />
+              <StatCard label="Docs pending" value={docSummary.totalPending} tone="red" highlight={docSummary.totalPending > 0} />
+              <StatCard label="Rejected" value={docSummary.totalRejected} tone="purple" />
+              <StatCard label="Verified" value={docSummary.totalVerified} tone="green" />
+            </div>
+          </section>
+        </Reveal>
+      )}
+
+      <Reveal delay={0.25}>
         <section className="mt-10 rounded-3xl border-2 border-flamingo-dark bg-flamingo-butter p-5 shadow-[0_6px_0_0_#1A1A2E]">
           <h3 className="text-sm font-extrabold uppercase tracking-wide text-flamingo-dark">Active monitoring rules</h3>
           <div className="mt-3 space-y-2 text-sm text-flamingo-dark">
