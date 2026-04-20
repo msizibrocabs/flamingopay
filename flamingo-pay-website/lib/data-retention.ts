@@ -188,7 +188,7 @@ export async function runRetentionCleanup(): Promise<{
           actorId: "retention-scheduler",
           actorName: "Data Retention Scheduler",
           targetId: flagId,
-          targetType: "compliance_flag",
+          targetType: "flag",
           detail: `Resolved compliance flag purged after ${RETENTION_POLICY.complianceFlags}-day retention period`,
         });
       }
