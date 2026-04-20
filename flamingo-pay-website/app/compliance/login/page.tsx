@@ -6,37 +6,45 @@ import { complianceSignIn } from "../../../lib/compliance";
 
 export default function ComplianceLoginPage() {
   const router = useRouter();
-  const [name, setName] = useState("");
-  const [code, setCode] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
-    if (!name.trim()) {
-      setError("Please enter your name.");
+
+    if (!email.trim()) {
+      setError("Please enter your email.");
       return;
     }
+    if (!password) {
+      setError("Please enter your password.");
+      return;
+    }
+
     setLoading(true);
     try {
-      // Create server-side session (sets httpOnly cookie for API auth)
-      const res = await fetch("/api/auth/login", {
+      const res = await fetch("/api/compliance/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ role: "compliance", name: name.trim(), passcode: code }),
+        body: JSON.stringify({ email: email.trim(), password }),
       });
+
       const data = await res.json();
+
       if (!res.ok) {
-        setError(data.error ?? "Login failed.");
-        setLoading(false);
+        setError(data.error || "Login failed.");
         return;
       }
-      // Also save to localStorage for client-side gate
-      complianceSignIn(name.trim());
+
+      // Save to localStorage for client-side ComplianceGate
+      complianceSignIn(data.officer.name);
       router.push("/compliance");
     } catch {
-      setError("Network error. Please try again.");
+      setError("Network error. Check your connection.");
+    } finally {
       setLoading(false);
     }
   }
@@ -62,27 +70,28 @@ export default function ComplianceLoginPage() {
         >
           <label className="block">
             <span className="text-xs font-bold uppercase tracking-wide text-flamingo-dark/70">
-              Your name
+              Email
             </span>
             <input
-              type="text"
-              value={name}
-              onChange={e => setName(e.target.value)}
+              type="email"
+              autoComplete="email"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
               className="mt-1 block w-full rounded-xl border-2 border-flamingo-dark bg-flamingo-cream px-3 py-3 text-base font-semibold text-flamingo-dark outline-none"
-              placeholder="e.g. Sipho Dlamini"
+              placeholder="you@flamingopay.co.za"
               required
             />
           </label>
 
           <label className="mt-4 block">
             <span className="text-xs font-bold uppercase tracking-wide text-flamingo-dark/70">
-              Compliance passcode
+              Password
             </span>
             <input
               type="password"
               autoComplete="current-password"
-              value={code}
-              onChange={e => setCode(e.target.value)}
+              value={password}
+              onChange={e => setPassword(e.target.value)}
               className="mt-1 block w-full rounded-xl border-2 border-flamingo-dark bg-flamingo-cream px-3 py-3 text-base font-semibold tracking-widest text-flamingo-dark outline-none"
               placeholder="••••••••"
               required
@@ -100,11 +109,11 @@ export default function ComplianceLoginPage() {
             disabled={loading}
             className="mt-5 w-full rounded-2xl border-2 border-flamingo-dark bg-red-600 px-4 py-3.5 text-base font-extrabold uppercase tracking-wide text-white shadow-[0_4px_0_0_#1A1A2E] transition hover:bg-red-700 active:translate-y-[2px] active:shadow-[0_2px_0_0_#1A1A2E] disabled:opacity-70"
           >
-            {loading ? "Signing in…" : "Enter compliance portal"}
+            {loading ? "Signing in…" : "Sign in"}
           </button>
 
           <p className="mt-4 text-center text-xs text-flamingo-dark/60">
-            Contact your admin for the compliance passcode.
+            Compliance access only. Contact your Flamingo team lead for credentials.
           </p>
         </form>
       </div>
