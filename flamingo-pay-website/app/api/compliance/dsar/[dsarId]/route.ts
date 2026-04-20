@@ -11,6 +11,7 @@ import {
   addDsarNote,
   completeDsarExport,
   collectPersonalData,
+  completeDeletion,
   closeDsar,
 } from "../../../../../lib/dsar";
 import { requireSession } from "../../../../../lib/api-auth";
@@ -61,19 +62,26 @@ export async function PATCH(
     return NextResponse.json({ dsar });
   }
 
-  // Process — collect data and generate export
+  // Process — collect data and generate export (access) or execute deletion (deletion)
   if (body.action === "process") {
     const dsar = await getDsar(dsarId);
     if (!dsar) return NextResponse.json({ error: "Not found" }, { status: 404 });
     if (!["verified", "new"].includes(dsar.status)) {
-      return NextResponse.json({ error: "DSAR must be verified before processing." }, { status: 400 });
+      return NextResponse.json({ error: "Request must be verified before processing." }, { status: 400 });
     }
 
-    // Collect all personal data
-    const dataExport = await collectPersonalData(dsar);
-    const updated = await completeDsarExport(dsarId, officer, dataExport);
-    if (!updated) return NextResponse.json({ error: "Failed to generate export." }, { status: 500 });
-    return NextResponse.json({ dsar: updated });
+    if ((dsar.requestType ?? "access") === "deletion") {
+      // Execute deletion with FICA retention
+      const updated = await completeDeletion(dsarId, officer);
+      if (!updated) return NextResponse.json({ error: "Failed to process deletion." }, { status: 500 });
+      return NextResponse.json({ dsar: updated });
+    } else {
+      // Collect all personal data for access request
+      const dataExport = await collectPersonalData(dsar);
+      const updated = await completeDsarExport(dsarId, officer, dataExport);
+      if (!updated) return NextResponse.json({ error: "Failed to generate export." }, { status: 500 });
+      return NextResponse.json({ dsar: updated });
+    }
   }
 
   // Reject

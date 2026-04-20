@@ -4,8 +4,12 @@ import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 
+type DeletionItem = { category: string; description: string; action: string };
+type RetainedItem = { category: string; description: string; reason: string; retainUntil: string };
+
 type DsarInfo = {
   ref: string;
+  requestType?: string;
   status: string;
   requesterType: string;
   fullName: string;
@@ -20,6 +24,13 @@ type DsarInfo = {
       description: string;
       data: unknown;
     }>;
+  };
+  deletionReport?: {
+    performedAt: string;
+    performedBy: string;
+    deleted: DeletionItem[];
+    retained: RetainedItem[];
+    scheduledDeletionDate?: string;
   };
 };
 
@@ -171,7 +182,7 @@ function DsarStatusInner() {
               value={ref}
               onChange={(e) => setRef(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && lookup()}
-              placeholder="e.g. DSAR-AB12CD"
+              placeholder="e.g. DSAR-AB12CD or DEL-AB12CD"
               className="mt-1 block w-full rounded-xl border-2 border-flamingo-dark bg-flamingo-cream px-3 py-3 text-center font-mono text-lg font-extrabold uppercase tracking-widest text-flamingo-dark outline-none"
             />
           </label>
@@ -228,8 +239,9 @@ function DsarStatusInner() {
               </p>
               <div className="space-y-2.5">
                 <Row label="Reference" value={dsar.ref} mono />
+                <Row label="Request" value={(dsar.requestType ?? "access") === "deletion" ? "Data deletion" : "Data access"} />
                 <Row label="Name" value={dsar.fullName} />
-                <Row label="Type" value={dsar.requesterType === "buyer" ? "Buyer" : "Merchant"} />
+                <Row label="Requester" value={dsar.requesterType === "buyer" ? "Buyer" : "Merchant"} />
                 <Row label="Submitted" value={formatDateTime(dsar.createdAt)} />
                 <Row label="Deadline" value={formatDate(dsar.deadline)} />
               </div>
@@ -249,6 +261,71 @@ function DsarStatusInner() {
                 <p className="mt-2 text-xs text-green-700/60">
                   Contains all personal data Flamingo Pay holds about you.
                 </p>
+              </div>
+            )}
+
+            {/* Deletion report */}
+            {dsar.status === "ready" && dsar.deletionReport && (
+              <div className="space-y-3">
+                <div className="rounded-2xl border-2 border-green-400 bg-green-50 p-4 text-center">
+                  <p className="text-sm font-bold text-green-700">Your deletion request has been processed.</p>
+                  <p className="mt-1 text-xs text-green-700/60">
+                    Completed on {formatDateTime(dsar.deletionReport.performedAt)}
+                  </p>
+                </div>
+
+                {/* Deleted items */}
+                {dsar.deletionReport.deleted.length > 0 && (
+                  <div className="rounded-2xl border-2 border-flamingo-dark bg-white p-4 shadow-[0_4px_0_0_#1A1A2E]">
+                    <p className="mb-3 text-xs font-bold uppercase tracking-wide text-green-700">
+                      Data deleted / anonymized
+                    </p>
+                    <div className="space-y-2">
+                      {dsar.deletionReport.deleted.map((item, i) => (
+                        <div key={i} className="rounded-lg border border-green-200 bg-green-50 p-3">
+                          <p className="text-sm font-bold text-green-800">{item.category}</p>
+                          <p className="text-xs text-green-700/70">{item.description}</p>
+                          <span className="mt-1 inline-block rounded-full bg-green-200 px-2 py-0.5 text-[10px] font-bold text-green-800 uppercase">
+                            {item.action}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Retained items */}
+                {dsar.deletionReport.retained.length > 0 && (
+                  <div className="rounded-2xl border-2 border-flamingo-dark bg-white p-4 shadow-[0_4px_0_0_#1A1A2E]">
+                    <p className="mb-3 text-xs font-bold uppercase tracking-wide text-amber-700">
+                      Data retained for legal compliance
+                    </p>
+                    <div className="space-y-2">
+                      {dsar.deletionReport.retained.map((item, i) => (
+                        <div key={i} className="rounded-lg border border-amber-200 bg-amber-50 p-3">
+                          <p className="text-sm font-bold text-amber-800">{item.category}</p>
+                          <p className="text-xs text-amber-700/70">{item.description}</p>
+                          <p className="mt-1 text-xs text-amber-600/60">
+                            <span className="font-bold">Legal basis:</span> {item.reason}
+                          </p>
+                          <p className="text-xs text-amber-600/60">
+                            <span className="font-bold">Scheduled deletion:</span> {formatDate(item.retainUntil)}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {dsar.deletionReport.scheduledDeletionDate && (
+                  <div className="rounded-xl border-2 border-amber-200 bg-amber-50 p-3 text-center">
+                    <p className="text-xs text-amber-700">
+                      Remaining data will be automatically deleted on{" "}
+                      <span className="font-bold">{formatDate(dsar.deletionReport.scheduledDeletionDate)}</span>{" "}
+                      when the FICA retention period expires.
+                    </p>
+                  </div>
+                )}
               </div>
             )}
 

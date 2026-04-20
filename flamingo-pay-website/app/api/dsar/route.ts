@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { requesterType, fullName, email, phone, idNumber, merchantId, description } = body;
+    const { requestType, requesterType, fullName, email, phone, idNumber, merchantId, description } = body;
 
     if (!fullName || !email || !phone || !description || !requesterType) {
       return NextResponse.json(
@@ -23,7 +23,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "requesterType must be 'buyer' or 'merchant'." }, { status: 400 });
     }
 
+    if (requestType && !["access", "deletion"].includes(requestType)) {
+      return NextResponse.json({ error: "requestType must be 'access' or 'deletion'." }, { status: 400 });
+    }
+
     const result = await createDsar({
+      requestType: requestType ?? "access",
       requesterType,
       fullName,
       email,

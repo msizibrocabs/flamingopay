@@ -21,6 +21,7 @@ export async function GET(req: NextRequest) {
   // Public response — limited info
   const response: Record<string, unknown> = {
     ref: dsar.ref,
+    requestType: dsar.requestType ?? "access",
     status: dsar.status,
     requesterType: dsar.requesterType,
     fullName: dsar.fullName,
@@ -29,9 +30,14 @@ export async function GET(req: NextRequest) {
     updatedAt: dsar.updatedAt,
   };
 
-  // If data export is ready, include it for download
+  // If data export is ready (access request), include for download
   if (dsar.status === "ready" && dsar.dataExport) {
     response.dataExport = dsar.dataExport;
+  }
+
+  // If deletion is complete, include the report
+  if (dsar.status === "ready" && dsar.deletionReport) {
+    response.deletionReport = dsar.deletionReport;
   }
 
   return NextResponse.json({ dsar: response });

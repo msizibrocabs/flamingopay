@@ -10,6 +10,7 @@ import { timeAgo } from "../../../lib/merchant";
 type DsarRequest = {
   id: string;
   ref: string;
+  requestType?: string;
   requesterType: string;
   fullName: string;
   email: string;
@@ -25,6 +26,7 @@ type DsarRequest = {
   processedBy?: string;
   rejectionReason?: string;
   dataExport?: unknown;
+  deletionReport?: unknown;
   notes: Array<{ id: string; author: string; text: string; createdAt: string }>;
 };
 
@@ -187,6 +189,13 @@ function DsarList() {
                     <span className="rounded-full border border-flamingo-dark/10 bg-flamingo-cream px-2 py-0.5 text-[10px] font-bold text-flamingo-dark/50">
                       {d.requesterType === "buyer" ? "Buyer" : "Merchant"}
                     </span>
+                    <span className={`rounded-full border px-2 py-0.5 text-[10px] font-extrabold uppercase ${
+                      (d.requestType ?? "access") === "deletion"
+                        ? "border-red-300 bg-red-100 text-red-700"
+                        : "border-blue-300 bg-blue-100 text-blue-700"
+                    }`}>
+                      {(d.requestType ?? "access") === "deletion" ? "Deletion" : "Access"}
+                    </span>
                   </div>
                   <p className="mt-1 text-base font-extrabold text-flamingo-dark">{d.fullName}</p>
                   <p className="text-xs text-flamingo-dark/60">
@@ -243,9 +252,15 @@ function DsarList() {
                           <button
                             onClick={() => handleAction(d.id, "process")}
                             disabled={actionLoading}
-                            className="rounded-lg border-2 border-flamingo-dark bg-blue-500 px-3 py-1.5 text-xs font-bold text-white shadow-[0_2px_0_0_#1A1A2E] disabled:opacity-50"
+                            className={`rounded-lg border-2 border-flamingo-dark px-3 py-1.5 text-xs font-bold text-white shadow-[0_2px_0_0_#1A1A2E] disabled:opacity-50 ${
+                              (d.requestType ?? "access") === "deletion" ? "bg-red-500" : "bg-blue-500"
+                            }`}
                           >
-                            {actionLoading ? "Generating..." : "Generate data export"}
+                            {actionLoading
+                              ? "Processing..."
+                              : (d.requestType ?? "access") === "deletion"
+                                ? "Execute deletion"
+                                : "Generate data export"}
                           </button>
                         )}
                         {d.status === "ready" && (
