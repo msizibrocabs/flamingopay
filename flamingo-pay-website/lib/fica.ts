@@ -315,6 +315,15 @@ export async function listSTRs(filters?: {
   return strs.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
+/** Fetch a single STR by id. */
+export async function getSTR(strId: string): Promise<SuspiciousTransactionReport | null> {
+  const raw = await redis.get("fica:strs");
+  const strs: SuspiciousTransactionReport[] = raw
+    ? typeof raw === "string" ? JSON.parse(raw) : raw as SuspiciousTransactionReport[]
+    : [];
+  return strs.find(s => s.id === strId) ?? null;
+}
+
 /** Update an STR (review, file, dismiss). */
 export async function updateSTR(
   strId: string,
