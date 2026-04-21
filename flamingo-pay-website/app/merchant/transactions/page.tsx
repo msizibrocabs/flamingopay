@@ -246,6 +246,11 @@ function Inner() {
                                 Partial refund
                               </span>
                             )}
+                            {t.status === "completed" && t.coolingOffExpiresAt && new Date(t.coolingOffExpiresAt) > new Date() && (
+                              <span className="ml-2 rounded-full bg-blue-100 px-1.5 py-0.5 text-[10px] font-extrabold uppercase text-blue-700">
+                                {t.coolingOffStatus === "requested" ? "Cancel req." : "Cooling off"}
+                              </span>
+                            )}
                           </div>
                         </div>
                       </button>
@@ -356,6 +361,9 @@ function Inner() {
                       <dd className="text-sm font-extrabold text-flamingo-dark">{formatZAR(calcNetAmount(liveSelected.amount))}</dd>
                     </div>
                   </>
+                )}
+                {liveSelected.coolingOffExpiresAt && (
+                  <CoolingOffRow txn={liveSelected} />
                 )}
                 {liveSelected.refundedAt && (
                   <Row k="Refunded at" v={new Date(liveSelected.refundedAt).toLocaleString("en-ZA")} />
@@ -695,6 +703,51 @@ function RefundPanel({
 /* ------------------------------------------------------------------ */
 /*  Helper components                                                  */
 /* ------------------------------------------------------------------ */
+
+function CoolingOffRow({ txn }: { txn: StoredTxn }) {
+  const expiresAt = txn.coolingOffExpiresAt
+    ? new Date(txn.coolingOffExpiresAt)
+    : new Date(new Date(txn.timestamp).getTime() + 7 * 24 * 3600 * 1000);
+  const now = new Date();
+  const withinWindow = now < expiresAt;
+  const ms = Math.max(0, expiresAt.getTime() - now.getTime());
+  const days = Math.floor(ms / (24 * 3600 * 1000));
+  const hours = Math.floor((ms % (24 * 3600 * 1000)) / (3600 * 1000));
+  const remaining = withinWindow
+    ? days > 0 ? `${days}d ${hours}h left` : `${hours}h left`
+    : "Expired";
+
+  return (
+    <div className="py-1.5">
+      <div className="flex items-center justify-between">
+        <dt className="text-xs text-flamingo-dark/60">Cooling-off</dt>
+        <dd className="text-right">
+          {txn.coolingOffStatus === "requested" ? (
+            <span className="rounded-full bg-orange-100 px-2 py-0.5 text-[11px] font-extrabold text-orange-700">
+              Buyer cancellation pending
+            </span>
+          ) : withinWindow ? (
+            <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[11px] font-extrabold text-blue-700">
+              {remaining}
+            </span>
+          ) : (
+            <span className="text-xs text-flamingo-dark/40">Cleared</span>
+          )}
+        </dd>
+      </div>
+      {withinWindow && txn.status === "completed" && !txn.coolingOffStatus && (
+        <p className="mt-1 text-[11px] text-flamingo-dark/50">
+          Payout held until cooling-off expires (ECT Act s44)
+        </p>
+      )}
+      {txn.coolingOffStatus === "requested" && (
+        <p className="mt-1 text-[11px] text-orange-600">
+          A buyer has requested cancellation. Refund will be processed after compliance review.
+        </p>
+      )}
+    </div>
+  );
+}
 
 function MiniStat({ label, value, tint }: { label: string; value: string; tint: string }) {
   return (

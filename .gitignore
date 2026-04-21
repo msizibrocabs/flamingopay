@@ -10,3 +10,11 @@ coverage/
 # Local business/personal documents (not for version control)
 /FNB_*.docx
 /Flamingo_Pay_Introduction_*.docx
+
+# Office temp lock files
+~$*.docx
+~$*.pptx
+~$*.xlsx
+
+# Local agent state
+.claude/worktrees/

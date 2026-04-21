@@ -15,6 +15,7 @@ const LINKS = [
   { href: "/compliance/sanctions", label: "Sanctions" },
   { href: "/compliance/risk", label: "Risk" },
   { href: "/compliance/disputes", label: "Disputes" },
+  { href: "/compliance/cooling-off", label: "Cooling Off" },
   { href: "/compliance/dsar", label: "DSAR" },
 ];
 

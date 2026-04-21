@@ -55,11 +55,20 @@ type DocSummary = {
   totalVerified: number;
 };
 
+type CoolingOffStats = {
+  totalRequests: number;
+  pending: number;
+  approved: number;
+  rejected: number;
+  totalRefundValue: number;
+};
+
 function Dashboard() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [disputeStats, setDisputeStats] = useState<DisputeStats | null>(null);
   const [eddStats, setEddStats] = useState<EDDStats | null>(null);
   const [docSummary, setDocSummary] = useState<DocSummary | null>(null);
+  const [coolingOff, setCoolingOff] = useState<CoolingOffStats | null>(null);
   const [recent, setRecent] = useState<TxnFlag[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -71,14 +80,16 @@ function Dashboard() {
       fetch("/api/compliance/disputes").then(r => r.ok ? r.json() : { stats: null }).catch(() => ({ stats: null })),
       fetch("/api/compliance/edd?stats=true").then(r => r.ok ? r.json() : { stats: null }).catch(() => ({ stats: null })),
       fetch("/api/compliance/documents?filter=pending").then(r => r.ok ? r.json() : { summary: null }).catch(() => ({ summary: null })),
+      fetch("/api/compliance/cooling-off").then(r => r.ok ? r.json() : { stats: null }).catch(() => ({ stats: null })),
     ])
-      .then(([s, f, d, e, docs]) => {
+      .then(([s, f, d, e, docs, co]) => {
         if (!cancelled) {
           setStats(s);
           setRecent((f.flags ?? []).slice(0, 10));
           setDisputeStats(d.stats ?? null);
           setEddStats(e.stats ?? null);
           setDocSummary(docs.summary ?? null);
+          setCoolingOff(co.stats ?? null);
         }
       })
       .catch(() => {})
@@ -242,6 +253,34 @@ function Dashboard() {
               <StatCard label="Docs pending" value={docSummary.totalPending} tone="red" highlight={docSummary.totalPending > 0} />
               <StatCard label="Rejected" value={docSummary.totalRejected} tone="purple" />
               <StatCard label="Verified" value={docSummary.totalVerified} tone="green" />
+            </div>
+          </section>
+        </Reveal>
+      )}
+
+      {/* Cooling-off cancellation requests */}
+      {coolingOff && coolingOff.pending > 0 && (
+        <Reveal delay={0.22}>
+          <section className="mt-10">
+            <div className="mb-4 flex items-end justify-between">
+              <h2
+                className="display font-black text-flamingo-dark leading-none"
+                style={{ fontSize: "clamp(1.5rem, 3vw, 2.25rem)", letterSpacing: "-0.03em" }}
+              >
+                Cooling-off requests
+                <span className="ml-2 inline-grid h-6 min-w-6 place-items-center rounded-full border-2 border-flamingo-dark bg-blue-500 px-2 text-xs font-extrabold text-white">
+                  {coolingOff.pending}
+                </span>
+              </h2>
+              <Link href="/compliance/cooling-off" className="text-sm font-bold text-red-600 underline-offset-2 hover:underline">
+                Review requests
+              </Link>
+            </div>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <StatCard label="Pending review" value={coolingOff.pending} tone="red" highlight={coolingOff.pending > 0} />
+              <StatCard label="Approved" value={coolingOff.approved} tone="green" />
+              <StatCard label="Rejected" value={coolingOff.rejected} tone="purple" />
+              <StatCard label="Refund value" value={coolingOff.totalRefundValue} tone="amber" money />
             </div>
           </section>
         </Reveal>

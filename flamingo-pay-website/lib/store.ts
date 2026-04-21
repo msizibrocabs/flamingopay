@@ -99,6 +99,15 @@ export type StoredTxn = {
   refundedAt?: string;
   refundAmount?: number;
   refundReason?: string;
+  /** ISO timestamp when the 7-day ECT Act s44 cooling-off period expires. */
+  coolingOffExpiresAt?: string;
+  /** If buyer exercised cooling-off right: "requested" → "approved" → "refunded". */
+  coolingOffStatus?: "requested" | "approved" | "refunded";
+  /** Timestamp when buyer requested cooling-off cancellation. */
+  coolingOffRequestedAt?: string;
+  /** Buyer contact details for cooling-off communication. */
+  coolingOffBuyerEmail?: string;
+  coolingOffBuyerPhone?: string;
 };
 
 export type MerchantApplication = {
@@ -858,14 +867,17 @@ export async function createTransaction(
 
   const list = allTxns;
   const ref = `FP-${Math.floor(Math.random() * 9e5 + 1e5)}`;
+  const now = new Date();
+  const coolingOffExpiry = new Date(now.getTime() + 7 * 24 * 3600 * 1000); // ECT Act s44: 7-day cooling-off
   const txn: StoredTxn = {
     id: `tx_${merchantId.slice(0, 6)}_${Date.now().toString(36)}`,
     amount: input.amount,
     rail: input.rail,
     buyerBank: input.buyerBank,
-    timestamp: new Date().toISOString(),
+    timestamp: now.toISOString(),
     status: "completed",
     reference: ref,
+    coolingOffExpiresAt: coolingOffExpiry.toISOString(),
   };
   list.unshift(txn);
   m.txnCount += 1;

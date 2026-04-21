@@ -227,7 +227,14 @@ function Inner() {
                         {tx.buyerBank} • {timeAgo(tx.timestamp)}
                       </div>
                     </div>
-                    <StatusPill status={tx.status} />
+                    <div className="flex flex-col items-end gap-1">
+                      <StatusPill status={tx.status} />
+                      {tx.status === "completed" && tx.coolingOffExpiresAt && new Date(tx.coolingOffExpiresAt) > new Date() && (
+                        <span className="rounded-full bg-blue-100 px-1.5 py-0.5 text-[9px] font-extrabold text-blue-700">
+                          {tx.coolingOffStatus === "requested" ? "CANCEL REQ" : "COOLING OFF"}
+                        </span>
+                      )}
+                    </div>
                   </Link>
                 </motion.li>
               ))}
