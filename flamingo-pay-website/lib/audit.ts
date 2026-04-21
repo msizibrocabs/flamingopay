@@ -42,7 +42,8 @@ export type AuditAction =
   | "merchant_frozen"
   | "merchant_unfrozen"
   | "consent_given"
-  | "account_deleted";
+  | "account_deleted"
+  | "limit_exceeded_attempt";
 
 export type AuditEntry = {
   id: string;

@@ -17,6 +17,7 @@ import { getBusinessProfile } from "./business-profiles";
 import { screenMerchant, createSanctionsFlag } from "./sanctions";
 import { sendPaymentNotification } from "./notifications";
 import { sendPaymentPush } from "./push";
+import { appendAuditLog } from "./audit";
 import type { KycStatus, KycVerificationRecord } from "./verifynow";
 // Re-export shared types/functions so existing imports keep working
 export { type BusinessProfile, BUSINESS_PROFILES, getBusinessProfile } from "./business-profiles";
@@ -169,6 +170,135 @@ export type VelocityLimits = {
   /** Max single transaction amount in ZAR. */
   maxSingleTxn?: number;
 };
+
+// ─── Tier-limit enforcement helpers ─────────────────────────────
+// `evaluateTransactionLimits` is the single source of truth used by both
+// pre-flight checks (buyer-facing /pay page) and the create-time guard
+// inside createTransaction().
+
+export type LimitBreachReason =
+  | "merchant_suspended"
+  | "transaction_hold"
+  | "kyc_tier_monthly_cap"
+  | "single_txn_cap"
+  | "txn_per_hour_cap"
+  | "daily_volume_cap";
+
+export type LimitEvaluation =
+  | { ok: true; remaining: { monthly: number; daily: number; singleTxn: number; hourly: number } }
+  | {
+      ok: false;
+      reason: LimitBreachReason;
+      message: string;
+      /** The hard cap that was hit. */
+      limit?: number;
+      /** How much of the cap has already been used. */
+      used?: number;
+      /** How much headroom remained before this attempt. */
+      remaining?: number;
+      /** KYC tier label at evaluation time (for audit/UI). */
+      tier?: KycTier;
+    };
+
+/**
+ * Evaluate whether a proposed transaction would breach any tier or
+ * velocity cap. Caller passes the merchant, amount, and the merchant's
+ * transaction history (so the helper is synchronous and side-effect free
+ * and can be used in both pre-flight endpoints and the write path).
+ */
+export function evaluateTransactionLimits(
+  merchant: MerchantApplication,
+  amount: number,
+  allTxns: StoredTxn[],
+  now: Date = new Date(),
+): LimitEvaluation {
+  if (merchant.status === "suspended") {
+    return { ok: false, reason: "merchant_suspended", message: "Merchant account is suspended" };
+  }
+  if (merchant.transactionHold) {
+    return {
+      ok: false,
+      reason: "transaction_hold",
+      message: `Transactions are on hold: ${merchant.holdReason ?? "Pending compliance review"}. Contact support.`,
+    };
+  }
+
+  const tier = merchant.kycTier ?? "simplified";
+
+  // Rolling 30-day volume vs. KYC tier cap.
+  const thirtyDaysAgo = new Date(now.getTime() - 30 * 86400000).toISOString();
+  const monthVolume = allTxns
+    .filter(t => t.timestamp >= thirtyDaysAgo && (t.status === "completed" || t.status === "partial_refund"))
+    .reduce((s, t) => s + t.amount, 0);
+  const tierLimit =
+    tier === "simplified" ? KYC_THRESHOLDS.simplified
+      : tier === "standard" ? KYC_THRESHOLDS.standard
+      : Infinity;
+  if (tierLimit !== Infinity && monthVolume + amount > tierLimit) {
+    return {
+      ok: false,
+      reason: "kyc_tier_monthly_cap",
+      message: `Transaction would exceed the ${tier} KYC tier limit of R${tierLimit.toLocaleString("en-ZA")}/month. Please upgrade your KYC tier.`,
+      limit: tierLimit,
+      used: monthVolume,
+      remaining: Math.max(0, tierLimit - monthVolume),
+      tier,
+    };
+  }
+
+  const limits = { ...DEFAULT_VELOCITY[tier], ...(merchant.velocityLimits ?? {}) };
+
+  if (amount > limits.maxSingleTxn) {
+    return {
+      ok: false,
+      reason: "single_txn_cap",
+      message: `Transaction of R${amount.toLocaleString("en-ZA")} exceeds the single transaction limit of R${limits.maxSingleTxn.toLocaleString("en-ZA")}. Contact support to increase.`,
+      limit: limits.maxSingleTxn,
+      tier,
+    };
+  }
+
+  const hourAgo = new Date(now.getTime() - 3600000).toISOString();
+  const txnsLastHour = allTxns.filter(t => t.timestamp >= hourAgo && t.status === "completed").length;
+  if (txnsLastHour >= limits.maxTxnPerHour) {
+    return {
+      ok: false,
+      reason: "txn_per_hour_cap",
+      message: `Reached the limit of ${limits.maxTxnPerHour} transactions per hour. Please try again shortly.`,
+      limit: limits.maxTxnPerHour,
+      used: txnsLastHour,
+      remaining: 0,
+      tier,
+    };
+  }
+
+  const todayStart = new Date(now);
+  todayStart.setHours(0, 0, 0, 0);
+  const todayVolume = allTxns
+    .filter(t => t.timestamp >= todayStart.toISOString() && t.status === "completed")
+    .reduce((s, t) => s + t.amount, 0);
+  if (todayVolume + amount > limits.maxDailyVolume) {
+    return {
+      ok: false,
+      reason: "daily_volume_cap",
+      message: `Daily volume would reach R${(todayVolume + amount).toLocaleString("en-ZA")}, exceeding the limit of R${limits.maxDailyVolume.toLocaleString("en-ZA")}/day.`,
+      limit: limits.maxDailyVolume,
+      used: todayVolume,
+      remaining: Math.max(0, limits.maxDailyVolume - todayVolume),
+      tier,
+    };
+  }
+
+  return {
+    ok: true,
+    remaining: {
+      monthly: tierLimit === Infinity ? Infinity : Math.max(0, tierLimit - monthVolume - amount),
+      daily: Math.max(0, limits.maxDailyVolume - todayVolume - amount),
+      singleTxn: limits.maxSingleTxn,
+      hourly: Math.max(0, limits.maxTxnPerHour - txnsLastHour - 1),
+    },
+  };
+}
 
 // ---------------------- PIN Hashing ----------------------
 
@@ -805,64 +935,35 @@ export async function createTransaction(
   const m = await getMerchant(merchantId);
   if (!m) return { error: "Merchant not found" };
 
-  // Enforce KYC tier volume cap — check rolling 30-day volume
-  const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000).toISOString();
   const allTxns = await listTransactions(merchantId);
-  const monthVolume = allTxns
-    .filter(t => t.timestamp >= thirtyDaysAgo && (t.status === "completed" || t.status === "partial_refund"))
-    .reduce((s, t) => s + t.amount, 0);
-  const tierLimit = m.kycTier === "simplified" ? KYC_THRESHOLDS.simplified
-    : m.kycTier === "standard" ? KYC_THRESHOLDS.standard
-    : Infinity; // enhanced has no hard cap
-  if (monthVolume + input.amount > tierLimit && tierLimit !== Infinity) {
-    return {
-      error: `Transaction would exceed your ${m.kycTier} KYC tier limit of R${tierLimit.toLocaleString("en-ZA")}/month. Please upgrade your KYC tier.`,
-    };
-  }
 
-  // Block suspended merchants
-  if (m.status === "suspended") {
-    return { error: "Merchant account is suspended" };
-  }
+  // Single source of truth for tier + velocity enforcement.
+  // Any rejection is recorded to the immutable audit log so compliance can
+  // see denied attempts (structuring attempts, over-tier pushes, etc.).
+  const limitCheck = evaluateTransactionLimits(m, input.amount, allTxns);
+  if (!limitCheck.ok) {
+    // Fire-and-forget — audit write must never block the caller.
+    appendAuditLog({
+      action: "limit_exceeded_attempt",
+      role: "system",
+      actorId: merchantId,
+      actorName: m.businessName,
+      targetId: merchantId,
+      targetType: "merchant",
+      detail: limitCheck.message,
+      metadata: {
+        reason: limitCheck.reason,
+        amount: input.amount,
+        rail: input.rail,
+        buyerBank: input.buyerBank,
+        tier: limitCheck.tier,
+        limit: limitCheck.limit,
+        used: limitCheck.used,
+        remaining: limitCheck.remaining,
+      },
+    }).catch(() => { /* swallow — audit.ts already logs internally */ });
 
-  // Transaction hold — compliance freeze
-  if (m.transactionHold) {
-    return { error: `Transactions are on hold: ${m.holdReason ?? "Pending compliance review"}. Contact support.` };
-  }
-
-  // Velocity limits enforcement
-  {
-    const limits = {
-      ...DEFAULT_VELOCITY[m.kycTier ?? "simplified"],
-      ...(m.velocityLimits ?? {}),
-    };
-
-    // Max single transaction
-    if (input.amount > limits.maxSingleTxn) {
-      return {
-        error: `Transaction of R${input.amount.toLocaleString("en-ZA")} exceeds your single transaction limit of R${limits.maxSingleTxn.toLocaleString("en-ZA")}. Contact support to increase.`,
-      };
-    }
-
-    // Max transactions per hour
-    const hourAgo = new Date(Date.now() - 3600000).toISOString();
-    const txnsLastHour = allTxns.filter(t => t.timestamp >= hourAgo && t.status === "completed").length;
-    if (txnsLastHour >= limits.maxTxnPerHour) {
-      return {
-        error: `You've reached the limit of ${limits.maxTxnPerHour} transactions per hour. Please try again shortly.`,
-      };
-    }
-
-    // Max daily volume
-    const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
-    const todayVolume = allTxns
-      .filter(t => t.timestamp >= todayStart.toISOString() && t.status === "completed")
-      .reduce((s, t) => s + t.amount, 0);
-    if (todayVolume + input.amount > limits.maxDailyVolume) {
-      return {
-        error: `Daily volume would reach R${(todayVolume + input.amount).toLocaleString("en-ZA")}, exceeding your limit of R${limits.maxDailyVolume.toLocaleString("en-ZA")}/day.`,
-      };
-    }
+    return { error: limitCheck.message };
   }
 
   const list = allTxns;

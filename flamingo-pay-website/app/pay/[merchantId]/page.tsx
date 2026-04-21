@@ -213,6 +213,10 @@ export default function PayPage() {
   const [selectedMethod, setSelectedMethod] = useState<PaymentMethod | null>(null);
   const [processingQuip, setProcessingQuip] = useState(0);
   const [txnRef, setTxnRef] = useState<string | null>(null);
+  // Pre-flight limit check — populated when the server rejects the amount
+  // before we even show the payment method screen.
+  const [limitError, setLimitError] = useState<string | null>(null);
+  const [checkingLimit, setCheckingLimit] = useState(false);
 
   const numericAmount = parseFloat(amount);
   const isValidAmount = !isNaN(numericAmount) && numericAmount >= 1 && numericAmount <= 50000;
@@ -291,9 +295,48 @@ export default function PayPage() {
 
   function handlePreset(val: number) {
     setAmount(val.toString());
+    setLimitError(null);
   }
-  function handleNext() {
-    if (isValidAmount) setStep("method");
+  async function handleNext() {
+    if (!isValidAmount || checkingLimit) return;
+    setLimitError(null);
+    setCheckingLimit(true);
+    try {
+      // Pre-flight check against the merchant's KYC-tier + velocity caps.
+      // If the amount would be rejected, surface the reason here instead of
+      // letting the buyer pick a method and fail at the last step.
+      const res = await fetch(
+        `/api/merchants/${merchantId}/limits/check?amount=${encodeURIComponent(numericAmount)}`,
+        { cache: "no-store" },
+      );
+      const data = await res.json().catch(() => null) as
+        | { ok: true }
+        | { ok: false; message: string; reason?: string }
+        | { error: string }
+        | null;
+
+      if (!data) {
+        // Couldn't reach the server — let the final POST handle it rather
+        // than blocking the buyer here.
+        setStep("method");
+        return;
+      }
+      if ("error" in data) {
+        setLimitError(data.error);
+        return;
+      }
+      if (data.ok === false) {
+        setLimitError(data.message);
+        return;
+      }
+      setStep("method");
+    } catch {
+      // Network blip — fall through to method step; the final POST is the
+      // authoritative gate.
+      setStep("method");
+    } finally {
+      setCheckingLimit(false);
+    }
   }
   function handleSelectMethod(method: PaymentMethod) {
     setSelectedMethod(method);
@@ -409,7 +452,7 @@ export default function PayPage() {
                       inputMode="decimal"
                       placeholder="0.00"
                       value={amount}
-                      onChange={(e) => setAmount(e.target.value)}
+                      onChange={(e) => { setAmount(e.target.value); setLimitError(null); }}
                       style={{ fontSize: "clamp(1.75rem, 8vw, 2.25rem)" }}
                       className="flex-1 font-black text-flamingo-dark bg-transparent outline-none placeholder:text-flamingo-dark/20 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none tabular-nums"
                       autoFocus
@@ -438,18 +481,34 @@ export default function PayPage() {
                 </div>
 
                 <motion.button
-                  whileHover={isValidAmount ? { y: -2 } : {}}
-                  whileTap={isValidAmount ? { scale: 0.97 } : {}}
+                  whileHover={isValidAmount && !checkingLimit ? { y: -2 } : {}}
+                  whileTap={isValidAmount && !checkingLimit ? { scale: 0.97 } : {}}
                   onClick={handleNext}
-                  disabled={!isValidAmount}
+                  disabled={!isValidAmount || checkingLimit}
                   className={`mt-6 w-full py-4 rounded-full text-lg font-black transition
-                    ${isValidAmount
+                    ${isValidAmount && !checkingLimit
                       ? "bg-gradient-flamingo text-white shadow-[0_8px_20px_-6px_rgba(255,82,119,0.55)]"
                       : "bg-flamingo-dark/10 text-flamingo-dark/30 cursor-not-allowed"
                     }`}
                 >
-                  {isValidAmount ? `Pay R${parseFloat(amount).toFixed(2)}` : "Enter amount"}
+                  {checkingLimit
+                    ? "Checking…"
+                    : isValidAmount
+                      ? `Pay R${parseFloat(amount).toFixed(2)}`
+                      : "Enter amount"}
                 </motion.button>
+
+                {limitError && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    role="alert"
+                    className="mt-4 rounded-2xl border-2 border-red-500/40 bg-red-50 p-4 text-sm text-red-800 shadow-[4px_4px_0_rgba(239,68,68,0.15)]"
+                  >
+                    <p className="font-bold">Payment can&rsquo;t go through</p>
+                    <p className="mt-1 text-red-800/80">{limitError}</p>
+                  </motion.div>
+                )}
 
                 <p className="mt-4 text-center text-xs text-flamingo-dark/40">
                   Secured by Flamingo Pay · POPIA compliant
