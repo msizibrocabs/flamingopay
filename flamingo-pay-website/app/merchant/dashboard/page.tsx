@@ -187,6 +187,13 @@ function Inner() {
           </RevealItem>
         </RevealGroup>
 
+        {/* KYC tier — monthly limit usage */}
+        {mid && (
+          <Reveal delay={0.2} className="mt-4">
+            <TierLimitCard merchantId={mid} />
+          </Reveal>
+        )}
+
         {/* Recent transactions */}
         <Reveal delay={0.25} className="mt-5">
           <section>
@@ -257,6 +264,135 @@ function MiniCard({ label, value, tint }: { label: string; value: string; tint: 
       <div className="display-eyebrow text-[9px] text-flamingo-dark/70">{label}</div>
       <div className="display mt-1 text-lg font-black text-flamingo-dark tabular-nums" style={{ letterSpacing: "-0.02em" }}>{value}</div>
     </motion.div>
+  );
+}
+
+/**
+ * KYC-tier monthly-limit usage widget.
+ *
+ * Shows rolling 30-day volume vs. the tier cap with a progress bar and
+ * a remaining-headroom summary. When usage crosses 90% we flip the bar
+ * to a warning colour and prompt an upgrade — the goal is for the
+ * merchant to see the cap coming before their first transaction is
+ * rejected at /pay.
+ */
+function TierLimitCard({ merchantId }: { merchantId: string }) {
+  type Usage = {
+    tier: "simplified" | "standard" | "enhanced";
+    month: { cap: number | null; used: number; remaining: number | null; pct: number };
+    day: { cap: number; used: number; remaining: number; pct: number };
+    singleTxnCap: number;
+  };
+  const [usage, setUsage] = useState<Usage | null>(null);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    if (!merchantId) return;
+    (async () => {
+      try {
+        const res = await fetch(`/api/merchants/${merchantId}/limits/usage`, { cache: "no-store" });
+        if (res.ok) setUsage(await res.json());
+      } catch { /* best-effort */ }
+      setLoaded(true);
+    })();
+  }, [merchantId]);
+
+  if (!loaded) {
+    return (
+      <div className="h-28 rounded-3xl border-2 border-flamingo-dark bg-white/60 shadow-[0_6px_0_0_#1A1A2E] animate-pulse" />
+    );
+  }
+  if (!usage) return null;
+
+  const TIER_LABEL: Record<Usage["tier"], string> = {
+    simplified: "Simplified",
+    standard: "Standard",
+    enhanced: "Enhanced",
+  };
+  const isWarning = usage.month.pct >= 90 && usage.month.cap !== null;
+  const isCritical = usage.month.pct >= 100 && usage.month.cap !== null;
+
+  const barColor = isCritical
+    ? "bg-red-500"
+    : isWarning
+      ? "bg-amber-500"
+      : "bg-gradient-to-r from-flamingo-pink-deep to-flamingo-pink";
+
+  return (
+    <section className="rounded-3xl border-2 border-flamingo-dark bg-white p-5 shadow-[0_6px_0_0_#1A1A2E]">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="display-eyebrow text-[10px] text-flamingo-dark/70">KYC Tier</div>
+          <div className="display mt-1 text-lg font-black text-flamingo-dark" style={{ letterSpacing: "-0.02em" }}>
+            {TIER_LABEL[usage.tier]}
+          </div>
+        </div>
+        <div className="text-right">
+          <div className="display-eyebrow text-[9px] text-flamingo-dark/60">This month</div>
+          <div className="display mt-1 text-sm font-black text-flamingo-dark tabular-nums" style={{ letterSpacing: "-0.02em" }}>
+            {formatZAR(usage.month.used)}
+            {usage.month.cap !== null && (
+              <span className="text-flamingo-dark/50 font-bold"> / {formatZARCompact(usage.month.cap)}</span>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Progress bar — only for tiers with a hard cap */}
+      {usage.month.cap !== null ? (
+        <>
+          <div className="mt-3 h-2.5 w-full overflow-hidden rounded-full border border-flamingo-dark/20 bg-flamingo-cream">
+            <motion.div
+              className={`h-full ${barColor}`}
+              initial={{ width: 0 }}
+              animate={{ width: `${Math.min(100, usage.month.pct)}%` }}
+              transition={{ duration: 0.8, ease: "easeOut" }}
+            />
+          </div>
+          <div className="mt-2 flex items-center justify-between text-xs">
+            <span className="font-bold text-flamingo-dark/70">{usage.month.pct}% used</span>
+            <span className="font-bold text-flamingo-dark/70 tabular-nums">
+              {usage.month.remaining !== null ? formatZAR(usage.month.remaining) : ""} remaining
+            </span>
+          </div>
+        </>
+      ) : (
+        <div className="mt-3 rounded-xl bg-flamingo-mint/60 px-3 py-2 text-xs font-bold text-flamingo-dark">
+          Enhanced tier · no monthly cap
+        </div>
+      )}
+
+      {/* Warning banner at 90% / breach banner at 100% */}
+      {isCritical ? (
+        <div className="mt-3 rounded-xl border-2 border-red-500/40 bg-red-50 p-3 text-xs text-red-800">
+          <p className="font-extrabold">Monthly limit reached</p>
+          <p className="mt-0.5 text-red-800/80">
+            New payments will be declined until your 30-day volume drops below the cap, or you upgrade your KYC tier.
+          </p>
+          <Link href="/merchant/profile" className="mt-1 inline-block font-extrabold text-red-700 underline">
+            Upgrade KYC →
+          </Link>
+        </div>
+      ) : isWarning ? (
+        <div className="mt-3 rounded-xl border-2 border-amber-400/60 bg-amber-50 p-3 text-xs text-amber-900">
+          <p className="font-extrabold">Heads up — you&rsquo;re at {usage.month.pct}% of your monthly limit</p>
+          <p className="mt-0.5 text-amber-900/80">
+            Upgrade your KYC tier now so payments keep clearing when you hit the cap.
+          </p>
+          <Link href="/merchant/profile" className="mt-1 inline-block font-extrabold text-amber-900 underline">
+            Upgrade KYC →
+          </Link>
+        </div>
+      ) : null}
+
+      {/* Secondary line — daily headroom */}
+      <div className="mt-3 flex items-center justify-between text-[11px] text-flamingo-dark/60">
+        <span className="font-bold">
+          Today: <span className="text-flamingo-dark">{formatZAR(usage.day.used)}</span> of {formatZARCompact(usage.day.cap)}/day
+        </span>
+        <span className="font-bold">Single txn max {formatZARCompact(usage.singleTxnCap)}</span>
+      </div>
+    </section>
   );
 }
 

@@ -8,7 +8,7 @@ import { AdminNav } from "../../_components/AdminNav";
 import { StatusPill } from "../../_components/StatusPill";
 import { Reveal } from "../../../../components/motion/Reveal";
 import { flamingoConfetti } from "../../../../components/motion/Confetti";
-import { formatZAR, timeAgo } from "../../../../lib/merchant";
+import { formatZAR, formatZARCompact, timeAgo } from "../../../../lib/merchant";
 import type {
   DocumentKind,
   DocumentStatus,
@@ -293,13 +293,10 @@ function Detail({ id }: { id: string }) {
         <InfoCard title="Business">
           <Row k="Type" v={m.businessType} />
           <Row k="Address" v={m.address || "—"} />
-          <Row k="KYC tier" v={
-            m.kycTier === "simplified" ? "Simplified (< R25k)"
-            : m.kycTier === "standard" ? "Standard (R25k–R100k)"
-            : m.kycTier === "enhanced" ? "Enhanced (> R100k)"
-            : "—"
-          } />
           <Row k="Expected volume" v={m.expectedMonthlyVolume ? formatZAR(m.expectedMonthlyVolume) + "/month" : "—"} />
+          <div className="pt-2">
+            <TierUsageBar merchantId={id} />
+          </div>
         </InfoCard>
         <InfoCard title="Payout">
           <Row k="Bank" v={m.bank} />
@@ -531,6 +528,102 @@ function Detail({ id }: { id: string }) {
         Refresh
       </button>
     </main>
+  );
+}
+
+/**
+ * KYC tier + monthly-limit usage bar for the admin merchant detail page.
+ *
+ * Replaces the static "Standard (R25k–R100k)" label so admins/compliance
+ * can see at a glance how close a merchant is to their monthly cap
+ * (which is also what triggers upgrade friction at /pay).
+ */
+function TierUsageBar({ merchantId }: { merchantId: string }) {
+  type Usage = {
+    tier: "simplified" | "standard" | "enhanced";
+    month: { cap: number | null; used: number; remaining: number | null; pct: number };
+    day: { cap: number; used: number; remaining: number; pct: number };
+    singleTxnCap: number;
+  };
+  const [usage, setUsage] = useState<Usage | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch(`/api/merchants/${merchantId}/limits/usage`, { cache: "no-store" });
+        if (res.ok) setUsage(await res.json());
+      } catch { /* best-effort */ }
+    })();
+  }, [merchantId]);
+
+  if (!usage) {
+    return (
+      <div className="h-16 rounded-xl bg-flamingo-cream/60 animate-pulse" />
+    );
+  }
+
+  const TIER_LABEL: Record<Usage["tier"], string> = {
+    simplified: "Simplified",
+    standard: "Standard",
+    enhanced: "Enhanced",
+  };
+  const isWarning = usage.month.pct >= 90 && usage.month.cap !== null;
+  const isCritical = usage.month.pct >= 100 && usage.month.cap !== null;
+  const barColor = isCritical
+    ? "bg-red-500"
+    : isWarning
+      ? "bg-amber-500"
+      : "bg-gradient-to-r from-flamingo-pink-deep to-flamingo-pink";
+
+  return (
+    <div className="rounded-xl border border-flamingo-dark/15 bg-flamingo-cream/40 p-3">
+      <div className="flex items-center justify-between">
+        <div>
+          <span className="display-eyebrow text-[9px] text-flamingo-dark/60">KYC tier</span>
+          <div className="mt-0.5 flex items-center gap-2">
+            <span className="text-sm font-extrabold text-flamingo-dark">{TIER_LABEL[usage.tier]}</span>
+            {isWarning && !isCritical && (
+              <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[9px] font-extrabold uppercase text-amber-900">≥90%</span>
+            )}
+            {isCritical && (
+              <span className="rounded-full bg-red-100 px-2 py-0.5 text-[9px] font-extrabold uppercase text-red-800">At cap</span>
+            )}
+          </div>
+        </div>
+        <div className="text-right text-xs">
+          <div className="font-bold text-flamingo-dark tabular-nums">
+            {formatZAR(usage.month.used)}
+            {usage.month.cap !== null && (
+              <span className="text-flamingo-dark/50"> / {formatZARCompact(usage.month.cap)}</span>
+            )}
+          </div>
+          <div className="text-[10px] text-flamingo-dark/60">30-day volume</div>
+        </div>
+      </div>
+
+      {usage.month.cap !== null ? (
+        <>
+          <div className="mt-2 h-2 w-full overflow-hidden rounded-full border border-flamingo-dark/15 bg-white">
+            <motion.div
+              className={`h-full ${barColor}`}
+              initial={{ width: 0 }}
+              animate={{ width: `${Math.min(100, usage.month.pct)}%` }}
+              transition={{ duration: 0.7, ease: "easeOut" }}
+            />
+          </div>
+          <div className="mt-1 flex items-center justify-between text-[10px] font-bold text-flamingo-dark/60">
+            <span>{usage.month.pct}% used</span>
+            <span className="tabular-nums">
+              {usage.month.remaining !== null ? formatZAR(usage.month.remaining) : ""} remaining
+            </span>
+          </div>
+        </>
+      ) : (
+        <div className="mt-2 text-[10px] font-bold text-flamingo-dark/60">
+          Enhanced tier — no monthly cap. Single txn max {formatZARCompact(usage.singleTxnCap)}.
+        </div>
+      )}
+    </div>
   );
 }
 

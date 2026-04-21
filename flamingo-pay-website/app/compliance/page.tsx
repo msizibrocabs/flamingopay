@@ -63,12 +63,36 @@ type CoolingOffStats = {
   totalRefundValue: number;
 };
 
+/** Friendly labels for the LimitBreachReason enum from lib/store.ts. */
+const REASON_LABEL: Record<string, string> = {
+  merchant_suspended: "Suspended merchant",
+  transaction_hold: "Compliance hold",
+  kyc_tier_monthly_cap: "KYC tier cap",
+  single_txn_cap: "Single-txn cap",
+  txn_per_hour_cap: "Hourly velocity cap",
+  daily_volume_cap: "Daily volume cap",
+};
+
+type LimitAttempts = {
+  hours: number;
+  total: number;
+  byReason: Record<string, number>;
+  topOffenders: Array<{
+    merchantId: string;
+    merchantName: string;
+    count: number;
+    lastAt: string;
+    tier?: string;
+  }>;
+};
+
 function Dashboard() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [disputeStats, setDisputeStats] = useState<DisputeStats | null>(null);
   const [eddStats, setEddStats] = useState<EDDStats | null>(null);
   const [docSummary, setDocSummary] = useState<DocSummary | null>(null);
   const [coolingOff, setCoolingOff] = useState<CoolingOffStats | null>(null);
+  const [limitAttempts, setLimitAttempts] = useState<LimitAttempts | null>(null);
   const [recent, setRecent] = useState<TxnFlag[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -81,8 +105,9 @@ function Dashboard() {
       fetch("/api/compliance/edd?stats=true").then(r => r.ok ? r.json() : { stats: null }).catch(() => ({ stats: null })),
       fetch("/api/compliance/documents?filter=pending").then(r => r.ok ? r.json() : { summary: null }).catch(() => ({ summary: null })),
       fetch("/api/compliance/cooling-off").then(r => r.ok ? r.json() : { stats: null }).catch(() => ({ stats: null })),
+      fetch("/api/compliance/limit-attempts?hours=24").then(r => r.ok ? r.json() : null).catch(() => null),
     ])
-      .then(([s, f, d, e, docs, co]) => {
+      .then(([s, f, d, e, docs, co, la]) => {
         if (!cancelled) {
           setStats(s);
           setRecent((f.flags ?? []).slice(0, 10));
@@ -90,6 +115,7 @@ function Dashboard() {
           setEddStats(e.stats ?? null);
           setDocSummary(docs.summary ?? null);
           setCoolingOff(co.stats ?? null);
+          setLimitAttempts(la ?? null);
         }
       })
       .catch(() => {})
@@ -281,6 +307,86 @@ function Dashboard() {
               <StatCard label="Approved" value={coolingOff.approved} tone="green" />
               <StatCard label="Rejected" value={coolingOff.rejected} tone="purple" />
               <StatCard label="Refund value" value={coolingOff.totalRefundValue} tone="amber" money />
+            </div>
+          </section>
+        </Reveal>
+      )}
+
+      {/* Limit breach attempts — last 24h */}
+      {limitAttempts && limitAttempts.total > 0 && (
+        <Reveal delay={0.24}>
+          <section className="mt-10">
+            <div className="mb-4 flex items-end justify-between">
+              <h2
+                className="display font-black text-flamingo-dark leading-none"
+                style={{ fontSize: "clamp(1.5rem, 3vw, 2.25rem)", letterSpacing: "-0.03em" }}
+              >
+                Limit breach attempts
+                <span className="ml-2 inline-grid h-6 min-w-6 place-items-center rounded-full border-2 border-flamingo-dark bg-red-600 px-2 text-xs font-extrabold text-white">
+                  {limitAttempts.total}
+                </span>
+              </h2>
+              <Link href="/admin/audit?action=limit_exceeded_attempt" className="text-sm font-bold text-red-600 underline-offset-2 hover:underline">
+                View audit log
+              </Link>
+            </div>
+            <p className="mb-3 text-xs font-medium text-flamingo-dark/60">
+              Transactions declined by tier/velocity caps in the last {limitAttempts.hours}h. Repeat offenders can be a structuring signal.
+            </p>
+
+            <div className="grid gap-4 lg:grid-cols-3">
+              {/* Reason breakdown */}
+              <div className="rounded-2xl border-2 border-flamingo-dark bg-white p-4 shadow-[0_6px_0_0_#1A1A2E] lg:col-span-1">
+                <p className="display-eyebrow text-[10px] text-flamingo-pink-deep">By reason</p>
+                <ul className="mt-2 space-y-1.5 text-sm">
+                  {Object.entries(limitAttempts.byReason)
+                    .sort((a, b) => b[1] - a[1])
+                    .map(([reason, count]) => (
+                      <li key={reason} className="flex items-center justify-between gap-3">
+                        <span className="text-flamingo-dark/80">{REASON_LABEL[reason] ?? reason}</span>
+                        <span className="rounded-full border-2 border-flamingo-dark bg-red-100 px-2 py-0.5 text-[10px] font-extrabold text-flamingo-dark tabular-nums">
+                          {count}
+                        </span>
+                      </li>
+                    ))}
+                </ul>
+              </div>
+
+              {/* Top offenders */}
+              <div className="rounded-2xl border-2 border-flamingo-dark bg-white p-4 shadow-[0_6px_0_0_#1A1A2E] lg:col-span-2">
+                <p className="display-eyebrow text-[10px] text-flamingo-pink-deep">Top offenders</p>
+                {limitAttempts.topOffenders.length === 0 ? (
+                  <p className="mt-2 text-sm text-flamingo-dark/60">No repeat offenders in this window.</p>
+                ) : (
+                  <ul className="mt-2 divide-y divide-flamingo-dark/10">
+                    {limitAttempts.topOffenders.map((o) => (
+                      <li key={o.merchantId}>
+                        <Link
+                          href={`/admin/merchants/${o.merchantId}`}
+                          className="flex items-center justify-between gap-3 py-2 transition hover:bg-red-50/50"
+                        >
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-extrabold text-flamingo-dark">
+                              {o.merchantName}
+                              {o.tier && (
+                                <span className="ml-2 rounded-full bg-flamingo-cream px-2 py-0.5 text-[9px] font-extrabold uppercase text-flamingo-dark/70">
+                                  {o.tier}
+                                </span>
+                              )}
+                            </p>
+                            <p className="truncate text-xs text-flamingo-dark/60 font-mono">
+                              {o.merchantId} · last {timeAgo(o.lastAt)}
+                            </p>
+                          </div>
+                          <span className="rounded-full border-2 border-flamingo-dark bg-red-600 px-3 py-0.5 text-xs font-extrabold text-white tabular-nums">
+                            {o.count} rejected
+                          </span>
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
             </div>
           </section>
         </Reveal>
