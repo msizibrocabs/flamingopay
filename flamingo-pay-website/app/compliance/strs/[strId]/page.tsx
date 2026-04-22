@@ -367,6 +367,13 @@ function STRDetail() {
               >
                 Download CSV
               </button>
+              <a
+                href={`/api/compliance/strs/${str.id}/goaml`}
+                className="rounded-lg border-2 border-flamingo-dark bg-red-600 px-3 py-1.5 text-xs font-extrabold text-white shadow-[0_2px_0_0_#1A1A2E] hover:bg-red-700"
+                title="Download a goAML 4.0 XML draft to upload to the FIC goAML portal"
+              >
+                Download goAML XML
+              </a>
             </div>
           </div>
 
@@ -498,7 +505,9 @@ function STRDetail() {
                   </a>
                   .
                 </li>
-                <li>2. Start a new STR and enter each transaction below as a separate Transaction node.</li>
+                <li>
+                  2. Either <strong>upload the goAML XML</strong> (faster — one click) or start a new STR and paste each transaction from the manifest below.
+                </li>
                 <li>3. Copy the FIC acknowledgement reference back here to close the filing record.</li>
               </ol>
             </div>
@@ -509,15 +518,24 @@ function STRDetail() {
                 <p className="text-xs font-extrabold uppercase tracking-widest text-flamingo-dark/60">
                   Transaction manifest ({transactions.length})
                 </p>
-                <button
-                  onClick={() => {
-                    copyText(manifestTsv, "modal-tsv");
-                    showToast("Copied — paste into goAML or a spreadsheet");
-                  }}
-                  className="rounded-md border-2 border-flamingo-dark bg-white px-2.5 py-1 text-[11px] font-extrabold text-flamingo-dark shadow-[0_2px_0_0_#1A1A2E]"
-                >
-                  {copiedKey === "modal-tsv" ? "Copied ✓" : "Copy all"}
-                </button>
+                <div className="flex gap-1.5">
+                  <a
+                    href={`/api/compliance/strs/${str.id}/goaml`}
+                    className="rounded-md border-2 border-flamingo-dark bg-red-600 px-2.5 py-1 text-[11px] font-extrabold text-white shadow-[0_2px_0_0_#1A1A2E] hover:bg-red-700"
+                    title="Download a goAML 4.0 XML draft to upload to the FIC portal"
+                  >
+                    Download goAML XML
+                  </a>
+                  <button
+                    onClick={() => {
+                      copyText(manifestTsv, "modal-tsv");
+                      showToast("Copied — paste into goAML or a spreadsheet");
+                    }}
+                    className="rounded-md border-2 border-flamingo-dark bg-white px-2.5 py-1 text-[11px] font-extrabold text-flamingo-dark shadow-[0_2px_0_0_#1A1A2E]"
+                  >
+                    {copiedKey === "modal-tsv" ? "Copied ✓" : "Copy all"}
+                  </button>
+                </div>
               </div>
               <div className="overflow-x-auto rounded-xl border-2 border-flamingo-dark/20">
                 <table className="min-w-full text-left text-[11px]">

@@ -43,7 +43,9 @@ export type AuditAction =
   | "merchant_unfrozen"
   | "consent_given"
   | "account_deleted"
-  | "limit_exceeded_attempt";
+  | "limit_exceeded_attempt"
+  | "str_goaml_generated"
+  | "ctr_goaml_generated";
 
 export type AuditEntry = {
   id: string;
@@ -53,7 +55,7 @@ export type AuditEntry = {
   actorId: string;
   actorName: string;
   targetId?: string;
-  targetType?: "merchant" | "transaction" | "flag" | "document";
+  targetType?: "merchant" | "transaction" | "flag" | "document" | "str" | "ctr";
   detail: string;
   ip?: string;
   metadata?: Record<string, unknown>;
