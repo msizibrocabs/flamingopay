@@ -108,7 +108,7 @@ function CTRList() {
             Cash Threshold Reports.
           </h1>
           <p className="mt-2 text-sm text-flamingo-dark/60">
-            Transactions exceeding R25,000 that must be reported to the Financial Intelligence Centre within 15 days.
+            Transactions exceeding R25,000 that must be reported to the Financial Intelligence Centre within 2 business days (FIC Act s28(1)).
           </p>
         </div>
       </Reveal>

@@ -18,6 +18,7 @@ import { screenMerchant, createSanctionsFlag } from "./sanctions";
 import { sendPaymentNotification } from "./notifications";
 import { sendPaymentPush } from "./push";
 import { appendAuditLog } from "./audit";
+import { MS_PER_DAY } from "./time";
 import type { KycStatus, KycVerificationRecord } from "./verifynow";
 // Re-export shared types/functions so existing imports keep working
 export { type BusinessProfile, BUSINESS_PROFILES, getBusinessProfile } from "./business-profiles";
@@ -226,7 +227,7 @@ export function evaluateTransactionLimits(
   const tier = merchant.kycTier ?? "simplified";
 
   // Rolling 30-day volume vs. KYC tier cap.
-  const thirtyDaysAgo = new Date(now.getTime() - 30 * 86400000).toISOString();
+  const thirtyDaysAgo = new Date(now.getTime() - 30 * MS_PER_DAY).toISOString();
   const monthVolume = allTxns
     .filter(t => t.timestamp >= thirtyDaysAgo && (t.status === "completed" || t.status === "partial_refund"))
     .reduce((s, t) => s + t.amount, 0);
@@ -453,7 +454,7 @@ async function ensureSeeded(): Promise<void> {
   if (already) return;
 
   const now = Date.now();
-  const iso = (daysAgo: number) => new Date(now - daysAgo * 86400000).toISOString();
+  const iso = (daysAgo: number) => new Date(now - daysAgo * MS_PER_DAY).toISOString();
 
   // All demo merchants get PIN "1234"
   const demoPin = hashPin("1234");
@@ -724,7 +725,7 @@ export async function createMerchant(input: NewMerchantInput): Promise<MerchantA
   }
   const accLast4 = input.accountNumber.slice(-4).padStart(4, "•");
   const now = Date.now();
-  const iso = (daysAgo: number) => new Date(now - daysAgo * 86400000).toISOString();
+  const iso = (daysAgo: number) => new Date(now - daysAgo * MS_PER_DAY).toISOString();
   const tier = kycTierForVolume(input.expectedMonthlyVolume);
   const merchant: MerchantApplication = {
     id,

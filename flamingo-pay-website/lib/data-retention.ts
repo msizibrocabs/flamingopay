@@ -18,24 +18,26 @@
 import "server-only";
 import { Redis } from "@upstash/redis";
 import { appendAuditLog } from "./audit";
+import { FICA_RETENTION_DAYS, MS_PER_DAY } from "./time";
 
 const redis = new Redis({
   url: (process.env.KV_REST_API_URL ?? process.env.UPSTASH_REDIS_REST_URL)!,
   token: (process.env.KV_REST_API_TOKEN ?? process.env.UPSTASH_REDIS_REST_TOKEN)!,
 });
 
-// Retention periods (in days)
+// Retention periods (in days). FICA-governed categories use the shared
+// FICA_RETENTION_DAYS from lib/time.ts so all 5-year windows stay aligned.
 export const RETENTION_POLICY = {
   /** Active merchant data: no expiry while account is active */
   activeMerchant: Infinity,
   /** Deleted merchant PII: 5 years after deletion (FICA) */
-  deletedMerchantPII: 5 * 365,
+  deletedMerchantPII: FICA_RETENTION_DAYS,
   /** Transaction records: 5 years (FICA) */
-  transactions: 5 * 365,
+  transactions: FICA_RETENTION_DAYS,
   /** Audit logs: 5 years (FICA) — handled by audit.ts archive TTL */
-  auditLogs: 5 * 365,
+  auditLogs: FICA_RETENTION_DAYS,
   /** KYC documents: 5 years after relationship ends */
-  kycDocuments: 5 * 365,
+  kycDocuments: FICA_RETENTION_DAYS,
   /** Failed login attempts: 24 hours */
   loginAttempts: 1,
   /** OTP codes: 10 minutes (handled by OTP TTL) */
@@ -45,9 +47,9 @@ export const RETENTION_POLICY = {
   /** Idempotency keys: 24 hours (handled by TTL) */
   idempotencyKeys: 1,
   /** Compliance flags: 5 years (FICA) */
-  complianceFlags: 5 * 365,
+  complianceFlags: FICA_RETENTION_DAYS,
   /** CTR reports: 5 years (FICA) */
-  ctrReports: 5 * 365,
+  ctrReports: FICA_RETENTION_DAYS,
 } as const;
 
 export type RetentionCategory = keyof typeof RETENTION_POLICY;
@@ -69,7 +71,7 @@ type ClosureRecord = {
  */
 export async function recordAccountClosure(merchantId: string): Promise<void> {
   const now = new Date();
-  const retainUntil = new Date(now.getTime() + RETENTION_POLICY.deletedMerchantPII * 86400000);
+  const retainUntil = new Date(now.getTime() + RETENTION_POLICY.deletedMerchantPII * MS_PER_DAY);
 
   const record: ClosureRecord = {
     merchantId,
@@ -164,7 +166,7 @@ export async function runRetentionCleanup(): Promise<{
   // ── Compliance flags: prune resolved flags older than 5 years ──
   try {
     const flagIds: string[] = await redis.smembers("flags:index") as string[];
-    const cutoff = new Date(now.getTime() - RETENTION_POLICY.complianceFlags * 86400000);
+    const cutoff = new Date(now.getTime() - RETENTION_POLICY.complianceFlags * MS_PER_DAY);
 
     for (const flagId of flagIds) {
       const raw = await redis.get(`flag:${flagId}`);

@@ -22,6 +22,7 @@
 import "server-only";
 import { Redis } from "@upstash/redis";
 import { appendAuditLog } from "./audit";
+import { FICA_RETENTION_SECONDS, MS_PER_DAY, MS_PER_HOUR } from "./time";
 
 const redis = new Redis({
   url: (process.env.KV_REST_API_URL ?? process.env.UPSTASH_REDIS_REST_URL)!,
@@ -123,11 +124,11 @@ export type Dispute = {
 // ─── Constants ───
 
 /** 5-year TTL for FICA compliance (seconds) */
-const DISPUTE_TTL = 5 * 365 * 86400;
+const DISPUTE_TTL = FICA_RETENTION_SECONDS;
 /** 60-day dispute window (milliseconds) */
-const DISPUTE_WINDOW_MS = 60 * 24 * 60 * 60 * 1000;
+const DISPUTE_WINDOW_MS = 60 * MS_PER_DAY;
 /** 48-hour merchant response deadline (milliseconds) */
-const MERCHANT_DEADLINE_MS = 48 * 60 * 60 * 1000;
+const MERCHANT_DEADLINE_MS = 48 * MS_PER_HOUR;
 
 // ─── Helpers ───
 

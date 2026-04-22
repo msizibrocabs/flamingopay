@@ -7,6 +7,12 @@ import { ComplianceNav } from "../_components/ComplianceNav";
 import { Reveal, RevealGroup, RevealItem } from "../../../components/motion/Reveal";
 import { AnimatedCounter } from "../../../components/motion/AnimatedCounter";
 import { formatZAR, timeAgo } from "../../../lib/merchant";
+import {
+  STR_STATUS_LABELS,
+  STR_STATUS_COLORS,
+  RISK_LEVEL_COLORS,
+} from "../../../lib/compliance-ui";
+import { daysSince } from "../../../lib/time";
 
 type STR = {
   id: string;
@@ -35,34 +41,47 @@ type STRStats = {
   dismissed: number;
 };
 
-const STATUS_COLORS: Record<string, string> = {
-  draft: "bg-gray-100 text-gray-700 border-gray-300",
-  pending_review: "bg-amber-100 text-amber-800 border-amber-300",
-  filed: "bg-green-100 text-green-800 border-green-300",
-  dismissed: "bg-purple-100 text-purple-600 border-purple-300",
-};
+// Status labels + colours are imported from lib/compliance-ui.ts so every
+// FICA surface (flags, STRs, EDD, CTRs) stays in sync.
+const STATUS_COLORS = STR_STATUS_COLORS;
+const STATUS_LABELS = STR_STATUS_LABELS;
+const RISK_COLORS = RISK_LEVEL_COLORS;
 
-const STATUS_LABELS: Record<string, string> = {
-  draft: "Draft",
-  pending_review: "Pending Review",
-  filed: "Filed with FIC",
-  dismissed: "Dismissed",
-};
+// FIC Act s29(3): STRs must be filed within 15 working days of forming a suspicion.
+// Warn at 10 days, flag overdue at 15.
+const STR_FILING_DEADLINE_DAYS = 15;
+const STR_WARNING_DAYS = 10;
 
-const RISK_COLORS: Record<string, string> = {
-  low: "bg-green-500 text-white",
-  medium: "bg-amber-500 text-white",
-  high: "bg-orange-500 text-white",
-  critical: "bg-red-600 text-white",
-};
+function filingUrgency(str: { status: string; createdAt: string; filedAt?: string }):
+  | { label: string; className: string; title: string }
+  | null {
+  if (str.status !== "pending_review" && str.status !== "draft") return null;
+  const days = daysSince(str.createdAt);
+  if (days >= STR_FILING_DEADLINE_DAYS) {
+    return {
+      label: `Overdue · ${days}d`,
+      className: "bg-red-600 text-white",
+      title: `FIC s29(3) filing deadline is ${STR_FILING_DEADLINE_DAYS} working days — this STR is ${days} days old.`,
+    };
+  }
+  if (days >= STR_WARNING_DAYS) {
+    const remaining = STR_FILING_DEADLINE_DAYS - days;
+    return {
+      label: `${remaining}d left`,
+      className: "bg-amber-500 text-white",
+      title: `FIC s29(3) filing deadline — ${remaining} working days remaining.`,
+    };
+  }
+  return null;
+}
 
 const REASON_LABELS: Record<string, string> = {
   structuring: "Structuring",
-  velocity_spike: "Velocity Spike",
-  unusual_hours: "Unusual Hours",
-  round_amounts: "Round Amounts",
-  rapid_fire: "Rapid-Fire",
-  refund_abuse: "Refund Abuse",
+  velocity_spike: "Velocity spike",
+  unusual_hours: "Unusual hours",
+  round_amounts: "Round amounts",
+  rapid_fire: "Rapid-fire",
+  refund_abuse: "Refund abuse",
   manual: "Manual",
 };
 
@@ -79,7 +98,7 @@ const REASON_ICONS: Record<string, string> = {
 const TABS: { key: string; label: string }[] = [
   { key: "all", label: "All" },
   { key: "draft", label: "Draft" },
-  { key: "pending_review", label: "Pending Review" },
+  { key: "pending_review", label: "Pending review" },
   { key: "filed", label: "Filed" },
   { key: "dismissed", label: "Dismissed" },
 ];
@@ -208,7 +227,7 @@ function STRList() {
       {stats && (
         <RevealGroup className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
           <RevealItem><StatCard label="Draft" value={stats.draft ?? (stats.total - stats.pendingReview - stats.filed - stats.dismissed)} tone="gray" /></RevealItem>
-          <RevealItem><StatCard label="Pending Review" value={stats.pendingReview} tone="amber" highlight={stats.pendingReview > 0} /></RevealItem>
+          <RevealItem><StatCard label="Pending review" value={stats.pendingReview} tone="amber" highlight={stats.pendingReview > 0} /></RevealItem>
           <RevealItem><StatCard label="Filed with FIC" value={stats.filed} tone="green" /></RevealItem>
           <RevealItem><StatCard label="Dismissed" value={stats.dismissed} tone="purple" /></RevealItem>
         </RevealGroup>
@@ -262,6 +281,17 @@ function STRList() {
                           {str.riskLevel}
                         </span>
                       )}
+                      {(() => {
+                        const urgency = filingUrgency(str);
+                        return urgency ? (
+                          <span
+                            className={`rounded-full px-2 py-0.5 text-[10px] font-extrabold uppercase ${urgency.className}`}
+                            title={urgency.title}
+                          >
+                            {urgency.label}
+                          </span>
+                        ) : null;
+                      })()}
                       <span className={`rounded-full border px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wide ${STATUS_COLORS[str.status]}`}>
                         {STATUS_LABELS[str.status]}
                       </span>

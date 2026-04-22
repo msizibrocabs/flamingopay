@@ -15,11 +15,12 @@
  */
 
 import { Redis } from "@upstash/redis";
+import { FICA_RETENTION_SECONDS } from "./time";
 
 const redis = Redis.fromEnv();
 
 /* ────────────────── Constants ────────────────── */
-const DSAR_TTL_SECONDS = 5 * 365 * 86400; // 5 years (FICA)
+const DSAR_TTL_SECONDS = FICA_RETENTION_SECONDS; // 5 years (FICA)
 const POPIA_DEADLINE_DAYS = 30; // Section 23(1)(b)
 const FICA_RETENTION_YEARS = 5; // FICA Act No. 38 of 2001, Section 22
 

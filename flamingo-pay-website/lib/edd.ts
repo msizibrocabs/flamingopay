@@ -22,6 +22,7 @@
 
 import "server-only";
 import { Redis } from "@upstash/redis";
+import { FICA_RETENTION_SECONDS, MS_PER_DAY } from "./time";
 
 const redis = new Redis({
   url: (process.env.KV_REST_API_URL ?? process.env.UPSTASH_REDIS_REST_URL)!,
@@ -29,7 +30,7 @@ const redis = new Redis({
 });
 
 /** 5-year TTL for FICA compliance (seconds). */
-const EDD_TTL_SECONDS = 5 * 365 * 86400; // 1,827 days
+const EDD_TTL_SECONDS = FICA_RETENTION_SECONDS;
 
 // ─── Types ───────────────────────────────────────────────────
 
@@ -214,7 +215,7 @@ export async function openEDDCase(input: {
   const id = generateId();
   const now = new Date().toISOString();
   const freqDays = reviewFrequency(input.trigger);
-  const nextReview = new Date(Date.now() + freqDays * 86400000).toISOString().split("T")[0];
+  const nextReview = new Date(Date.now() + freqDays * MS_PER_DAY).toISOString().split("T")[0];
 
   const eddCase: EDDCase = {
     id,
@@ -390,7 +391,7 @@ export async function decideEDDCase(
 
   // Set next review date for approved merchants
   if (input.decision === "approved") {
-    const nextReview = new Date(Date.now() + eddCase.reviewFrequencyDays * 86400000)
+    const nextReview = new Date(Date.now() + eddCase.reviewFrequencyDays * MS_PER_DAY)
       .toISOString().split("T")[0];
     eddCase.nextReviewDate = nextReview;
   }

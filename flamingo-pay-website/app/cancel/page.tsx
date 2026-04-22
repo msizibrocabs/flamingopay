@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
+import { formatZAR } from "../../lib/merchant";
 
 type LookupResult = {
   found: boolean;
@@ -86,9 +87,6 @@ export default function CancelPage() {
       setLoading(false);
     }
   }
-
-  const formatZAR = (n: number) =>
-    new Intl.NumberFormat("en-ZA", { style: "currency", currency: "ZAR" }).format(n);
 
   return (
     <main className="min-h-dvh bg-flamingo-cream">

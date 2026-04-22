@@ -20,6 +20,7 @@ import {
   DEFAULT_VELOCITY,
   type KycTier,
 } from "../../../../../../lib/store";
+import { MS_PER_DAY } from "../../../../../../lib/time";
 
 export const dynamic = "force-dynamic";
 
@@ -45,7 +46,7 @@ export async function GET(
   const now = new Date();
 
   // 30-day rolling volume — what the tier cap is measured against.
-  const thirtyDaysAgo = new Date(now.getTime() - 30 * 86400_000).toISOString();
+  const thirtyDaysAgo = new Date(now.getTime() - 30 * MS_PER_DAY).toISOString();
   const monthVolume = allTxns
     .filter(t => t.timestamp >= thirtyDaysAgo && (t.status === "completed" || t.status === "partial_refund"))
     .reduce((s, t) => s + t.amount, 0);

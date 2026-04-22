@@ -8,6 +8,11 @@ import { ComplianceNav } from "../../_components/ComplianceNav";
 import { Reveal } from "../../../../components/motion/Reveal";
 import { formatZAR, timeAgo } from "../../../../lib/merchant";
 import { currentComplianceOfficer } from "../../../../lib/compliance";
+import {
+  STR_STATUS_LABELS,
+  STR_STATUS_COLORS,
+  RISK_LEVEL_COLORS,
+} from "../../../../lib/compliance-ui";
 
 type STR = {
   id: string;
@@ -57,26 +62,10 @@ type FetchResult = {
   missingTxnIds: string[];
 };
 
-const STATUS_COLORS: Record<string, string> = {
-  draft: "bg-gray-100 text-gray-700 border-gray-300",
-  pending_review: "bg-amber-100 text-amber-800 border-amber-300",
-  filed: "bg-green-100 text-green-800 border-green-300",
-  dismissed: "bg-purple-100 text-purple-600 border-purple-300",
-};
-
-const STATUS_LABELS: Record<string, string> = {
-  draft: "Draft",
-  pending_review: "Pending Review",
-  filed: "Filed with FIC",
-  dismissed: "Dismissed",
-};
-
-const RISK_COLORS: Record<string, string> = {
-  low: "bg-green-500 text-white",
-  medium: "bg-amber-500 text-white",
-  high: "bg-orange-500 text-white",
-  critical: "bg-red-600 text-white",
-};
+// Shared with compliance-ui.ts so every FICA surface stays in sync.
+const STATUS_COLORS = STR_STATUS_COLORS;
+const STATUS_LABELS = STR_STATUS_LABELS;
+const RISK_COLORS = RISK_LEVEL_COLORS;
 
 const REASON_LABELS: Record<string, string> = {
   structuring: "Structuring",

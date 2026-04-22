@@ -3,6 +3,7 @@
 import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import { formatZAR } from "../../../lib/merchant";
 
 type DisputeInfo = {
   ref: string;
@@ -83,7 +84,6 @@ function DisputeCheckInner() {
   const [error, setError] = useState("");
   const [searched, setSearched] = useState(false);
 
-  const formatZAR = (n: number) => `R${n.toLocaleString("en-ZA", { minimumFractionDigits: 2 })}`;
   const formatDate = (s: string) =>
     new Date(s).toLocaleDateString("en-ZA", { day: "numeric", month: "short", year: "numeric" });
   const formatDateTime = (s: string) =>

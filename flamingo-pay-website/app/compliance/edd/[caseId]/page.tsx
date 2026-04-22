@@ -8,6 +8,10 @@ import { ComplianceNav } from "../../_components/ComplianceNav";
 import { Reveal } from "../../../../components/motion/Reveal";
 import { timeAgo } from "../../../../lib/merchant";
 import { currentComplianceOfficer } from "../../../../lib/compliance";
+import {
+  EDD_STATUS_LABELS,
+  EDD_STATUS_COLORS,
+} from "../../../../lib/compliance-ui";
 
 // ─── Types ───────────────────────────────────────────────────
 
@@ -54,32 +58,18 @@ type EDDCase = {
 
 // ─── Constants ───────────────────────────────────────────────
 
-const STATUS_COLORS: Record<string, string> = {
-  opened: "bg-red-100 text-red-800 border-red-300",
-  investigation: "bg-amber-100 text-amber-800 border-amber-300",
-  pending_approval: "bg-blue-100 text-blue-800 border-blue-300",
-  approved: "bg-green-100 text-green-800 border-green-300",
-  rejected: "bg-purple-100 text-purple-800 border-purple-300",
-  closed: "bg-gray-100 text-gray-600 border-gray-300",
-};
-
-const STATUS_LABELS: Record<string, string> = {
-  opened: "Open",
-  investigation: "Investigating",
-  pending_approval: "Pending Approval",
-  approved: "Approved",
-  rejected: "Rejected",
-  closed: "Closed",
-};
+// Shared with compliance-ui.ts so every FICA surface stays in sync.
+const STATUS_COLORS = EDD_STATUS_COLORS;
+const STATUS_LABELS = EDD_STATUS_LABELS;
 
 const TRIGGER_LABELS: Record<string, string> = {
-  pep_identified: "PEP Identified",
-  sanctions_near_match: "Sanctions Near-Match",
-  volume_deviation: "Volume Deviation",
-  high_risk_business: "High-Risk Business",
-  adverse_media: "Adverse Media",
-  str_filed: "STR Filed",
-  manual_referral: "Manual Referral",
+  pep_identified: "PEP identified",
+  sanctions_near_match: "Sanctions near-match",
+  volume_deviation: "Volume deviation",
+  high_risk_business: "High-risk business",
+  adverse_media: "Adverse media",
+  str_filed: "STR filed",
+  manual_referral: "Manual referral",
 };
 
 const TRIGGER_ICONS: Record<string, string> = {

@@ -38,6 +38,7 @@
 import "server-only";
 import type { SuspiciousTransactionReport, CurrencyTransactionReport } from "./fica";
 import type { MerchantApplication, StoredTxn } from "./store";
+import { normalizePhoneZA } from "./phone";
 
 // ─── Helpers ─────────────────────────────────────────────────
 
@@ -65,6 +66,18 @@ function env(key: string, fallback = ""): string {
   return (process.env[key] ?? fallback).trim();
 }
 
+/**
+ * Strip country code + non-digits from a ZA phone for goAML's `<tph_number>`
+ * element, which expects the subscriber-only digits (country code is
+ * declared separately in `<tph_country_prefix>`).
+ */
+function subscriberDigits(raw: string | null | undefined): string {
+  const e164 = normalizePhoneZA(raw ?? "");
+  if (e164.startsWith("+27") && e164.length === 12) return e164.slice(3);
+  // Fallback — strip non-digits and any leading 27/0 that remains.
+  return (raw ?? "").replace(/\D/g, "").replace(/^(27|0)/, "");
+}
+
 function reportingPersonBlock(): string {
   const first = env("FIC_REPORTING_PERSON_FIRST", "Compliance");
   const last = env("FIC_REPORTING_PERSON_LAST", "Officer");
@@ -84,7 +97,7 @@ function reportingPersonBlock(): string {
           <tph_contact_type>1</tph_contact_type>
           <tph_communication_type>L</tph_communication_type>
           <tph_country_prefix>27</tph_country_prefix>
-          <tph_number>${xmlEscape(phone)}</tph_number>
+          <tph_number>${xmlEscape(subscriberDigits(phone))}</tph_number>
         </phone>
       </phones>
       <email>${xmlEscape(email)}</email>
@@ -173,7 +186,7 @@ function strTransactionBlock(
               <tph_contact_type>1</tph_contact_type>
               <tph_communication_type>M</tph_communication_type>
               <tph_country_prefix>27</tph_country_prefix>
-              <tph_number>${xmlEscape((merchant.phone ?? "").replace(/^\+?27/, "").replace(/\s+/g, ""))}</tph_number>
+              <tph_number>${xmlEscape(subscriberDigits(merchant.phone))}</tph_number>
             </phone>
           </phones>
 ${merchantAddressBlock(merchant)}

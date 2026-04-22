@@ -19,7 +19,9 @@
 import "server-only";
 import { Redis } from "@upstash/redis";
 import type { MerchantApplication, StoredTxn } from "./store";
+import { KYC_THRESHOLDS } from "./store";
 import { listSTRs } from "./fica";
+import { MS_PER_DAY } from "./time";
 
 const redis = new Redis({
   url: (process.env.KV_REST_API_URL ?? process.env.UPSTASH_REDIS_REST_URL)!,
@@ -59,7 +61,7 @@ export async function calculateMerchantRisk(
 ): Promise<MerchantRiskScore> {
   const factors: RiskFactor[] = [];
   const now = Date.now();
-  const day = 86400000;
+  const day = MS_PER_DAY;
 
   // ─── Factor 1: Transaction velocity (0-25) ───
   {
@@ -182,16 +184,28 @@ export async function calculateMerchantRisk(
       .filter(t => t.timestamp >= thirtyDaysAgo && t.status === "completed")
       .reduce((s, t) => s + t.amount, 0);
 
-    const tierLimits: Record<string, number> = { simplified: 25000, standard: 100000, enhanced: 500000 };
-    const limit = tierLimits[merchant.kycTier] ?? 100000;
-    const utilisation = monthVol / limit;
-    if (utilisation > 0.9) strScore += 5;
-    if (utilisation > 1.0) strScore += 5;
+    // Enhanced tier is uncapped by design — skip the utilisation penalty for
+    // those merchants. For simplified + standard, use the single source of
+    // truth in lib/store.ts so risk and limit enforcement never drift.
+    let utilisation = 0;
+    if (merchant.kycTier !== "enhanced") {
+      const limit =
+        merchant.kycTier === "simplified"
+          ? KYC_THRESHOLDS.simplified
+          : KYC_THRESHOLDS.standard;
+      utilisation = monthVol / limit;
+      if (utilisation > 0.9) strScore += 5;
+      if (utilisation > 1.0) strScore += 5;
+    }
 
+    const utilisationText =
+      merchant.kycTier === "enhanced"
+        ? "enhanced tier — uncapped"
+        : `${(utilisation * 100).toFixed(0)}% tier utilisation`;
     factors.push({
       name: "STR history & KYC",
       score: Math.min(25, strScore),
-      detail: `${strs.length} STRs (${pendingSTRs} pending, ${filedSTRs} filed), ${(utilisation * 100).toFixed(0)}% tier utilisation`,
+      detail: `${strs.length} STRs (${pendingSTRs} pending, ${filedSTRs} filed), ${utilisationText}`,
     });
   }
 

@@ -12,6 +12,7 @@
 
 import "server-only";
 import { Redis } from "@upstash/redis";
+import { FICA_RETENTION_SECONDS } from "./time";
 
 const redis = new Redis({
   url: (process.env.KV_REST_API_URL ?? process.env.UPSTASH_REDIS_REST_URL)!,
@@ -75,7 +76,7 @@ const AUDIT_KEY = "audit_log";
  * pragmatic middle ground.
  */
 
-const ARCHIVE_TTL_SECONDS = 1827 * 86400; // ~5 years in seconds
+const ARCHIVE_TTL_SECONDS = FICA_RETENTION_SECONDS; // ~5 years (lib/time.ts)
 
 /** Append an entry to the audit log. Never fails the parent operation. */
 export async function appendAuditLog(entry: Omit<AuditEntry, "id" | "timestamp">): Promise<void> {

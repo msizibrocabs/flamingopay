@@ -7,6 +7,11 @@ import { ComplianceNav } from "../_components/ComplianceNav";
 import { Reveal, RevealGroup, RevealItem } from "../../../components/motion/Reveal";
 import { AnimatedCounter } from "../../../components/motion/AnimatedCounter";
 import { timeAgo } from "../../../lib/merchant";
+import {
+  EDD_STATUS_LABELS,
+  EDD_STATUS_COLORS,
+  RISK_LEVEL_COLORS,
+} from "../../../lib/compliance-ui";
 
 // ─── Types (mirroring lib/edd.ts) ────────────────────────────
 
@@ -64,38 +69,25 @@ const STATUS_TABS: { key: EDDStatus | "all"; label: string }[] = [
   { key: "all", label: "All" },
   { key: "opened", label: "Open" },
   { key: "investigation", label: "Investigating" },
-  { key: "pending_approval", label: "Pending Approval" },
+  { key: "pending_approval", label: "Pending approval" },
   { key: "approved", label: "Approved" },
   { key: "rejected", label: "Rejected" },
   { key: "closed", label: "Closed" },
 ];
 
-const STATUS_COLORS: Record<EDDStatus, string> = {
-  opened: "bg-red-100 text-red-800 border-red-300",
-  investigation: "bg-amber-100 text-amber-800 border-amber-300",
-  pending_approval: "bg-blue-100 text-blue-800 border-blue-300",
-  approved: "bg-green-100 text-green-800 border-green-300",
-  rejected: "bg-purple-100 text-purple-800 border-purple-300",
-  closed: "bg-gray-100 text-gray-600 border-gray-300",
-};
-
-const STATUS_LABELS: Record<EDDStatus, string> = {
-  opened: "Open",
-  investigation: "Investigating",
-  pending_approval: "Pending Approval",
-  approved: "Approved",
-  rejected: "Rejected",
-  closed: "Closed",
-};
+// Labels + colours imported from lib/compliance-ui.ts so the FICA surfaces
+// (flags, STRs, EDD, CTRs) stay in sync.
+const STATUS_COLORS = EDD_STATUS_COLORS as Record<EDDStatus, string>;
+const STATUS_LABELS = EDD_STATUS_LABELS as Record<EDDStatus, string>;
 
 const TRIGGER_LABELS: Record<EDDTrigger, string> = {
-  pep_identified: "PEP Identified",
-  sanctions_near_match: "Sanctions Near-Match",
-  volume_deviation: "Volume Deviation",
-  high_risk_business: "High-Risk Business",
-  adverse_media: "Adverse Media",
-  str_filed: "STR Filed",
-  manual_referral: "Manual Referral",
+  pep_identified: "PEP identified",
+  sanctions_near_match: "Sanctions near-match",
+  volume_deviation: "Volume deviation",
+  high_risk_business: "High-risk business",
+  adverse_media: "Adverse media",
+  str_filed: "STR filed",
+  manual_referral: "Manual referral",
 };
 
 const TRIGGER_ICONS: Record<EDDTrigger, string> = {
@@ -108,10 +100,7 @@ const TRIGGER_ICONS: Record<EDDTrigger, string> = {
   manual_referral: "🖊️",
 };
 
-const RISK_COLORS: Record<string, string> = {
-  critical: "bg-red-600 text-white",
-  high: "bg-amber-500 text-white",
-};
+const RISK_COLORS = RISK_LEVEL_COLORS;
 
 // ─── Page ────────────────────────────────────────────────────
 
@@ -179,13 +168,13 @@ function EDDList() {
             <StatCard label="Investigating" value={stats.investigation} tone="amber" />
           </RevealItem>
           <RevealItem>
-            <StatCard label="Pending Approval" value={stats.pendingApproval} tone="blue" highlight={stats.pendingApproval > 0} />
+            <StatCard label="Pending approval" value={stats.pendingApproval} tone="blue" highlight={stats.pendingApproval > 0} />
           </RevealItem>
           <RevealItem>
             <StatCard label="Approved" value={stats.approved} tone="green" />
           </RevealItem>
           <RevealItem>
-            <StatCard label="Overdue Reviews" value={stats.overdueReviews} tone="red" highlight={stats.overdueReviews > 0} />
+            <StatCard label="Overdue reviews" value={stats.overdueReviews} tone="red" highlight={stats.overdueReviews > 0} />
           </RevealItem>
         </RevealGroup>
       )}
