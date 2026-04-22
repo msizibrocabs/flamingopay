@@ -104,6 +104,15 @@ export async function listCTRs(filters?: {
   return ctrs.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
+/** Fetch a single CTR by id. */
+export async function getCTR(ctrId: string): Promise<CurrencyTransactionReport | null> {
+  const raw = await redis.get("fica:ctrs");
+  const ctrs: CurrencyTransactionReport[] = raw
+    ? typeof raw === "string" ? JSON.parse(raw) : raw as CurrencyTransactionReport[]
+    : [];
+  return ctrs.find(c => c.id === ctrId) ?? null;
+}
+
 /** Mark a CTR as filed with the FIC. */
 export async function markCTRFiled(ctrId: string): Promise<boolean> {
   const raw = await redis.get("fica:ctrs");

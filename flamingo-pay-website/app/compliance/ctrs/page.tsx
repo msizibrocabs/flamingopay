@@ -178,16 +178,31 @@ function CTRList() {
                   <span className="ml-auto">{timeAgo(ctr.createdAt)}</span>
                 </div>
 
-                {/* File action */}
-                {!ctr.filedWithFIC && (
-                  <div className="mt-3 flex flex-wrap gap-2 border-t border-flamingo-dark/10 pt-3">
+                {/* Actions */}
+                <div className="mt-3 flex flex-wrap gap-2 border-t border-flamingo-dark/10 pt-3">
+                  <a
+                    href={`/api/compliance/ctrs/${ctr.id}/goaml`}
+                    className="rounded-lg border-2 border-flamingo-dark bg-red-600 px-3 py-1 text-xs font-bold text-white shadow-[0_2px_0_0_#1A1A2E] hover:bg-red-700"
+                    title="Download a goAML 4.0 XML draft to upload to the FIC goAML portal"
+                  >
+                    Download goAML XML
+                  </a>
+                  {!ctr.filedWithFIC && (
                     <button onClick={() => fileWithFIC(ctr.id)}
                       disabled={filingId === ctr.id}
                       className="rounded-lg border-2 border-flamingo-dark bg-green-500 px-3 py-1 text-xs font-bold text-white shadow-[0_2px_0_0_#1A1A2E] disabled:opacity-50">
-                      {filingId === ctr.id ? "Filing..." : "File with FIC"}
+                      {filingId === ctr.id ? "Filing..." : "Mark filed with FIC"}
                     </button>
-                  </div>
-                )}
+                  )}
+                  <a
+                    href="https://www.fic.gov.za/goaml"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="ml-auto rounded-lg border-2 border-flamingo-dark/30 bg-white px-3 py-1 text-xs font-bold text-flamingo-dark/70 hover:border-flamingo-dark hover:text-flamingo-dark"
+                  >
+                    Open goAML portal ↗
+                  </a>
+                </div>
               </div>
             </RevealItem>
           ))}
