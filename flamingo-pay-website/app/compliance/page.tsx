@@ -395,10 +395,19 @@ function Dashboard() {
       <Reveal delay={0.25}>
         <section className="mt-10 rounded-3xl border-2 border-flamingo-dark bg-flamingo-butter p-5 shadow-[0_6px_0_0_#1A1A2E]">
           <h3 className="text-sm font-extrabold uppercase tracking-wide text-flamingo-dark">Active monitoring rules</h3>
+          <p className="mt-2 text-xs text-flamingo-dark/70">
+            Thresholds adapt to each merchant&rsquo;s business type (spaza, salon, service provider, etc.). Baseline values
+            shown below; per-type overrides are listed in{" "}
+            <a href="/legal/rmcp#appendix-d" className="font-extrabold underline hover:text-flamingo-pink">
+              RMCP Appendix D
+            </a>.
+          </p>
           <div className="mt-3 space-y-2 text-sm text-flamingo-dark">
-            <RuleInfo icon="💰" label="High amount" desc="Single transaction over R5,000" />
-            <RuleInfo icon="⚡" label="Velocity" desc="More than 10 transactions in 15 minutes for one merchant" />
-            <RuleInfo icon="🌙" label="Unusual hours" desc="Transactions between 23:00 and 05:00" />
+            <RuleInfo icon="💰" label="High amount" desc="Single transaction over the merchant's profile threshold (baseline R5,000; R3,000–R10,000 by business type)" />
+            <RuleInfo icon="⚡" label="Velocity" desc="More than the merchant's profile limit in a 15-minute window (baseline 20 txns; 15–60 by business type)" />
+            <RuleInfo icon="🌙" label="Unusual hours" desc="Transactions in the merchant's profile off-hours window (baseline 23:00–05:00; varies by business type)" />
+            <RuleInfo icon="📈" label="Anomaly" desc="Single transaction 4–8× the merchant's own rolling average (multiplier by business type)" />
+            <RuleInfo icon="🏦" label="CTR threshold" desc="Single transaction ≥ R24,999.99 (FICA s28 — auto-generates CTR)" />
             <RuleInfo icon="🖊️" label="Manual" desc="Compliance officer manually flags any transaction" />
           </div>
         </section>

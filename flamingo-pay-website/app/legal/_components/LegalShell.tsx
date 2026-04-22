@@ -73,6 +73,12 @@ export function LegalShell({
               Merchant Terms
             </Link>
             <Link
+              href="/legal/rmcp"
+              className="rounded-lg px-3 py-1.5 text-flamingo-dark/70 hover:bg-flamingo-cream"
+            >
+              RMCP
+            </Link>
+            <Link
               href="/"
               className="rounded-lg border-2 border-flamingo-dark bg-white px-3 py-1.5 text-flamingo-dark shadow-[0_3px_0_0_#1A1A2E] hover:bg-flamingo-cream"
             >
