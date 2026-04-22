@@ -7,7 +7,8 @@ import {
 } from "../../../../../lib/store";
 import { requireSession } from "../../../../../lib/api-auth";
 import { appendAuditLog } from "../../../../../lib/audit";
-import { checkSTR, checkCTR, listSTRs, listCTRs } from "../../../../../lib/fica";
+import { checkSTR, checkCTR, listSTRs, listCTRs, CTR_THRESHOLD } from "../../../../../lib/fica";
+import { MS_PER_DAY } from "../../../../../lib/time";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -78,10 +79,10 @@ export async function POST(req: NextRequest) {
           }
         }
 
-        // ── CTRs (R25,000+ threshold) ──
-        if (!ctrTxnIds.has(txn.id) && txn.amount >= 25000) {
+        // ── CTRs (single-txn FICA threshold — s28) ──
+        if (!ctrTxnIds.has(txn.id) && txn.amount >= CTR_THRESHOLD) {
           const recent24hAmounts = txns
-            .filter((t) => t.id !== txn.id && Math.abs(new Date(t.timestamp).getTime() - new Date(txn.timestamp).getTime()) < 86400000)
+            .filter((t) => t.id !== txn.id && Math.abs(new Date(t.timestamp).getTime() - new Date(txn.timestamp).getTime()) < MS_PER_DAY)
             .map((t) => t.amount);
           const ctr = await checkCTR(
             merchant.id, merchant.businessName, txn.id, txn.amount,

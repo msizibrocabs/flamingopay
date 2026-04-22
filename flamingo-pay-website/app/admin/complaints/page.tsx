@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { AdminGate } from "../_components/AdminGate";
 import { AdminNav } from "../_components/AdminNav";
 import Link from "next/link";
+import { MS_PER_DAY, MS_PER_HOUR } from "../../../lib/time";
 
 type ComplaintEvent = {
   timestamp: string;
@@ -164,8 +165,8 @@ function Inner() {
   function slaRemaining(deadline: string): string {
     const diff = new Date(deadline).getTime() - Date.now();
     if (diff <= 0) return "OVERDUE";
-    const days = Math.floor(diff / 86400000);
-    const hours = Math.floor((diff % 86400000) / 3600000);
+    const days = Math.floor(diff / MS_PER_DAY);
+    const hours = Math.floor((diff % MS_PER_DAY) / MS_PER_HOUR);
     if (days > 0) return `${days}d ${hours}h`;
     return `${hours}h`;
   }

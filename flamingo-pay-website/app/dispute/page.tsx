@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { formatZAR } from "../../lib/merchant";
 
 type Step = "find" | "select" | "form" | "done";
 type FindMethod = "reference" | "search";
@@ -156,7 +157,6 @@ export default function DisputePage() {
     }
   }
 
-  const formatZAR = (n: number) => `R${n.toLocaleString("en-ZA", { minimumFractionDigits: 2 })}`;
   const formatDate = (s: string) => new Date(s).toLocaleDateString("en-ZA", { day: "numeric", month: "short", year: "numeric" });
 
   return (

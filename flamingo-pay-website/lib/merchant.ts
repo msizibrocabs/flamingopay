@@ -3,6 +3,8 @@
  * Replace with real API calls once backend is wired up.
  */
 
+import { MS_PER_DAY } from "./time";
+
 export type Txn = {
   id: string;
   amount: number;       // ZAR
@@ -133,7 +135,7 @@ export function makeMockSettlements(txns: Txn[]): Settlement[] {
     const payoutFee = PAYOUT_FEE;
     const net = +(gross - txnFees - payoutFee).toFixed(2);
     const dayDate = new Date(day);
-    const daysAgo = Math.floor((now.getTime() - dayDate.getTime()) / 86400000);
+    const daysAgo = Math.floor((now.getTime() - dayDate.getTime()) / MS_PER_DAY);
     settled.push({
       id: `st_${idx}`,
       amount: +gross.toFixed(2),

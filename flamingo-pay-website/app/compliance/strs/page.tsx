@@ -13,6 +13,7 @@ import {
   RISK_LEVEL_COLORS,
 } from "../../../lib/compliance-ui";
 import { daysSince } from "../../../lib/time";
+import { STR_FILING_DEADLINE_DAYS, STR_WARNING_DAYS } from "../../../lib/fica";
 
 type STR = {
   id: string;
@@ -47,10 +48,8 @@ const STATUS_COLORS = STR_STATUS_COLORS;
 const STATUS_LABELS = STR_STATUS_LABELS;
 const RISK_COLORS = RISK_LEVEL_COLORS;
 
-// FIC Act s29(3): STRs must be filed within 15 working days of forming a suspicion.
-// Warn at 10 days, flag overdue at 15.
-const STR_FILING_DEADLINE_DAYS = 15;
-const STR_WARNING_DAYS = 10;
+// FIC Act s29(3) deadlines live in lib/fica.ts — imported above.
+// Warn at STR_WARNING_DAYS, flag overdue at STR_FILING_DEADLINE_DAYS.
 
 function filingUrgency(str: { status: string; createdAt: string; filedAt?: string }):
   | { label: string; className: string; title: string }

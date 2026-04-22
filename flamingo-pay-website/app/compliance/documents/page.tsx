@@ -67,7 +67,7 @@ type Summary = {
 // ─── Constants ─────────────────────────────────────────
 
 const FILTERS = [
-  { key: "pending", label: "Pending Review" },
+  { key: "pending", label: "Pending review" },
   { key: "rejected", label: "Rejected" },
   { key: "all", label: "All" },
 ];

@@ -11,6 +11,7 @@
 
 import "server-only";
 import { Redis } from "@upstash/redis";
+import { MS_PER_DAY } from "./time";
 
 const redis = new Redis({
   url: (process.env.KV_REST_API_URL ?? process.env.UPSTASH_REDIS_REST_URL)!,
@@ -361,7 +362,7 @@ export async function complaintStats() {
     const totalMs = resolvedWithTime.reduce((s, c) => {
       return s + (new Date(c.resolvedAt!).getTime() - new Date(c.createdAt).getTime());
     }, 0);
-    avgDays = Math.round(totalMs / resolvedWithTime.length / 86400000);
+    avgDays = Math.round(totalMs / resolvedWithTime.length / MS_PER_DAY);
   }
 
   // Category breakdown
