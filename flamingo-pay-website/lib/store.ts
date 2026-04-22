@@ -1402,9 +1402,25 @@ export async function evaluateRules(
 ): Promise<TxnFlag[]> {
   // Look up the merchant's business type to get tailored rules
   const merchant = await getMerchant(merchantId);
+  const allTxns = await listTransactions(merchantId);
+  return evaluateRulesWithContext(merchantId, txn, merchant, allTxns);
+}
+
+/**
+ * Internal rule-evaluator that lets callers supply pre-loaded merchant +
+ * transaction history so we don't re-fetch from Redis on every call —
+ * critical for the bulk rescan endpoint (previously 2 extra round-trips
+ * per txn, which pushed the function past its Vercel timeout on any
+ * reasonably-busy merchant).
+ */
+export async function evaluateRulesWithContext(
+  merchantId: string,
+  txn: StoredTxn,
+  merchant: MerchantApplication | null | undefined,
+  allTxns: StoredTxn[],
+): Promise<TxnFlag[]> {
   const businessType = merchant?.businessType ?? "Other";
   const rules = rulesForMerchant(businessType).filter(r => r.enabled);
-  const allTxns = await listTransactions(merchantId);
   const newFlags: TxnFlag[] = [];
   const now = new Date().toISOString();
 

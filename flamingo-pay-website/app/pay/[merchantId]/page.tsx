@@ -249,17 +249,6 @@ export default function PayPage() {
   useEffect(() => {
     if (step === "done") {
       flamingoConfetti();
-      // Auto-download receipt after a short delay so the UI renders first
-      const timer = setTimeout(() => {
-        downloadReceipt({
-          merchantName: merchant?.name ?? "Merchant",
-          amount: parseFloat(amount),
-          method: selectedMethod ? METHODS[selectedMethod].label : "PayShap",
-          ref: txnRef ?? "—",
-          date: new Date(),
-        });
-      }, 1500);
-      return () => clearTimeout(timer);
     }
   }, [step]);
 
@@ -273,8 +262,13 @@ export default function PayPage() {
     return () => clearInterval(interval);
   }, [step]);
 
-  /** Record the transaction on the server so it shows on merchant dashboard + admin */
-  async function recordTransaction(rail: "payshap" | "eft") {
+  /**
+   * Record the transaction on the server so it shows on merchant
+   * dashboard + admin. Returns the server-generated reference so the
+   * caller can pass it straight into the receipt download without
+   * racing the React state update that drives the on-screen receipt.
+   */
+  async function recordTransaction(rail: "payshap" | "eft"): Promise<string | null> {
     try {
       const banks = ["Capitec", "FNB", "Standard Bank", "Nedbank", "ABSA", "TymeBank", "Discovery Bank"];
       const res = await fetch(`/api/merchants/${merchantId}/transactions`, {
@@ -288,9 +282,30 @@ export default function PayPage() {
       });
       if (res.ok) {
         const data = await res.json();
-        setTxnRef(data.transaction?.reference ?? null);
+        const ref: string | null = data.transaction?.reference ?? null;
+        setTxnRef(ref);
+        return ref;
       }
     } catch { /* best-effort */ }
+    return null;
+  }
+
+  /**
+   * Fire the PNG receipt download ~1.5s after success so the UI has
+   * time to render first. We take the ref as an argument (rather than
+   * reading from state) because the useEffect closure used to capture
+   * a stale null when setTxnRef + setStep batching misaligned.
+   */
+  function scheduleReceiptDownload(method: PaymentMethod, ref: string | null) {
+    setTimeout(() => {
+      downloadReceipt({
+        merchantName: merchant?.name ?? "Merchant",
+        amount: numericAmount,
+        method: METHODS[method].label,
+        ref: ref ?? "—",
+        date: new Date(),
+      });
+    }, 1500);
   }
 
   function handlePreset(val: number) {
@@ -349,8 +364,9 @@ export default function PayPage() {
       const rail = method === "payshap" ? "payshap" as const : "eft" as const;
       setTimeout(async () => {
         if (!willFail) {
-          await recordTransaction(rail);
+          const ref = await recordTransaction(rail);
           setStep("done");
+          scheduleReceiptDownload(method, ref);
         } else {
           setStep("failed");
         }
@@ -365,12 +381,14 @@ export default function PayPage() {
   }
   function handleRetry() {
     if (!selectedMethod) return;
+    const method = selectedMethod;
     setStep("processing");
-    const rail = selectedMethod === "payshap" ? "payshap" as const : "eft" as const;
+    const rail = method === "payshap" ? "payshap" as const : "eft" as const;
     // Retry always succeeds
     setTimeout(async () => {
-      await recordTransaction(rail);
+      const ref = await recordTransaction(rail);
       setStep("done");
+      scheduleReceiptDownload(method, ref);
     }, 2200);
   }
 

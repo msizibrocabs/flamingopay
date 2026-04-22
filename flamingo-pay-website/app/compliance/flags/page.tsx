@@ -56,16 +56,41 @@ function FlagsList() {
         credentials: "same-origin",
         headers: { "Content-Type": "application/json" },
       });
-      const data = await res.json();
-      if (!res.ok) {
-        setRescanResult({ scanned: 0, flagsCreated: 0, error: data.error ?? `Server error (${res.status})` });
+
+      // Rescan runs a lot of sequential Redis calls and can exceed the
+      // function timeout. When it does, the platform returns a plain-text
+      // or HTML error page instead of JSON — parsing blindly with
+      // res.json() then throws "Unexpected token 'A', 'An error o'…".
+      // Read as text first, then try JSON.
+      const raw = await res.text();
+      let data: { scanned?: number; flagsCreated?: number; error?: string } | null = null;
+      try {
+        data = raw ? JSON.parse(raw) : null;
+      } catch {
+        data = null;
+      }
+
+      if (!res.ok || !data) {
+        const fallback = raw
+          ? raw.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().slice(0, 180)
+          : `Server error (${res.status})`;
+        setRescanResult({
+          scanned: 0,
+          flagsCreated: 0,
+          error: data?.error ?? fallback ?? `Server error (${res.status})`,
+        });
         return;
       }
+
       setRescanResult({ scanned: data.scanned ?? 0, flagsCreated: data.flagsCreated ?? 0 });
       // Refresh the flags list
       fetchFlags(tab);
     } catch (err) {
-      setRescanResult({ scanned: 0, flagsCreated: 0, error: `Network error: ${err}` });
+      setRescanResult({
+        scanned: 0,
+        flagsCreated: 0,
+        error: `Network error: ${err instanceof Error ? err.message : String(err)}`,
+      });
     } finally {
       setRescanning(false);
     }

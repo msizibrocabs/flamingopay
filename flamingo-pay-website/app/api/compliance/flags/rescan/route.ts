@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   listMerchants,
   listTransactions,
-  evaluateRules,
+  evaluateRulesWithContext,
   listFlags,
 } from "../../../../../lib/store";
 import { requireSession } from "../../../../../lib/api-auth";
@@ -58,8 +58,17 @@ export async function POST(req: NextRequest) {
         totalScanned++;
 
         // ── Flags ──
+        // Use the context-passing variant so we don't re-fetch the merchant
+        // and full txn list on every iteration (2 Redis round-trips per txn
+        // otherwise — which is what pushes this route over the 60s timeout
+        // on any dataset with a couple hundred transactions).
         if (!flaggedTxnIds.has(txn.id)) {
-          const newFlags = await evaluateRules(merchant.id, txn);
+          const newFlags = await evaluateRulesWithContext(
+            merchant.id,
+            txn,
+            merchant,
+            txns,
+          );
           if (newFlags.length > 0) {
             merchantFlagCount += newFlags.length;
             totalFlagged += newFlags.length;
