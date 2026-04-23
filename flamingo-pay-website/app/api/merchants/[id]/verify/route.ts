@@ -37,9 +37,14 @@ export async function GET(_req: NextRequest, { params }: Params) {
 
   const record = await getKycRecord(id);
   const isRegisteredBiz = !!merchant.cipcRegistrationNumber;
+  // A merchant "has" an ID if we've already masked one (VerifyNow ran) OR
+  // there's a usable KYC record on file. Simplified tier merchants can
+  // onboard without an ID; their required-checks list is empty.
+  const hasIdNumber = !!merchant.idNumberMasked || !!record?.idNumberMasked;
   const requiredChecks = requiredChecksForTier(
     merchant.kycTier,
     isRegisteredBiz,
+    { hasIdNumber },
   );
 
   return NextResponse.json({

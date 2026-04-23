@@ -709,14 +709,29 @@ function maskIdNumber(id: string): string {
 }
 
 /**
- * Determine which checks are required for a given KYC tier.
- * Higher tiers require more checks.
+ * Determine which automated VerifyNow checks are required for a given KYC tier.
+ *
+ * Higher tiers require more checks. The FICA Directive 6 simplified due-diligence
+ * path for informal traders (< R5 000/month) does not require a SA ID — those
+ * merchants are onboarded on a RICA-registered phone + affidavit + selfie and
+ * are reviewed manually by Compliance. When `hasIdNumber` is false we return an
+ * empty list for that path; the Compliance dashboard shows a "Manual affidavit
+ * review" task in place of VerifyNow.
  */
 export function requiredChecksForTier(
   tier: "simplified" | "standard" | "enhanced",
   isRegisteredBusiness: boolean,
+  opts: { hasIdNumber?: boolean } = {},
 ): string[] {
-  // All tiers require identity + AML
+  const hasIdNumber = opts.hasIdNumber ?? true;
+
+  // Simplified tier without an ID → no automated checks. Compliance reviews
+  // the affidavit + selfie by hand.
+  if (tier === "simplified" && !hasIdNumber) {
+    return [];
+  }
+
+  // All other paths require identity + AML at minimum.
   const checks = ["said_verification", "aml_pep_sanctions"];
 
   if (tier === "standard" || tier === "enhanced") {

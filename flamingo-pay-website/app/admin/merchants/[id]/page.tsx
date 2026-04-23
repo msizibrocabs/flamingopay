@@ -719,6 +719,7 @@ const DOC_TINT: Record<DocumentStatus, string> = {
 };
 
 const DOC_ICON: Record<DocumentKind, string> = {
+  rica_phone: "📱",
   id: "🪪",
   selfie: "🤳",
   affidavit: "📜",

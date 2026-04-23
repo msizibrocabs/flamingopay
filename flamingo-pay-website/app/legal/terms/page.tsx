@@ -154,19 +154,26 @@ export default function MerchantTermsPage() {
         <ul className="list-disc space-y-1.5 pl-6">
           <li>
             <strong>Simplified due diligence:</strong> for Merchants with
-            expected monthly volumes below R25,000 — name, ID, selfie, and
-            proof of address.
+            expected monthly volumes below R5,000 — name, RICA-registered
+            phone (verified by SMS OTP at signup), a photo of the Merchant,
+            and a sworn affidavit from a commissioner of oaths confirming
+            trading identity. A SA ID number is optional at this tier.
+            Applied under FICA Directive 6 for simplified CDD on low-value
+            accounts serving informal traders.
           </li>
           <li>
             <strong>Standard due diligence:</strong> for expected monthly
-            volumes between R25,000 and R100,000 — may require additional
-            business documentation.
+            volumes between R5,000 and R100,000 — SA ID, selfie, proof of
+            address, bank confirmation letter, and business registration or
+            affidavit. VerifyNow checks SAID, AML/PEP/sanctions, biometric
+            liveness, and bank account verification (AVS).
           </li>
           <li>
             <strong>Enhanced due diligence:</strong> for volumes exceeding
-            R100,000/month or those flagged by risk systems — may require
-            source of funds documentation, business registration, and site
-            visits.
+            R100,000/month or Merchants flagged by risk systems — all
+            Standard documents plus a source-of-funds declaration, face
+            match, and (for registered businesses) CIPC company and
+            director searches. May include site visits.
           </li>
         </ul>
         <p>

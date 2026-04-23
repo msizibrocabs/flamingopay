@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useRef, useState } from "react";
 import { signIn } from "../../../lib/merchant";
-import type { DocumentKind, KycTier } from "../../../lib/store";
+import { DOC_LABELS, docsForTier, type DocumentKind, type KycTier } from "../../../lib/store";
 
 type Step = 1 | 2 | 3 | 4 | 5 | 6;
 
@@ -44,17 +44,13 @@ const VOLUME_OPTIONS: { label: string; sublabel: string; value: number; tier: Ky
   { label: "More than R100 000", sublabel: "High-volume operation", value: 150_000, tier: "enhanced" },
 ];
 
-const DOC_LABELS: Record<DocumentKind, string> = {
-  id: "SA ID document",
-  selfie: "Selfie verification",
-  affidavit: "Sworn affidavit",
-  company_reg: "CIPC company registration",
-  proof_of_address: "Proof of address (utility bill)",
-  bank_letter: "Bank confirmation letter",
-  source_of_funds: "Source of funds declaration",
-};
+// DOC_LABELS imported from lib/store — single source of truth.
+// docsForTier imported from lib/store — single source of truth (the local
+// copy that used to live here incorrectly required ID+selfie+PoA for every
+// tier, which broke the FICA Directive 6 simplified due-diligence flow).
 
 const DOC_ICONS: Record<DocumentKind, string> = {
+  rica_phone: "📱",
   id: "🪪",
   selfie: "🤳",
   affidavit: "📜",
@@ -65,25 +61,18 @@ const DOC_ICONS: Record<DocumentKind, string> = {
 };
 
 const DOC_HINTS: Record<DocumentKind, string> = {
+  rica_phone: "Your signup phone number — we verified it via SMS in step 2. RICA requires it to be registered in your name.",
   id: "Photo of your green SA ID book or smart card (front & back)",
-  selfie: "Clear selfie holding your ID next to your face",
-  affidavit: "Sworn affidavit from a commissioner of oaths",
+  selfie: "Clear photo of your face. Good lighting, no hat or sunglasses.",
+  affidavit: "Sworn affidavit from a commissioner of oaths confirming your trading identity and RICA-registered phone",
   company_reg: "CIPC registration certificate (COR 14.3 or COR 39)",
   proof_of_address: "Utility bill, bank statement, or lease — less than 3 months old",
   bank_letter: "Bank confirmation letter showing account holder name & number",
   source_of_funds: "Written declaration of where your business income comes from",
 };
 
-function docsForTier(tier: KycTier, businessType: string): DocumentKind[] {
-  const docs: DocumentKind[] = ["id", "selfie", "proof_of_address"];
-  if (tier === "simplified") return docs;
-  docs.push("bank_letter");
-  const isCompany = /pty|ltd|cc|company|bakery|studio|boutique|transport/i.test(businessType);
-  docs.push(isCompany ? "company_reg" : "affidavit");
-  if (tier === "standard") return docs;
-  docs.push("source_of_funds");
-  return docs;
-}
+/** Document kinds that aren't file uploads — auto-verified elsewhere in the flow. */
+const AUTO_VERIFIED_DOCS: Set<DocumentKind> = new Set(["rica_phone"]);
 
 const TIER_LABELS: Record<KycTier, string> = {
   simplified: "Simplified",
@@ -154,7 +143,13 @@ export default function SignupPage() {
     () => docsForTier(tier, businessType),
     [tier, businessType],
   );
-  const allDocsUploaded = requiredDocs.every(k => uploads[k]?.done);
+  // Docs that the user actually has to upload a file for (exclude auto-verified ones
+  // like rica_phone — the OTP step already proves ownership of the phone).
+  const uploadableDocs = useMemo(
+    () => requiredDocs.filter(k => !AUTO_VERIFIED_DOCS.has(k)),
+    [requiredDocs],
+  );
+  const allDocsUploaded = uploadableDocs.every(k => uploads[k]?.done);
 
   const progress = useMemo(() => (step / TOTAL_STEPS) * 100, [step]);
 
@@ -172,7 +167,10 @@ export default function SignupPage() {
       if (!businessName.trim()) return "What's your shop called?";
       if (!ownerName.trim()) return "We need your full name";
       if (!businessType) return "Pick a category";
-      if (!idNumber.trim() || !/^\d{13}$/.test(idNumber.trim())) return "Enter your 13-digit SA ID number";
+      // SA ID is optional for Simplified tier (FICA Directive 6 lets us onboard
+      // informal traders on RICA phone + affidavit + photo). If the user does
+      // enter an ID, we still insist on a valid 13-digit format.
+      if (idNumber.trim() && !/^\d{13}$/.test(idNumber.trim())) return "SA ID must be 13 digits";
     }
     if (step === 4) {
       if (volumeIdx == null) return "Select your expected monthly volume";
@@ -368,7 +366,7 @@ export default function SignupPage() {
     2: { title: "Verify & set your PIN", sub: "We sent a 6-digit code to your phone via SMS" },
     3: { title: "Tell us about your shop", sub: "This shows up on your QR and receipts" },
     4: { title: "How much do you expect per month?", sub: "This determines which documents we need from you" },
-    5: { title: "Upload your documents", sub: `${TIER_LABELS[tier]} KYC — ${requiredDocs.length} document${requiredDocs.length > 1 ? "s" : ""} required` },
+    5: { title: "Upload your documents", sub: `${TIER_LABELS[tier]} KYC — ${uploadableDocs.length} document${uploadableDocs.length > 1 ? "s" : ""} to upload` },
     6: { title: "Where should we send your money?", sub: "We settle your sales every morning at 09:00" },
   };
 
@@ -592,7 +590,7 @@ export default function SignupPage() {
 
               <label className="block">
                 <span className="text-xs font-bold uppercase tracking-wide text-flamingo-dark/70">
-                  SA ID number
+                  SA ID number <span className="normal-case text-flamingo-dark/50">(optional for small traders)</span>
                 </span>
                 <input
                   type="text"
@@ -602,10 +600,9 @@ export default function SignupPage() {
                   onChange={e => setIdNumber(e.target.value.replace(/\D/g, "").slice(0, 13))}
                   placeholder="8801015800088"
                   className="mt-1 block w-full rounded-xl border-2 border-flamingo-dark bg-flamingo-cream px-3 py-3 text-base font-semibold text-flamingo-dark outline-none placeholder:text-flamingo-dark/40 tracking-widest"
-                  required
                 />
                 <span className="mt-1 block text-xs text-flamingo-dark/50">
-                  We verify this against Home Affairs — instant, secure, required by law (FICA)
+                  Providing an ID unlocks higher monthly limits. If you skip it, you can still trade up to R5&nbsp;000/month with a RICA-registered phone and sworn affidavit (FICA Directive 6).
                 </span>
               </label>
 
@@ -688,10 +685,10 @@ export default function SignupPage() {
                   </p>
                   <p className="mt-0.5 text-[11px] text-flamingo-dark/70">
                     {tier === "simplified"
-                      ? "Only 3 documents needed — ID, selfie, and proof of address."
+                      ? "Just 3 things needed — your RICA-registered phone (already verified), a selfie, and a sworn affidavit. No ID required at this tier."
                       : tier === "standard"
-                        ? "5 documents needed — includes bank letter and business registration."
-                        : "6 documents needed — includes source of funds declaration."}
+                        ? "5 documents needed — SA ID, selfie, proof of address, bank letter, and business registration."
+                        : "6 documents needed — full ID pack plus source-of-funds declaration for enhanced due diligence."}
                   </p>
                 </div>
               )}
@@ -702,6 +699,31 @@ export default function SignupPage() {
           {step === 5 && (
             <div className="space-y-3">
               {requiredDocs.map(kind => {
+                // Auto-verified docs (e.g. rica_phone — proven in step 2 OTP)
+                // render as a confirmation tile, not an upload button.
+                if (AUTO_VERIFIED_DOCS.has(kind)) {
+                  return (
+                    <div
+                      key={kind}
+                      className="rounded-xl border-2 border-green-400 bg-green-50 p-3"
+                    >
+                      <div className="flex items-start gap-3">
+                        <span className="text-xl">{DOC_ICONS[kind]}</span>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-extrabold text-flamingo-dark">{DOC_LABELS[kind]}</p>
+                          <p className="text-[11px] text-flamingo-dark/60">{DOC_HINTS[kind]}</p>
+                          <p className="mt-1 text-[11px] font-bold text-green-700">
+                            ✓ Verified via SMS to {normalisePhone(phone)}
+                          </p>
+                        </div>
+                        <span className="flex-none rounded-lg border-2 border-green-600 bg-green-100 px-3 py-1.5 text-xs font-extrabold text-green-800">
+                          Verified
+                        </span>
+                      </div>
+                    </div>
+                  );
+                }
+
                 const upload = uploads[kind];
                 const isDone = upload?.done;
                 const isUploading = upload?.uploading;

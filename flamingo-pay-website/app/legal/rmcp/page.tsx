@@ -95,19 +95,80 @@ export default function RmcpPage() {
 
       <LegalSection id="kyc" number="4" title="Customer due diligence">
         <p>
-          Every merchant is onboarded with identity verification (SA ID bio-IQ
-          match), business verification (CIPC for registered entities, trading
-          confirmation for sole proprietors), bank-account verification (AVS),
-          and sanctions screening against the UN Consolidated List, the SA
-          Targeted Financial Sanctions List, and politically exposed person
-          (PEP) lists.
+          Flamingo applies a three-tier risk-based CDD programme, calibrated to
+          expected monthly volume and merchant profile. The tier is selected at
+          signup and adjusted dynamically if actual volumes move a merchant
+          into a higher bracket.
+        </p>
+        <div className="mt-4 overflow-x-auto">
+          <table className="w-full border-collapse text-sm">
+            <thead>
+              <tr className="border-b-2 border-flamingo-dark bg-flamingo-butter text-left">
+                <th className="px-3 py-2">Tier</th>
+                <th className="px-3 py-2">Monthly volume</th>
+                <th className="px-3 py-2">Required identification</th>
+                <th className="px-3 py-2">Automated checks (VerifyNow)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr className="border-b border-flamingo-dark/20">
+                <td className="px-3 py-2 font-semibold">Simplified</td>
+                <td className="px-3 py-2">&lt; R5,000</td>
+                <td className="px-3 py-2">
+                  RICA-registered phone (verified by SMS OTP at signup),
+                  selfie, sworn affidavit from a commissioner of oaths. SA ID
+                  number is optional at this tier.
+                </td>
+                <td className="px-3 py-2">
+                  None by default — manual affidavit review by Compliance.
+                  If the merchant supplies an ID, SAID + AML/PEP/sanctions
+                  checks still run.
+                </td>
+              </tr>
+              <tr className="border-b border-flamingo-dark/20">
+                <td className="px-3 py-2 font-semibold">Standard</td>
+                <td className="px-3 py-2">R5,000 – R100,000</td>
+                <td className="px-3 py-2">
+                  SA ID, selfie, proof of address, bank confirmation letter,
+                  business registration or affidavit.
+                </td>
+                <td className="px-3 py-2">
+                  SAID verification, AML/PEP/sanctions, biometric liveness
+                  (ID photo enhanced), bank account verification (AVS).
+                </td>
+              </tr>
+              <tr>
+                <td className="px-3 py-2 font-semibold">Enhanced</td>
+                <td className="px-3 py-2">&gt; R100,000</td>
+                <td className="px-3 py-2">
+                  All Standard documents plus source-of-funds declaration.
+                  Registered businesses additionally supply CIPC certificates
+                  and beneficial-ownership declaration.
+                </td>
+                <td className="px-3 py-2">
+                  All Standard checks plus face match. Registered businesses
+                  also run CIPC company and director searches.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p className="mt-4">
+          The Simplified tier operates under FICA Directive 6 on simplified
+          customer due diligence for low-value accounts serving the informal
+          economy. It is subject to a hard transaction cap of R5,000 per
+          calendar month enforced at the limits-engine layer; any merchant
+          whose recorded volume approaches the cap is automatically uplifted
+          to Standard and prompted to complete the fuller document pack before
+          further transactions are accepted.
         </p>
         <p>
-          Each merchant is assigned a risk rating (low / medium / high) using
-          the factors in Directive 6. High-risk merchants (cash-intensive
-          businesses, non-face-to-face onboarding, adverse media) undergo
-          Enhanced Due Diligence including source-of-funds declaration and
-          ongoing monthly review.
+          Sanctions screening runs against the UN Consolidated List, the SA
+          Targeted Financial Sanctions List, and politically exposed person
+          (PEP) lists. High-risk merchants (cash-intensive businesses,
+          non-face-to-face onboarding, adverse media) are escalated to
+          Enhanced Due Diligence regardless of monthly volume, including
+          source-of-funds declaration and ongoing monthly review.
         </p>
       </LegalSection>
 

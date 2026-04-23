@@ -73,6 +73,7 @@ const FILTERS = [
 ];
 
 const DOC_ICONS: Record<string, string> = {
+  rica_phone: "📱",
   id: "🪪",
   selfie: "🤳",
   affidavit: "📜",

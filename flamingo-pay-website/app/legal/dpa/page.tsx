@@ -286,8 +286,14 @@ export default function DpaPage() {
         <p>
           <strong>What they do:</strong> VerifyNow provides Know Your Customer
           (KYC) identity verification for merchant onboarding. When a merchant
-          registers, their identity documents are verified against the
-          Department of Home Affairs database.
+          supplies a South African ID number, it is verified against the
+          Department of Home Affairs database and screened against sanctions
+          and PEP lists. VerifyNow is <strong>not</strong> engaged for the
+          Simplified due-diligence path (FICA Directive 6, informal traders
+          under R5,000 monthly volume) when the merchant declines to supply
+          an ID — those merchants are verified on RICA-registered phone plus
+          sworn affidavit and reviewed manually by Flamingo&apos;s Compliance
+          team, so no personal data is shared with VerifyNow for that cohort.
         </p>
         <p>
           <strong>Personal information processed:</strong>

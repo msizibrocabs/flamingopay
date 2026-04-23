@@ -39,6 +39,7 @@ export const FLAMINGO_FEE_FIXED = 0.99;
 export type KycTier = "simplified" | "standard" | "enhanced";
 
 export type DocumentKind =
+  | "rica_phone"
   | "id"
   | "selfie"
   | "affidavit"
@@ -47,17 +48,26 @@ export type DocumentKind =
   | "bank_letter"
   | "source_of_funds";
 
-/** Volume thresholds that determine KYC tier (monthly, in ZAR). */
+/**
+ * Volume thresholds that determine KYC tier (monthly, in ZAR).
+ *
+ * Simplified is the FICA Directive 6 "simplified due diligence" tier for
+ * very-low-risk informal traders — identity established via RICA-registered
+ * phone + sworn affidavit + selfie, capped at R5 000/month. An SA ID
+ * number is optional; if supplied, it still runs through SAID + AML/PEP.
+ */
 export const KYC_THRESHOLDS = {
-  simplified: 25_000,   // < R25k/month
-  standard: 100_000,    // R25k – R100k/month
-  // enhanced: > R100k/month
+  simplified: 5_000,     // < R5k/month  — RICA + affidavit + selfie
+  standard: 100_000,     // R5k – R100k/month  — full CDD (ID + selfie + PoA + bank + aff/CIPC)
+  // enhanced: > R100k/month  — EDD + source of funds
 } as const;
 
 /** Default velocity limits per KYC tier. Merchants can have custom overrides. */
 export const DEFAULT_VELOCITY: Record<KycTier, Required<VelocityLimits>> = {
-  simplified: { maxTxnPerHour: 15, maxDailyVolume: 10_000, maxSingleTxn: 5_000 },
-  standard:   { maxTxnPerHour: 30, maxDailyVolume: 50_000, maxSingleTxn: 25_000 },
+  // Simplified is capped at R5 000/month total, so daily/single caps are
+  // tightened accordingly — a single R5k txn exhausts the monthly budget.
+  simplified: { maxTxnPerHour: 10, maxDailyVolume: 5_000,   maxSingleTxn: 5_000 },
+  standard:   { maxTxnPerHour: 30, maxDailyVolume: 50_000,  maxSingleTxn: 25_000 },
   enhanced:   { maxTxnPerHour: 60, maxDailyVolume: 200_000, maxSingleTxn: 100_000 },
 };
 
@@ -70,8 +80,8 @@ export function kycTierForVolume(monthlyVolume: number): KycTier {
 
 /** Human-readable tier labels. */
 export const KYC_TIER_LABELS: Record<KycTier, string> = {
-  simplified: "Simplified (< R25k/month)",
-  standard: "Standard (R25k – R100k/month)",
+  simplified: "Simplified (< R5k/month)",
+  standard: "Standard (R5k – R100k/month)",
   enhanced: "Enhanced (> R100k/month)",
 };
 
@@ -330,9 +340,16 @@ export function isLegacyPinHash(hash: string): boolean {
 
 // ---------------------- Helpers ----------------------
 
-const DOC_LABELS: Record<DocumentKind, string> = {
+/**
+ * Canonical human-readable labels for each document kind.
+ * Exported so the signup UI, admin detail, and compliance queue all
+ * use identical wording (otherwise a merchant sees "Selfie verification"
+ * on one page and a reviewer sees "Photo" on another).
+ */
+export const DOC_LABELS: Record<DocumentKind, string> = {
+  rica_phone: "RICA-registered phone",
   id: "SA ID document",
-  selfie: "Selfie verification",
+  selfie: "Photo (selfie)",
   affidavit: "Sworn affidavit",
   company_reg: "CIPC company registration",
   proof_of_address: "Proof of address (utility bill)",
@@ -342,18 +359,22 @@ const DOC_LABELS: Record<DocumentKind, string> = {
 
 /**
  * Documents required per KYC tier (cumulative):
- *   Simplified  (< R25k) : ID, selfie, proof of address              (3 docs)
- *   Standard (R25k–R100k): + bank letter + affidavit/company_reg      (5 docs)
- *   Enhanced   (> R100k) : + source of funds                          (6 docs)
+ *   Simplified  (< R5k/mo) : RICA phone, selfie, affidavit             (3 docs)
+ *                            — FICA Directive 6 simplified due diligence
+ *                              for informal traders. SA ID number is
+ *                              optional at this tier; if supplied, SAID +
+ *                              AML/PEP still run via VerifyNow.
+ *   Standard (R5k–R100k/mo): ID, selfie, PoA + bank letter + aff/CIPC   (5 docs)
+ *   Enhanced   (> R100k/mo): + source of funds                          (6 docs)
  */
 export function docsForTier(tier: KycTier, businessType: string): DocumentKind[] {
-  // Tier 1 — Simplified
-  const docs: DocumentKind[] = ["id", "selfie", "proof_of_address"];
+  // Tier 1 — Simplified: RICA + affidavit + selfie (no ID doc, no PoA)
+  if (tier === "simplified") {
+    return ["rica_phone", "selfie", "affidavit"];
+  }
 
-  if (tier === "simplified") return docs;
-
-  // Tier 2 — Standard: add bank letter + business-type doc
-  docs.push("bank_letter");
+  // Tier 2 — Standard: full formal CDD
+  const docs: DocumentKind[] = ["id", "selfie", "proof_of_address", "bank_letter"];
   const isCompany = /pty|ltd|cc|company|bakery|studio|boutique|transport/i.test(businessType);
   docs.push(isCompany ? "company_reg" : "affidavit");
 
@@ -373,6 +394,16 @@ function defaultDocsFor(
   const kinds = docsForTier(tier, businessType);
 
   return kinds.map((k, i): MerchantDocument => {
+    // rica_phone is proven by the signup OTP — it never needs a file review.
+    // Seed it as verified the moment the merchant record is created.
+    if (k === "rica_phone") {
+      return {
+        kind: k, label: DOC_LABELS[k], status: "verified",
+        submittedAt: iso(0), verifiedAt: iso(0),
+        note: "Auto-verified via signup OTP (RICA compliant)",
+      };
+    }
+
     if (status === "approved") {
       return {
         kind: k, label: DOC_LABELS[k], status: "verified",
