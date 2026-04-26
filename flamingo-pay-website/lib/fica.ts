@@ -11,8 +11,23 @@
  * FICA requires 5-year retention of all records.
  */
 
-// server-only guard is enforced by store.ts (the sole importer)
+import "server-only";
 import { Redis } from "@upstash/redis";
+// Pure numeric constants live in ./fica-constants so client components
+// can import them without dragging in @upstash/redis or the dynamic
+// imports of verifynow/edd further down this file.
+import {
+  CTR_THRESHOLD,
+  CTR_FILING_DEADLINE_DAYS,
+  STR_FILING_DEADLINE_DAYS,
+  STR_WARNING_DAYS,
+} from "./fica-constants";
+export {
+  CTR_THRESHOLD,
+  CTR_FILING_DEADLINE_DAYS,
+  STR_FILING_DEADLINE_DAYS,
+  STR_WARNING_DAYS,
+};
 
 const redis = new Redis({
   url: (process.env.KV_REST_API_URL ?? process.env.UPSTASH_REDIS_REST_URL)!,
@@ -23,16 +38,8 @@ const redis = new Redis({
 // FICA requires reporting of cash transactions ≥ R25,000.
 // Filing deadline: 2 business days after the reportable transaction (FIC Act s28(1)).
 
-export const CTR_THRESHOLD = 25_000; // ZAR
-export const CTR_FILING_DEADLINE_DAYS = 2; // business days — FIC Act s28(1)
-
-// ─── STR (Suspicious Transaction Report) ───
-// Filing deadline: 15 working days after forming a suspicion (FIC Act s29(3)).
-// We count 15 calendar days in this field; the UI warns at day 10 and flags
-// overdue at day 15 so compliance has visual headroom for weekends/holidays.
-
-export const STR_FILING_DEADLINE_DAYS = 15; // working days — FIC Act s29(3)
-export const STR_WARNING_DAYS = 10;
+// CTR_THRESHOLD, CTR_FILING_DEADLINE_DAYS, STR_FILING_DEADLINE_DAYS,
+// STR_WARNING_DAYS are imported + re-exported from ./fica-constants above.
 
 export type CurrencyTransactionReport = {
   id: string;

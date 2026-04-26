@@ -13,7 +13,7 @@ import {
   RISK_LEVEL_COLORS,
 } from "../../../lib/compliance-ui";
 import { daysSince } from "../../../lib/time";
-import { STR_FILING_DEADLINE_DAYS, STR_WARNING_DAYS } from "../../../lib/fica";
+import { STR_FILING_DEADLINE_DAYS, STR_WARNING_DAYS } from "../../../lib/fica-constants";
 
 type STR = {
   id: string;
