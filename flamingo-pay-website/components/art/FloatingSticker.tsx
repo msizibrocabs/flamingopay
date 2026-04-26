@@ -1,19 +1,15 @@
 "use client";
 
 import { motion, useReducedMotion } from "framer-motion";
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 /**
  * FloatingSticker
  *
- * 3D "acrylic stand" version of the Flamingo Pay QR sticker —
- * floats in the hero with a soft drop shadow and gentle idle sway.
- * Compressed from the design's 500×800 source (no 3-step strip,
- * smaller QR, smaller badge) so it sits comfortably alongside the
- * editorial headline.
+ * 3D floating Flamingo Pay QR sticker for the website hero.
+ * Auto-fits its parent (no fixed width/height required).
  *
- * Ported from /flamingo-design/flamingo-qr/project/floating-sticker.jsx
- * + stickers.jsx (StickerClassic).
+ * Ported from /flamingo-design/flamingo-qr/project/{floating-sticker,stickers}.jsx
  */
 
 const BRAND = {
@@ -25,13 +21,13 @@ const BRAND = {
   ink: "#0B0B17",
 } as const;
 
-// Compressed sticker dimensions (was 500×800 in the source design)
-const STICKER_W = 380;
-const STICKER_H = 520;
+// Native sticker dimensions — same as the design source.
+const STICKER_W = 500;
+const STICKER_H = 800;
 
 /* ───────────────────────── F badge ───────────────────────── */
 function FBadge({
-  size = 42,
+  size = 54,
   invert = false,
   squared = false,
 }: {
@@ -65,9 +61,9 @@ function FBadge({
   );
 }
 
-/* ───────────────────────── QR pattern (deterministic) ───────────────────────── */
+/* ───────────────────────── QR pattern ───────────────────────── */
 function QRPattern({
-  size = 210,
+  size = 280,
   fg = BRAND.dark,
   bg = "#fff",
   seed = 7,
@@ -77,7 +73,7 @@ function QRPattern({
   bg?: string;
   seed?: number;
 }) {
-  const N = 25;
+  const N = 29;
   const cell = size / N;
 
   const rects = useMemo(() => {
@@ -92,7 +88,6 @@ function QRPattern({
     for (let y = 0; y < N; y++)
       for (let x = 0; x < N; x++) grid[y][x] = rand() > 0.52;
 
-    // Finder markers (7×7) at TL / TR / BL
     const drawFinder = (cx: number, cy: number) => {
       for (let y = 0; y < 7; y++)
         for (let x = 0; x < 7; x++) {
@@ -117,9 +112,8 @@ function QRPattern({
     drawFinder(N - 7, 0);
     drawFinder(0, N - 7);
 
-    // Alignment marker (5×5) bottom-right
-    const ax = N - 8;
-    const ay = N - 8;
+    const ax = N - 9;
+    const ay = N - 9;
     for (let y = 0; y < 5; y++)
       for (let x = 0; x < 5; x++) {
         const on =
@@ -127,8 +121,7 @@ function QRPattern({
         grid[ay + y][ax + x] = on;
       }
 
-    // Clear center for logo
-    const logoSize = 6;
+    const logoSize = 7;
     const lo = Math.floor((N - logoSize) / 2);
     for (let y = 0; y < logoSize; y++)
       for (let x = 0; x < logoSize; x++) grid[lo + y][lo + x] = false;
@@ -162,7 +155,7 @@ function QRPattern({
   );
 }
 
-function QR({ size = 210 }: { size?: number }) {
+function QR({ size = 280 }: { size?: number }) {
   return (
     <div style={{ position: "relative", width: size, height: size }}>
       <QRPattern size={size} />
@@ -192,9 +185,9 @@ function QR({ size = 210 }: { size?: number }) {
 
 function ScanBrackets({
   color = BRAND.pinkDeep,
-  thickness = 3,
-  armLen = 22,
-  offset = -7,
+  thickness = 4,
+  armLen = 26,
+  offset = -8,
 }: {
   color?: string;
   thickness?: number;
@@ -245,8 +238,29 @@ function ScanBrackets({
   );
 }
 
-/* ───────────────────────── Sticker face (compressed) ───────────────────────── */
-function StickerCompressed({
+function StepNumber({ n }: { n: number }) {
+  return (
+    <div
+      style={{
+        width: 28,
+        height: 28,
+        borderRadius: "50%",
+        background: BRAND.pink,
+        color: "#fff",
+        fontWeight: 900,
+        fontSize: 14,
+        lineHeight: "28px",
+        textAlign: "center",
+        flexShrink: 0,
+      }}
+    >
+      {n}
+    </div>
+  );
+}
+
+/* ───────────────────────── Sticker face (full design) ───────────────────────── */
+function StickerClassic({
   merchant = "Bra Mike's Braai",
   handle = "bra-mike-braai",
 }: {
@@ -269,17 +283,17 @@ function StickerCompressed({
       {/* Header */}
       <div
         style={{
-          padding: "22px 26px 14px",
+          padding: "30px 36px 20px",
           display: "flex",
           alignItems: "center",
-          gap: 12,
+          gap: 14,
         }}
       >
-        <FBadge size={42} invert />
+        <FBadge size={54} invert />
         <div style={{ lineHeight: 1 }}>
           <div
             style={{
-              fontSize: 11,
+              fontSize: 13,
               letterSpacing: "0.22em",
               fontWeight: 800,
               opacity: 0.9,
@@ -289,7 +303,7 @@ function StickerCompressed({
           </div>
           <div
             style={{
-              fontSize: 26,
+              fontSize: 34,
               fontWeight: 900,
               letterSpacing: "-0.02em",
               marginTop: 4,
@@ -303,7 +317,7 @@ function StickerCompressed({
       {/* Body */}
       <div
         style={{
-          padding: "4px 26px 16px",
+          padding: "6px 36px 20px",
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
@@ -313,7 +327,7 @@ function StickerCompressed({
           style={{
             fontFamily: '"Fraunces", ui-serif, Georgia, serif',
             fontWeight: 900,
-            fontSize: 30,
+            fontSize: 40,
             letterSpacing: "-0.03em",
             lineHeight: 1,
             textAlign: "center",
@@ -322,11 +336,10 @@ function StickerCompressed({
         >
           {merchant}
         </div>
-
         <div
           style={{
-            marginTop: 8,
-            fontSize: 10,
+            marginTop: 10,
+            fontSize: 12,
             letterSpacing: "0.26em",
             fontWeight: 800,
             color: BRAND.butter,
@@ -340,25 +353,25 @@ function StickerCompressed({
         <div
           style={{
             position: "relative",
-            marginTop: 16,
-            padding: 14,
+            marginTop: 22,
+            padding: 18,
             background: "#fff",
             border: `3px solid ${BRAND.ink}`,
-            boxShadow: `6px 6px 0 ${BRAND.ink}`,
+            boxShadow: `8px 8px 0 ${BRAND.ink}`,
           }}
         >
-          <ScanBrackets color={BRAND.pinkDeep} armLen={20} thickness={3} offset={-7} />
-          <QR size={210} />
+          <ScanBrackets color={BRAND.pinkDeep} armLen={26} thickness={4} offset={-8} />
+          <QR size={280} />
         </div>
 
         <div
           style={{
-            marginTop: 12,
-            fontSize: 11,
+            marginTop: 14,
+            fontSize: 12,
             fontWeight: 700,
             letterSpacing: "0.06em",
             color: BRAND.cream,
-            opacity: 0.92,
+            opacity: 0.9,
           }}
         >
           or open{" "}
@@ -370,16 +383,101 @@ function StickerCompressed({
 
       <div style={{ flex: 1 }} />
 
-      {/* Tiny ID strip — kept as the only footer (3-step strip removed) */}
+      {/* How it works — 3 steps on cream strip */}
+      <div
+        style={{
+          background: BRAND.cream,
+          color: BRAND.dark,
+          padding: "16px 28px 14px",
+          borderTop: `3px solid ${BRAND.ink}`,
+        }}
+      >
+        <div
+          style={{
+            fontSize: 10,
+            letterSpacing: "0.28em",
+            fontWeight: 800,
+            textAlign: "center",
+            color: BRAND.pinkDeep,
+            marginBottom: 10,
+          }}
+        >
+          HOW IT WORKS
+        </div>
+        <div
+          style={{ display: "flex", gap: 10, alignItems: "stretch" }}
+        >
+          {[
+            { n: 1, label: "Scan", sub: "Point your camera at the code" },
+            { n: 2, label: "Type amount", sub: "Enter what you owe" },
+            { n: 3, label: "Done", sub: "Tap pay — you're good to go" },
+          ].map((step, i) => (
+            <div
+              key={step.n}
+              style={{ display: "contents" }}
+            >
+              <div
+                style={{
+                  flex: 1,
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  textAlign: "center",
+                  gap: 6,
+                }}
+              >
+                <StepNumber n={step.n} />
+                <div
+                  style={{
+                    fontSize: 13,
+                    fontWeight: 900,
+                    letterSpacing: "-0.01em",
+                  }}
+                >
+                  {step.label}
+                </div>
+                <div
+                  style={{
+                    fontSize: 10,
+                    fontWeight: 500,
+                    lineHeight: 1.25,
+                    opacity: 0.65,
+                  }}
+                >
+                  {step.sub}
+                </div>
+              </div>
+              {i < 2 && (
+                <div
+                  style={{
+                    width: 16,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    color: BRAND.pink,
+                    fontWeight: 900,
+                    fontSize: 18,
+                    marginTop: 4,
+                  }}
+                >
+                  →
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Tiny ID strip */}
       <div
         style={{
           background: BRAND.ink,
           color: BRAND.cream,
-          padding: "8px 26px",
+          padding: "8px 36px",
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
-          fontSize: 9,
+          fontSize: 10,
           fontWeight: 700,
           letterSpacing: "0.14em",
           textTransform: "uppercase",
@@ -396,35 +494,56 @@ function StickerCompressed({
 
 /* ───────────────────────── 3D floating wrapper ───────────────────────── */
 export function FloatingSticker({
-  width = 460,
-  height = 600,
   merchant,
   handle,
   className = "",
+  initialYaw = -8,
+  initialPitch = 5,
 }: {
-  width?: number;
-  height?: number;
   merchant?: string;
   handle?: string;
   className?: string;
+  initialYaw?: number;
+  initialPitch?: number;
 }) {
   const reduce = useReducedMotion();
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [size, setSize] = useState<{ w: number; h: number }>({
+    w: 460,
+    h: 600,
+  });
 
+  // Auto-fit to parent
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const measure = () => {
+      const r = el.getBoundingClientRect();
+      if (r.width > 0 && r.height > 0) setSize({ w: r.width, h: r.height });
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  const { w: width, h: height } = size;
   // Fit so the rotated card stays inside the box
-  const displayScale = Math.min(width / STICKER_W, height / STICKER_H) * 0.95;
+  const displayScale = Math.min(width / STICKER_W, height / STICKER_H) * 0.92;
   const dispW = STICKER_W * displayScale;
   const dispH = STICKER_H * displayScale;
 
-  const cardThickness = 6;
-  const yaw = -10; // initial yaw (deg)
-  const pitch = 6; // initial pitch (deg)
+  const cardThickness = 8;
+  const yaw = initialYaw;
+  const pitch = initialPitch;
 
   return (
     <div
+      ref={containerRef}
       className={className}
       style={{
-        width,
-        height,
+        width: "100%",
+        height: "100%",
         position: "relative",
         userSelect: "none",
       }}
@@ -433,9 +552,7 @@ export function FloatingSticker({
       <motion.div
         aria-hidden
         animate={
-          reduce
-            ? undefined
-            : { y: [0, 4, 0], opacity: [0.85, 1, 0.85] }
+          reduce ? undefined : { y: [0, 4, 0], opacity: [0.85, 1, 0.85] }
         }
         transition={
           reduce
@@ -446,8 +563,8 @@ export function FloatingSticker({
           position: "absolute",
           left: "50%",
           bottom: "6%",
-          width: dispW * 0.9,
-          height: 26,
+          width: dispW * 0.85,
+          height: 28,
           transform: "translate(-50%, 0)",
           background:
             "radial-gradient(ellipse at center, rgba(180,42,72,0.32) 0%, rgba(180,42,72,0) 65%)",
@@ -460,7 +577,7 @@ export function FloatingSticker({
         style={{
           position: "absolute",
           inset: 0,
-          perspective: 1600,
+          perspective: 1800,
           perspectiveOrigin: "50% 45%",
         }}
       >
@@ -475,14 +592,14 @@ export function FloatingSticker({
             transformStyle: "preserve-3d",
           }}
         >
-          {/* Idle sway (rotate + float) */}
+          {/* Idle sway */}
           <motion.div
             animate={
               reduce
                 ? { rotateX: -pitch, rotateY: yaw, y: 0 }
                 : {
                     rotateX: [-pitch + 1.2, -pitch - 1.2, -pitch + 1.2],
-                    rotateY: [yaw + 3, yaw - 3, yaw + 3],
+                    rotateY: [yaw + 2.5, yaw - 2.5, yaw + 2.5],
                     y: [-3, 3, -3],
                   }
             }
@@ -493,11 +610,10 @@ export function FloatingSticker({
             }
             style={{
               transformStyle: "preserve-3d",
-              transform: `translate(-50%, -50%)`,
+              transform: "translate(-50%, -50%)",
               transformOrigin: "center center",
             }}
           >
-            {/* Card with thickness */}
             <div
               style={{
                 position: "relative",
@@ -513,7 +629,7 @@ export function FloatingSticker({
                   inset: 0,
                   transform: `translateZ(${cardThickness / 2}px)`,
                   boxShadow:
-                    "0 36px 70px -20px rgba(180,42,72,0.45), 0 18px 36px -10px rgba(26,26,46,0.25)",
+                    "0 40px 80px -20px rgba(180,42,72,0.45), 0 20px 40px -10px rgba(26,26,46,0.25)",
                   overflow: "hidden",
                   borderRadius: 2,
                   backfaceVisibility: "hidden",
@@ -528,9 +644,8 @@ export function FloatingSticker({
                     transformOrigin: "top left",
                   }}
                 >
-                  <StickerCompressed merchant={merchant} handle={handle} />
+                  <StickerClassic merchant={merchant} handle={handle} />
                 </div>
-                {/* Sheen */}
                 <div
                   style={{
                     position: "absolute",
@@ -541,7 +656,6 @@ export function FloatingSticker({
                     mixBlendMode: "screen",
                   }}
                 />
-                {/* Top-down light */}
                 <div
                   style={{
                     position: "absolute",
@@ -566,7 +680,7 @@ export function FloatingSticker({
                   justifyContent: "center",
                   fontFamily: '"DM Sans", system-ui, sans-serif',
                   fontWeight: 900,
-                  fontSize: 22,
+                  fontSize: 24,
                   letterSpacing: "-0.02em",
                   borderRadius: 2,
                   backfaceVisibility: "hidden",

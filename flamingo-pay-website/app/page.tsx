@@ -152,8 +152,8 @@ export default function Home() {
               transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1] }}
               className="relative mx-auto w-full max-w-xl"
             >
-              <div className="relative flex items-center justify-center w-full aspect-[4/5]">
-                <FloatingSticker width={460} height={600} />
+              <div className="relative w-full aspect-[1/1.05]">
+                <FloatingSticker />
               </div>
 
               {/* Floating "Today" glass card */}
