@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useRef, useState } from "react";
 import { signIn } from "../../../lib/merchant";
-import { DOC_LABELS, docsForTier, type DocumentKind, type KycTier } from "../../../lib/store";
+import { DOC_LABELS, docsForTier, type DocumentKind, type KycTier } from "../../../lib/kyc-shared";
 
 type Step = 1 | 2 | 3 | 4 | 5 | 6;
 

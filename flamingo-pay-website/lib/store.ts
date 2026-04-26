@@ -36,31 +36,27 @@ export type MerchantStatus = "pending" | "approved" | "rejected" | "suspended";
 export const FLAMINGO_FEE_RATE = 0.029;
 export const FLAMINGO_FEE_FIXED = 0.99;
 
-export type KycTier = "simplified" | "standard" | "enhanced";
-
-export type DocumentKind =
-  | "rica_phone"
-  | "id"
-  | "selfie"
-  | "affidavit"
-  | "company_reg"
-  | "proof_of_address"
-  | "bank_letter"
-  | "source_of_funds";
-
-/**
- * Volume thresholds that determine KYC tier (monthly, in ZAR).
- *
- * Simplified is the FICA Directive 6 "simplified due diligence" tier for
- * very-low-risk informal traders — identity established via RICA-registered
- * phone + sworn affidavit + selfie, capped at R5 000/month. An SA ID
- * number is optional; if supplied, it still runs through SAID + AML/PEP.
- */
-export const KYC_THRESHOLDS = {
-  simplified: 5_000,     // < R5k/month  — RICA + affidavit + selfie
-  standard: 100_000,     // R5k – R100k/month  — full CDD (ID + selfie + PoA + bank + aff/CIPC)
-  // enhanced: > R100k/month  — EDD + source of funds
-} as const;
+// Client-safe KYC primitives live in ./kyc-shared so that client components
+// (e.g. /merchant/signup) can import them without pulling in this server-only
+// module. Re-export here so existing imports of `lib/store` keep working.
+import {
+  type KycTier,
+  type DocumentKind,
+  KYC_THRESHOLDS,
+  kycTierForVolume,
+  KYC_TIER_LABELS,
+  DOC_LABELS,
+  docsForTier,
+} from "./kyc-shared";
+export {
+  type KycTier,
+  type DocumentKind,
+  KYC_THRESHOLDS,
+  kycTierForVolume,
+  KYC_TIER_LABELS,
+  DOC_LABELS,
+  docsForTier,
+};
 
 /** Default velocity limits per KYC tier. Merchants can have custom overrides. */
 export const DEFAULT_VELOCITY: Record<KycTier, Required<VelocityLimits>> = {
@@ -69,20 +65,6 @@ export const DEFAULT_VELOCITY: Record<KycTier, Required<VelocityLimits>> = {
   simplified: { maxTxnPerHour: 10, maxDailyVolume: 5_000,   maxSingleTxn: 5_000 },
   standard:   { maxTxnPerHour: 30, maxDailyVolume: 50_000,  maxSingleTxn: 25_000 },
   enhanced:   { maxTxnPerHour: 60, maxDailyVolume: 200_000, maxSingleTxn: 100_000 },
-};
-
-/** Determine KYC tier from expected monthly volume. */
-export function kycTierForVolume(monthlyVolume: number): KycTier {
-  if (monthlyVolume < KYC_THRESHOLDS.simplified) return "simplified";
-  if (monthlyVolume <= KYC_THRESHOLDS.standard) return "standard";
-  return "enhanced";
-}
-
-/** Human-readable tier labels. */
-export const KYC_TIER_LABELS: Record<KycTier, string> = {
-  simplified: "Simplified (< R5k/month)",
-  standard: "Standard (R5k – R100k/month)",
-  enhanced: "Enhanced (> R100k/month)",
 };
 
 export type DocumentStatus = "required" | "submitted" | "verified" | "rejected";
@@ -340,50 +322,9 @@ export function isLegacyPinHash(hash: string): boolean {
 
 // ---------------------- Helpers ----------------------
 
-/**
- * Canonical human-readable labels for each document kind.
- * Exported so the signup UI, admin detail, and compliance queue all
- * use identical wording (otherwise a merchant sees "Selfie verification"
- * on one page and a reviewer sees "Photo" on another).
- */
-export const DOC_LABELS: Record<DocumentKind, string> = {
-  rica_phone: "RICA-registered phone",
-  id: "SA ID document",
-  selfie: "Photo (selfie)",
-  affidavit: "Sworn affidavit",
-  company_reg: "CIPC company registration",
-  proof_of_address: "Proof of address (utility bill)",
-  bank_letter: "Bank confirmation letter",
-  source_of_funds: "Source of funds declaration",
-};
-
-/**
- * Documents required per KYC tier (cumulative):
- *   Simplified  (< R5k/mo) : RICA phone, selfie, affidavit             (3 docs)
- *                            — FICA Directive 6 simplified due diligence
- *                              for informal traders. SA ID number is
- *                              optional at this tier; if supplied, SAID +
- *                              AML/PEP still run via VerifyNow.
- *   Standard (R5k–R100k/mo): ID, selfie, PoA + bank letter + aff/CIPC   (5 docs)
- *   Enhanced   (> R100k/mo): + source of funds                          (6 docs)
- */
-export function docsForTier(tier: KycTier, businessType: string): DocumentKind[] {
-  // Tier 1 — Simplified: RICA + affidavit + selfie (no ID doc, no PoA)
-  if (tier === "simplified") {
-    return ["rica_phone", "selfie", "affidavit"];
-  }
-
-  // Tier 2 — Standard: full formal CDD
-  const docs: DocumentKind[] = ["id", "selfie", "proof_of_address", "bank_letter"];
-  const isCompany = /pty|ltd|cc|company|bakery|studio|boutique|transport/i.test(businessType);
-  docs.push(isCompany ? "company_reg" : "affidavit");
-
-  if (tier === "standard") return docs;
-
-  // Tier 3 — Enhanced: add source of funds
-  docs.push("source_of_funds");
-  return docs;
-}
+// DOC_LABELS and docsForTier moved to ./kyc-shared.ts (re-exported above
+// so external imports of `lib/store` keep working). They are pure data /
+// pure functions and need to be importable from client components.
 
 function defaultDocsFor(
   tier: KycTier,
