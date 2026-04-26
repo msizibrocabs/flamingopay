@@ -5,7 +5,7 @@ import { useRef } from "react";
 import { motion, useScroll, useTransform } from "framer-motion";
 import { Reveal, RevealGroup, RevealItem } from "../components/motion/Reveal";
 import { AnimatedCounter } from "../components/motion/AnimatedCounter";
-import { SpazaOwner } from "../components/art/SpazaOwner";
+import { FloatingSticker } from "../components/art/FloatingSticker";
 
 const JSONLD = {
   "@context": "https://schema.org",
@@ -144,7 +144,7 @@ export default function Home() {
             </Reveal>
           </div>
 
-          {/* RIGHT — spaza owner illustration + floating cards */}
+          {/* RIGHT — floating QR sticker (3D) + floating cards */}
           <div className="md:col-span-6 relative">
             <motion.div
               initial={{ opacity: 0, scale: 0.96, y: 20 }}
@@ -152,8 +152,8 @@ export default function Home() {
               transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1] }}
               className="relative mx-auto w-full max-w-xl"
             >
-              <div className="relative overflow-hidden rounded-[48px] border-2 border-flamingo-dark bg-flamingo-cream shadow-[0_30px_80px_-30px_rgba(26,26,46,0.4)]">
-                <SpazaOwner className="block w-full h-auto" />
+              <div className="relative flex items-center justify-center w-full aspect-[4/5]">
+                <FloatingSticker width={460} height={600} />
               </div>
 
               {/* Floating "Today" glass card */}
